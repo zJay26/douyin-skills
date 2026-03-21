@@ -2,92 +2,120 @@
 
 # douyin-skills
 
-**A focused OpenClaw skill collection for practical Douyin web automation**
-
-Authentication, search, image-post publishing, and lightweight interactions — trimmed down to the workflows that are actually worth keeping.
+**一个可直接复用的抖音网页自动化工具集**  
+**支持登录、搜索、图文发布、点赞、收藏、分享，也可作为 OpenClaw Skill 集成使用。**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](./LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.x-blue?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-required-43853d?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-Skill-6f42c1?style=for-the-badge)](https://docs.openclaw.ai)
+[![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-Compatible-6f42c1?style=for-the-badge)](https://docs.openclaw.ai)
 
 </div>
 
 ---
 
-## Why this repo exists
+## 项目简介
 
-Most Douyin automation projects try to do too much too early:
-- comments
-- analytics
-- batch workflows
-- unstable page scraping promises
-- broad claims that break the moment the site changes
+`douyin-skills` 是一个围绕 **抖音网页版 / 创作者中心网页版** 构建的轻量自动化项目。
 
-This repository takes the opposite approach.
+它不是那种“什么都想做”的大而全方案，而是专注保留一组**真正高频、实用、可维护**的能力：
 
-It keeps a **small, explicit, working surface area**:
-- login and account switching
-- keyword search
-- detail lookup
-- image-post publishing
-- like / favorite / share-link
-- environment setup guidance for moving the skill to another machine
+- 登录与账号切换
+- 关键词搜索与详情获取
+- 图文发布
+- 点赞 / 收藏 / 分享链接
+- 环境迁移与自检说明
 
-In short:
+你可以把它当成：
 
-> **This is not “full Douyin automation.”**  
-> It is a cleaned, practical OpenClaw skill set for a few repeatable web workflows that have actually been exercised and trimmed for stability.
+- 一个**可直接运行的抖音网页自动化工具集**
+- 一个**适合二次开发的最小可用基础工程**
+- 一套**可嵌入 OpenClaw 的 Skill 结构化实现**
+
+一句话概括：
+
+> **不是“万能抖音机器人”，而是一套刻意收敛后的、真的能拿来干活的抖音自动化能力集合。**
 
 ---
 
-## Features
+## 为什么这个项目值得做
 
-### Authentication & account management
-- Check login status
-- QR login flow
-- SMS verification flow
-- Named account profiles
-- Default account switching
+很多抖音自动化项目常见的问题是：
 
-### Explore
-- Search Douyin items by keyword
-- Fetch detail by item id
+- 功能写得很满，但大部分没真正跑通
+- 评论、批量运营、分析、定时任务全都写上，但稳定性很差
+- 对外暴露太多命令，后续维护成本很高
+- 页面一变就全线失效
 
-### Publish
-- Fill image-post form
-- Select background music
-- Publish after page confirmation
+这个项目的思路正好相反：
 
-### Interact
-- Like a note/video
-- Favorite a note/video
-- Open share panel and copy link
+### 只保留真的值得保留的能力
+- 不追求“全覆盖”
+- 优先保留高频场景
+- 不把实验性功能包装成正式能力
 
-### Environment setup
-- Explain the runtime requirements
-- Explain what must be copied to another machine
-- Explain how to self-check a deployment
+### 更适合真实使用
+- 先能跑通，再谈扩展
+- 先把命令面收窄，再提高稳定性
+- 尽量减少误导性承诺
 
----
-
-## What this project intentionally does **not** promise
-
-The following are **out of scope** for the current public surface:
-- comments
-- reply comments
-- video publishing
-- scheduled publishing
-- analytics dashboards
-- creator-center full workflow automation
-- batch interaction pipelines
-- “stable API-like” guarantees
-
-This repository was deliberately cleaned to avoid exposing commands that looked complete but were not worth promising.
+### 更适合迁移和复用
+- 目录结构清晰
+- 命令边界明确
+- 可以单独作为 GitHub 仓库维护
+- 也可以作为 OpenClaw Skill 直接接入
 
 ---
 
-## Repository structure
+## 当前能力
+
+### 1）认证与账号管理
+- 检查登录状态
+- 二维码登录
+- 手机验证码登录
+- 多账号管理
+- 默认账号切换
+
+### 2）搜索与内容发现
+- 按关键词搜索作品
+- 根据作品 ID 获取详情
+
+### 3）图文发布
+- 填写图文发布表单
+- 选择音乐
+- 发布图文
+
+### 4）基础互动
+- 点赞
+- 收藏
+- 分享链接
+
+### 5）环境配置
+- 说明运行依赖
+- 说明迁移到另一台电脑时需要准备什么
+- 说明如何做环境自检
+
+---
+
+## 明确不做什么
+
+下面这些能力，**当前不对外承诺**：
+
+- 评论
+- 回复评论
+- 视频发布
+- 定时发布
+- 数据分析面板
+- 复杂批量运营
+- 完整创作者中心工作流自动化
+
+这不是“以后永远不做”，而是：
+
+> **在它们没有足够稳定之前，不把它们当成正式能力公开出去。**
+
+---
+
+## 仓库结构
 
 ```text
 .
@@ -118,19 +146,20 @@ This repository was deliberately cleaned to avoid exposing commands that looked 
     └── douyin-publish/
 ```
 
-### Directory roles
-- `SKILL.md` — main OpenClaw skill entry
-- `skills/*/SKILL.md` — subskills split by concern
-- `scripts/cli.py` — main command entrypoint
-- `scripts/douyin/*` — low-level browser automation logic
-- `scripts/chrome_launcher.py` — Chrome / Chromium launch and mode switching
-- `scripts/cdp_client.mjs` — CDP bridge used by the Python layer
+### 目录说明
+
+- `SKILL.md`：主 Skill 入口
+- `skills/*/SKILL.md`：按功能拆开的子 Skill
+- `scripts/cli.py`：统一命令入口
+- `scripts/douyin/*`：底层抖音页面自动化逻辑
+- `scripts/chrome_launcher.py`：浏览器启动与模式切换
+- `scripts/cdp_client.mjs`：Node 侧 CDP 通信桥接
 
 ---
 
-## Current command surface
+## 当前保留命令
 
-### Authentication / account
+### 认证 / 账号
 - `check-login`
 - `get-qrcode`
 - `wait-login`
@@ -141,64 +170,69 @@ This repository was deliberately cleaned to avoid exposing commands that looked 
 - `remove-account`
 - `set-default-account`
 
-### Explore
+### 搜索发现
 - `search-videos`
 - `get-video-detail`
 
-### Publish
+### 图文发布
 - `fill-publish-image`
 - `select-music`
 - `click-publish`
 
-### Interact
+### 基础互动
 - `like-video`
 - `favorite-video`
 - `share-video`
 
-This is the intentionally reduced, “core-only” command set.
+这就是当前项目对外保留的核心命令面。
 
 ---
 
-## Runtime model
+## 运行机制
 
-By default the skill prefers **headless mode**.
+### 默认无头模式
+项目默认优先使用 **headless** 模式运行，以减少干扰并提升自动化流畅度。
 
-If a real verification / risk page is detected, the launcher can switch to **headed mode** so a human can complete the challenge.
+### 遇到验证时自动切回有头模式
+如果检测到：
+- 验证码
+- 身份验证
+- 风控页
 
-Why this matters:
-- Douyin behaves differently in headless vs headed sessions
-- creator-center flows and public-page flows are not identical
-- newly published items are often easier to re-find from the user homepage than from search
+就会切回 **headed** 模式，请用户手动完成验证。
 
-This repo therefore prefers:
-1. minimal command surface
-2. explicit fallback behavior
-3. fewer false promises
+这样做的原因很现实：
+- 抖音在无头和有头模式下行为不完全一致
+- 搜索页、详情页、创作者中心页并不统一
+- 新发布作品也不一定能立刻在公开搜索里找到
+
+所以这个项目的原则是：
+
+> **优先让高频流程稳定工作，而不是为了“全自动”硬上。**
 
 ---
 
-## Requirements
+## 环境要求
 
-### Required binaries
+### 必需二进制
 - `python3`
 - `node`
 - `npm`
 - Chrome / Chromium
 
-### Required dependencies
-- Node package: `ws`
-- Python package: `Pillow` *(only needed if you also use local image-generation helpers)*
+### 必需依赖
+- Node 包：`ws`
+- Python 包：`Pillow`（如果你会用本地图片生成脚本）
 
-### Browser requirement
-The browser must support remote debugging.
-The launcher will try one of:
+### 浏览器要求
+浏览器需要支持 remote debugging。脚本会尝试以下名称之一：
 - `google-chrome`
 - `google-chrome-stable`
 - `chromium`
 - `chromium-browser`
 - `chrome`
 
-You can also set:
+也可以通过环境变量指定：
 
 ```bash
 CHROME_BIN=/path/to/chrome
@@ -206,22 +240,22 @@ CHROME_BIN=/path/to/chrome
 
 ---
 
-## Install
+## 安装方式
 
-### 1. Clone
+### 1）克隆仓库
 
 ```bash
 git clone <your-repo-url>
 cd douyin-skills
 ```
 
-### 2. Install Node dependency
+### 2）安装 Node 依赖
 
 ```bash
 npm install ws
 ```
 
-### 3. Install Python dependency
+### 3）安装 Python 依赖
 
 ```bash
 pip install pillow
@@ -229,39 +263,39 @@ pip install pillow
 
 ---
 
-## Quick start
+## 快速开始
 
-### Check login status
+### 检查登录状态
 
 ```bash
 python3 scripts/cli.py check-login
 ```
 
-### Get login QR code
+### 获取登录二维码
 
 ```bash
 python3 scripts/cli.py get-qrcode
 ```
 
-### Wait for login completion
+### 等待登录完成
 
 ```bash
 python3 scripts/cli.py wait-login
 ```
 
-### Search
+### 搜索视频
 
 ```bash
 python3 scripts/cli.py search-videos --keyword "AI焦虑" --limit 7
 ```
 
-### Fetch detail
+### 获取作品详情
 
 ```bash
 python3 scripts/cli.py get-video-detail --video-id 7619615485310668078
 ```
 
-### Fill an image-post draft
+### 填写图文发布表单
 
 ```bash
 python3 scripts/cli.py fill-publish-image \
@@ -270,19 +304,19 @@ python3 scripts/cli.py fill-publish-image \
   --images /abs/path/pic1.jpg /abs/path/pic2.jpg
 ```
 
-### Pick music
+### 选择音乐
 
 ```bash
 python3 scripts/cli.py select-music
 ```
 
-### Publish
+### 发布
 
 ```bash
 python3 scripts/cli.py click-publish
 ```
 
-### Interact with a published item
+### 点赞 / 收藏 / 分享
 
 ```bash
 python3 scripts/cli.py like-video --video-id 7619615485310668078
@@ -292,93 +326,106 @@ python3 scripts/cli.py share-video --video-id 7619615485310668078
 
 ---
 
-## Notes on publishing
+## 发布相关说明
 
-Publishing is intentionally simple:
-1. fill the form
-2. select music
-3. visually / programmatically inspect page state
-4. publish
+当前图文发布流程有意保持简单：
 
-A previous public `validate-publish` command was removed from the public surface because it was useful as a helper but not reliable enough to deserve first-class status.
+1. 填表
+2. 选音乐
+3. 看页面状态是否正常
+4. 发布
 
----
+之前项目里曾经有更复杂的校验思路，但最后没有继续保留为正式公开命令。
+原因很简单：
 
-## Notes on newly published items
-
-Do **not** assume search will find a newly published item immediately.
-
-A more reliable path is:
-1. open your own Douyin homepage
-2. find the new item in the post list
-3. extract the real public `note` / `video` link
-4. then interact with that real public item
-
-This matters especially for like / favorite right after publishing.
+> 页面检查可以辅助判断，但不能把它包装成百分百可靠的“正式校验器”。
 
 ---
 
-## OpenClaw skill layout
+## 关于“刚发布的作品”
 
-This repository is meant to be used as an OpenClaw skill folder.
+刚发完作品后，不要默认认为搜索立刻能搜到它。
 
-### Main skill
-- `SKILL.md`
+更可靠的路径是：
+1. 打开自己的抖音主页
+2. 从作品列表里找到刚发的图文
+3. 提取真实公开 `note` / `video` 链接
+4. 再去做点赞、收藏、分享等互动
 
-### Subskills
-- `skills/douyin-auth/`
-- `skills/douyin-env/`
-- `skills/douyin-explore/`
-- `skills/douyin-interact/`
-- `skills/douyin-publish/`
-
-The split is intentional:
-- auth is different from publish
-- publish is different from explore
-- environment setup is different from daily operation
+这一点在实际使用里非常重要。
 
 ---
 
-## Limitations
+## 既可以单独用，也可以接入 OpenClaw
 
-This project automates a live consumer website and creator-center UI.
-That means it can break when Douyin changes:
-- DOM structure
-- anti-bot behavior
-- login flow
-- creator-center upload behavior
-- note/video interaction layout
+这个仓库本身就是一套可以独立维护的脚本与 Skill 结构。
 
-Treat this repository as a maintained automation utility, **not** a stable external API.
+### 如果你单独使用
+你可以直接运行：
+- `python3 scripts/cli.py ...`
 
----
+### 如果你接入 OpenClaw
+它也已经按 OpenClaw Skill 的结构组织好了：
+- 主入口：`SKILL.md`
+- 子技能：
+  - `skills/douyin-auth/`
+  - `skills/douyin-env/`
+  - `skills/douyin-explore/`
+  - `skills/douyin-interact/`
+  - `skills/douyin-publish/`
 
-## Roadmap ideas
+所以它并不只是一个“只能给 OpenClaw 用的内部文件夹”，而是：
 
-Potential future work, if worth keeping stable enough:
-- stricter environment self-check tooling
-- more explicit machine-setup scripts
-- better publish-state introspection
-- more robust creator-center recovery logic
-
-Not all ideas should become public commands.
-The bar should stay high.
+> **既能独立运行，也能无缝作为 OpenClaw Skill 使用。**
 
 ---
 
-## Contributing
+## 局限性
 
-If you extend this repo, prefer the same philosophy:
-- keep the surface small
-- remove unstable promises
-- favor explicit workflows over marketing claims
-- do not expose half-working commands as public features
+这是一个基于真实网站页面的自动化项目，不是官方 API。
 
-If a feature is not stable enough to be defended, keep it private or cut it.
+因此它天然会受这些变化影响：
+- DOM 结构变化
+- 反爬/风控策略变化
+- 登录流程变化
+- 创作者中心上传流程变化
+- note / video 页面布局变化
+
+所以更准确的理解应该是：
+
+> **这是一个持续维护的自动化工具，而不是一个稳定不变的平台接口。**
+
+---
+
+## 后续值得继续做的方向
+
+可以继续增强，但应该继续保持克制：
+- 更完整的环境自检脚本
+- 更明确的一键安装流程
+- 更稳的发布状态识别
+- 更稳的创作者中心异常恢复逻辑
+
+不是所有“能做”的东西都应该成为公开命令。
+对外暴露的能力，应该一直保持高门槛。
+
+---
+
+## 贡献建议
+
+如果你想继续扩展这个项目，建议遵守同一个原则：
+
+- 命令面尽量小
+- 不要把实验功能包装成稳定能力
+- 宁可少一点，也不要误导用户
+- 先能维护，再谈扩展
+
+这个项目最值钱的地方，不是功能堆得多，而是：
+
+> **收得住。**
 
 ---
 
 ## License
 
-This project is licensed under the MIT License.  
-See [LICENSE](./LICENSE).
+本项目采用 MIT License。  
+详见 [LICENSE](./LICENSE)。
