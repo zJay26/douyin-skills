@@ -18,15 +18,6 @@
 
 `douyin-skills` 是一个面向 **抖音网页版 / 创作者中心网页版** 的自动化工具集，覆盖登录、搜索、图文发布与基础互动等常见工作流。
 
-项目当前以一组经过收敛的核心能力为主：
-- 登录与账号切换
-- 关键词搜索与详情获取
-- 图文发布
-- 点赞 / 收藏 / 分享链接
-- 环境迁移与自检说明
-
-它既可以作为独立脚本工程运行，也可以按 OpenClaw Skill 结构接入到更大的自动化系统中。
-
 ### 子 Skill 说明
 
 | 子 Skill | 作用 |
@@ -36,6 +27,46 @@
 | `douyin-publish` | 填写图文发布表单、选择音乐、执行发布 |
 | `douyin-interact` | 对公开作品执行点赞、收藏、分享链接 |
 | `douyin-env` | 说明依赖环境、迁移要求与部署自检流程 |
+
+---
+
+## 安装
+
+### 方法一：下载 ZIP 安装（推荐）
+
+最简单稳妥的方式，适用于 OpenClaw 及所有支持 `SKILL.md` 的 Agent 平台。
+
+1. 在 GitHub 仓库页面点击 **Code → Download ZIP**，下载项目压缩包。
+2. 解压后，将 `douyin-skills/` 文件夹放到你的 Agent skills 目录下。
+
+```text
+# OpenClaw 示例
+<openclaw-project>/skills/douyin-skills/
+
+# Claude Code 示例
+<your-project>/.claude/skills/douyin-skills/
+```
+
+### 方法二：Git 克隆安装
+
+如果你希望后续通过 `git pull` 持续更新，直接克隆到 skills 目录即可：
+
+```bash
+# OpenClaw 示例
+git clone <your-repo-url> <openclaw-project>/skills/douyin-skills
+
+# Claude Code 示例
+git clone <your-repo-url> <your-project>/.claude/skills/douyin-skills
+```
+
+### 方法三：作为独立脚本工程使用
+
+如果你不准备把它作为 Skill 目录接入，也可以直接把这个仓库当成普通脚本项目运行：
+
+```bash
+git clone <your-repo-url>
+cd douyin-skills
+```
 
 ---
 
@@ -80,9 +111,9 @@
 
 ---
 
-## 明确不做什么
+## 未来拓展
 
-下面这些能力，**当前不对外承诺**：
+暂不支持以下能力：
 
 - 评论
 - 回复评论
@@ -91,8 +122,6 @@
 - 数据分析面板
 - 复杂批量运营
 - 完整创作者中心工作流自动化
-
-这些能力目前未纳入公开命令面，主要原因是稳定性和可维护性尚不足以作为正式接口对外提供。
 
 ---
 
