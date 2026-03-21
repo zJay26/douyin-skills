@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local runtime / temp
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Browser / automation local state
+.chrome/
+.douyin-skills/
+playwright-report/
+
+# Project-local caches or generated artifacts that should not be versioned by default
+scripts/__pycache__/
+scripts/douyin/__pycache__/
