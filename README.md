@@ -1,38 +1,115 @@
+<div align="center">
+
 # douyin-skills
 
-A focused OpenClaw skill collection for Douyin web automation.
+**A focused OpenClaw skill collection for practical Douyin web automation**
 
-It currently keeps a deliberately small, practical surface area:
-- authentication / account switching
-- video search and detail lookup
-- image-post publishing
-- lightweight interactions: like, favorite, share-link
-- environment setup guidance for moving the skill to another machine
+Authentication, search, image-post publishing, and lightweight interactions — trimmed down to the workflows that are actually worth keeping.
 
-The goal of this repository is **not** to promise full Douyin automation.
-It is a trimmed, working skill set for a few repeatable workflows that have actually been exercised.
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](./LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.x-blue?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-required-43853d?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-Skill-6f42c1?style=for-the-badge)](https://docs.openclaw.ai)
+
+</div>
 
 ---
 
-## What this repo contains
+## Why this repo exists
+
+Most Douyin automation projects try to do too much too early:
+- comments
+- analytics
+- batch workflows
+- unstable page scraping promises
+- broad claims that break the moment the site changes
+
+This repository takes the opposite approach.
+
+It keeps a **small, explicit, working surface area**:
+- login and account switching
+- keyword search
+- detail lookup
+- image-post publishing
+- like / favorite / share-link
+- environment setup guidance for moving the skill to another machine
+
+In short:
+
+> **This is not “full Douyin automation.”**  
+> It is a cleaned, practical OpenClaw skill set for a few repeatable web workflows that have actually been exercised and trimmed for stability.
+
+---
+
+## Features
+
+### Authentication & account management
+- Check login status
+- QR login flow
+- SMS verification flow
+- Named account profiles
+- Default account switching
+
+### Explore
+- Search Douyin items by keyword
+- Fetch detail by item id
+
+### Publish
+- Fill image-post form
+- Select background music
+- Publish after page confirmation
+
+### Interact
+- Like a note/video
+- Favorite a note/video
+- Open share panel and copy link
+
+### Environment setup
+- Explain the runtime requirements
+- Explain what must be copied to another machine
+- Explain how to self-check a deployment
+
+---
+
+## What this project intentionally does **not** promise
+
+The following are **out of scope** for the current public surface:
+- comments
+- reply comments
+- video publishing
+- scheduled publishing
+- analytics dashboards
+- creator-center full workflow automation
+- batch interaction pipelines
+- “stable API-like” guarantees
+
+This repository was deliberately cleaned to avoid exposing commands that looked complete but were not worth promising.
+
+---
+
+## Repository structure
 
 ```text
 .
+├── LICENSE
+├── README.md
 ├── SKILL.md
 ├── scripts/
-│   ├── cli.py
-│   ├── chrome_launcher.py
-│   ├── cdp_client.mjs
 │   ├── account_manager.py
+│   ├── cdp_client.mjs
+│   ├── chrome_launcher.py
+│   ├── cli.py
 │   └── douyin/
-│       ├── login.py
-│       ├── search.py
-│       ├── publish.py
-│       ├── interact.py
+│       ├── __init__.py
 │       ├── cdp.py
+│       ├── errors.py
+│       ├── interact.py
+│       ├── login.py
+│       ├── publish.py
+│       ├── search.py
 │       ├── selectors.py
 │       ├── urls.py
-│       └── ...
+│       └── waiters.py
 └── skills/
     ├── douyin-auth/
     ├── douyin-env/
@@ -41,52 +118,62 @@ It is a trimmed, working skill set for a few repeatable workflows that have actu
     └── douyin-publish/
 ```
 
-This repo is the **skill itself**.
-It does not try to bundle every local asset from the original workspace.
+### Directory roles
+- `SKILL.md` — main OpenClaw skill entry
+- `skills/*/SKILL.md` — subskills split by concern
+- `scripts/cli.py` — main command entrypoint
+- `scripts/douyin/*` — low-level browser automation logic
+- `scripts/chrome_launcher.py` — Chrome / Chromium launch and mode switching
+- `scripts/cdp_client.mjs` — CDP bridge used by the Python layer
 
 ---
 
-## Current capabilities
+## Current command surface
 
-### 1. Authentication
-- check login status
-- QR login flow
-- SMS verification flow
-- named account profiles
-- default account switching
+### Authentication / account
+- `check-login`
+- `get-qrcode`
+- `wait-login`
+- `send-code`
+- `verify-code`
+- `list-accounts`
+- `add-account`
+- `remove-account`
+- `set-default-account`
 
-### 2. Explore
-- search videos by keyword
-- fetch item detail by id
+### Explore
+- `search-videos`
+- `get-video-detail`
 
-### 3. Publish
-- fill image-post form
-- select music
-- click publish
+### Publish
+- `fill-publish-image`
+- `select-music`
+- `click-publish`
 
-### 4. Interact
-- like a note/video
-- favorite a note/video
-- open share panel and copy link
+### Interact
+- `like-video`
+- `favorite-video`
+- `share-video`
 
-### 5. Environment setup
-- documents what is required to move the skill to another machine
-- documents the minimal dependency stack
+This is the intentionally reduced, “core-only” command set.
 
 ---
 
-## Intentionally out of scope
+## Runtime model
 
-These are **not** promised by this repo:
-- comments
-- reply comments
-- video publishing
-- scheduled publishing
-- analytics dashboards
-- full creator-center automation
-- complex batch operations
+By default the skill prefers **headless mode**.
 
-The repository was explicitly cleaned up to remove unstable or misleading surfaces.
+If a real verification / risk page is detected, the launcher can switch to **headed mode** so a human can complete the challenge.
+
+Why this matters:
+- Douyin behaves differently in headless vs headed sessions
+- creator-center flows and public-page flows are not identical
+- newly published items are often easier to re-find from the user homepage than from search
+
+This repo therefore prefers:
+1. minimal command surface
+2. explicit fallback behavior
+3. fewer false promises
 
 ---
 
@@ -98,9 +185,9 @@ The repository was explicitly cleaned up to remove unstable or misleading surfac
 - `npm`
 - Chrome / Chromium
 
-### Required runtime dependencies
+### Required dependencies
 - Node package: `ws`
-- Python package: `Pillow` (only needed for local image-generation helpers if you use them)
+- Python package: `Pillow` *(only needed if you also use local image-generation helpers)*
 
 ### Browser requirement
 The browser must support remote debugging.
@@ -111,14 +198,17 @@ The launcher will try one of:
 - `chromium-browser`
 - `chrome`
 
-You can also point it explicitly with:
-- `CHROME_BIN=/path/to/chrome`
+You can also set:
+
+```bash
+CHROME_BIN=/path/to/chrome
+```
 
 ---
 
 ## Install
 
-### 1. Clone the repository
+### 1. Clone
 
 ```bash
 git clone <your-repo-url>
@@ -141,37 +231,37 @@ pip install pillow
 
 ## Quick start
 
-### Check login
+### Check login status
 
 ```bash
 python3 scripts/cli.py check-login
 ```
 
-### Get QR code
+### Get login QR code
 
 ```bash
 python3 scripts/cli.py get-qrcode
 ```
 
-### Wait for login
+### Wait for login completion
 
 ```bash
 python3 scripts/cli.py wait-login
 ```
 
-### Search videos
+### Search
 
 ```bash
 python3 scripts/cli.py search-videos --keyword "AI焦虑" --limit 7
 ```
 
-### Get detail
+### Fetch detail
 
 ```bash
 python3 scripts/cli.py get-video-detail --video-id 7619615485310668078
 ```
 
-### Fill image post
+### Fill an image-post draft
 
 ```bash
 python3 scripts/cli.py fill-publish-image \
@@ -180,7 +270,7 @@ python3 scripts/cli.py fill-publish-image \
   --images /abs/path/pic1.jpg /abs/path/pic2.jpg
 ```
 
-### Select music
+### Pick music
 
 ```bash
 python3 scripts/cli.py select-music
@@ -192,7 +282,7 @@ python3 scripts/cli.py select-music
 python3 scripts/cli.py click-publish
 ```
 
-### Like / favorite / share
+### Interact with a published item
 
 ```bash
 python3 scripts/cli.py like-video --video-id 7619615485310668078
@@ -202,70 +292,93 @@ python3 scripts/cli.py share-video --video-id 7619615485310668078
 
 ---
 
-## Runtime model
-
-By default the skill now prefers **headless mode**.
-
-If a real verification page is detected, it switches to **headed mode** and asks the user to finish verification manually.
-
-This is important because Douyin web flows are not equally stable across:
-- headless vs headed
-- feed vs search vs creator-center pages
-- note vs video item pages
-
----
-
 ## Notes on publishing
 
-Publishing is intentionally kept simple:
-- fill the form
-- select music
-- inspect page state
-- publish
+Publishing is intentionally simple:
+1. fill the form
+2. select music
+3. visually / programmatically inspect page state
+4. publish
 
-The repository no longer exposes a separate `validate-publish` command because page-state checks were useful but not reliable enough to deserve a first-class public command.
+A previous public `validate-publish` command was removed from the public surface because it was useful as a helper but not reliable enough to deserve first-class status.
 
 ---
 
-## Notes on newly published posts
+## Notes on newly published items
 
-For operations right after publishing, do **not** assume search will find the item immediately.
+Do **not** assume search will find a newly published item immediately.
+
 A more reliable path is:
 1. open your own Douyin homepage
-2. find the newly published note in the post list
+2. find the new item in the post list
 3. extract the real public `note` / `video` link
-4. then interact with it
+4. then interact with that real public item
+
+This matters especially for like / favorite right after publishing.
 
 ---
 
-## OpenClaw integration
+## OpenClaw skill layout
 
-This repository is structured as an OpenClaw skill folder.
-The main entry is:
+This repository is meant to be used as an OpenClaw skill folder.
+
+### Main skill
 - `SKILL.md`
 
-Subskills are split by concern:
+### Subskills
 - `skills/douyin-auth/`
 - `skills/douyin-env/`
 - `skills/douyin-explore/`
 - `skills/douyin-interact/`
 - `skills/douyin-publish/`
 
+The split is intentional:
+- auth is different from publish
+- publish is different from explore
+- environment setup is different from daily operation
+
 ---
 
 ## Limitations
 
-This project depends on a live consumer website and creator-center UI.
-That means selectors, flows, and browser behavior may break when Douyin changes:
+This project automates a live consumer website and creator-center UI.
+That means it can break when Douyin changes:
 - DOM structure
-- anti-bot checks
+- anti-bot behavior
 - login flow
 - creator-center upload behavior
+- note/video interaction layout
 
-Treat it as a maintained automation utility, not a guaranteed stable API.
+Treat this repository as a maintained automation utility, **not** a stable external API.
+
+---
+
+## Roadmap ideas
+
+Potential future work, if worth keeping stable enough:
+- stricter environment self-check tooling
+- more explicit machine-setup scripts
+- better publish-state introspection
+- more robust creator-center recovery logic
+
+Not all ideas should become public commands.
+The bar should stay high.
+
+---
+
+## Contributing
+
+If you extend this repo, prefer the same philosophy:
+- keep the surface small
+- remove unstable promises
+- favor explicit workflows over marketing claims
+- do not expose half-working commands as public features
+
+If a feature is not stable enough to be defended, keep it private or cut it.
 
 ---
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+This project is licensed under the MIT License.  
+See [LICENSE](./LICENSE).
