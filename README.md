@@ -34,7 +34,7 @@
 
 ### 方法一：下载 ZIP 安装（推荐）
 
-最简单稳妥的方式，适用于 OpenClaw 及所有支持 `SKILL.md` 的 Agent 平台。
+适用于 OpenClaw 及所有支持 `SKILL.md` 的 Agent 平台。
 
 1. 在 GitHub 仓库页面点击 **Code → Download ZIP**，下载项目压缩包。
 2. 解压后，将 `douyin-skills/` 文件夹放到你的 Agent skills 目录下。
