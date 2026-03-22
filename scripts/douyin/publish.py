@@ -312,7 +312,8 @@ def click_publish(page, require_topic: bool = False) -> dict:
     check = validate_publish_state(page, require_topic=require_topic)
     if check.get("risk_page"):
         return check
-    if not check.get("success"):
+    allow_fallback_click = check.get("errors") == ["无法读取发布页状态"]
+    if not check.get("success") and not allow_fallback_click:
         return {
             "success": False,
             "message": "发布前校验失败",
@@ -322,13 +323,23 @@ def click_publish(page, require_topic: bool = False) -> dict:
     result = page.evaluate(
         """
         (() => {
+          const body = (document.body && document.body.innerText) || '';
           const buttons = Array.from(document.querySelectorAll('button'));
           const btn = buttons.find(el => (el.innerText || '').trim() === '发布');
-          if (!btn) return { success: false, message: '未找到底部发布按钮' };
+          if (!btn) return { success: false, message: '未找到底部发布按钮', body: body.slice(0, 2500) };
           btn.scrollIntoView({ block: 'center' });
           btn.click();
-          return { success: true, text: (btn.innerText || '').trim(), className: btn.className || '' };
+          return {
+            success: true,
+            text: (btn.innerText || '').trim(),
+            className: btn.className || '',
+            body: body.slice(0, 2500)
+          };
         })()
         """
     )
-    return result or {"success": False, "message": "点击发布失败"}
+    if result:
+        result["validation"] = check
+        if allow_fallback_click:
+            result["fallback"] = True
+    return result or {"success": False, "message": "点击发布失败", "validation": check}
