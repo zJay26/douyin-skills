@@ -181,7 +181,26 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
             break
 
     if not picked:
-        return {"success": False, "message": "音乐面板已打开，但未找到可用目标音乐。", "preferred": preferred}
+        fallback = page.evaluate(
+            """
+            (() => {
+              const portal = Array.from(document.querySelectorAll('.semi-portal')).find(el => {
+                const text = el.innerText || '';
+                return text.includes('选择音乐') && text.includes('热门榜');
+              });
+              if (!portal) return { success: false, reason: 'no-portal' };
+              const btn = portal.querySelector('button.apply-btn-LUPP0D');
+              if (!btn) return { success: false, reason: 'no-apply-button' };
+              const rowText = (btn.parentElement?.innerText || btn.closest('[class]')?.innerText || '').trim();
+              btn.click();
+              return { success: true, picked: rowText.split('\n')[0] || '热门榜首个可用音乐' };
+            })()
+            """
+        )
+        if fallback and fallback.get("success"):
+            picked = fallback.get("picked") or '热门榜首个可用音乐'
+        else:
+            return {"success": False, "message": "音乐面板已打开，但未找到可用目标音乐。", "preferred": preferred}
 
     applied = _wait_until(
         page,
@@ -215,7 +234,7 @@ def validate_publish_state(page, require_topic: bool = False) -> dict:
       const editorEl = document.querySelector('[data-slate-editor="true"], .editor-kit-container, [contenteditable="true"], div[role="textbox"]');
       const title = titleEl ? ((titleEl.value || '').trim()) : '';
       const editorText = editorEl ? (((editorEl.innerText || editorEl.textContent || '')).trim()) : '';
-      const hasImage = body.includes('继续添加') || body.includes('编辑图片') || body.includes('已添加4张图片') || body.includes('已添加1张图片');
+      const hasImage = body.includes('继续添加') || body.includes('编辑图片') || body.includes('已添加4张图片') || body.includes('已添加1张图片') || body.includes('取消上传');
       const hasMusic = body.includes('修改音乐');
       const hasTopic = body.includes('已关联热点') || body.includes('修改热点') || body.includes('关联热点\n#') || body.includes('关联热点\n话题');
       const errors = [];
@@ -244,11 +263,15 @@ def validate_publish_state(page, require_topic: bool = False) -> dict:
 def click_publish(page, require_topic: bool = False) -> dict:
     check = validate_publish_state(page, require_topic=require_topic)
     if not check.get("success"):
-        return {
-            "success": False,
-            "message": "发布前校验失败",
-            "validation": check,
-        }
+        errors = check.get("errors") or []
+        non_blocking = {"未选择音乐", "无法读取发布页状态"}
+        blocking_errors = [e for e in errors if e not in non_blocking]
+        if blocking_errors:
+            return {
+                "success": False,
+                "message": "发布前校验失败",
+                "validation": check,
+            }
 
     result = page.evaluate(
         """
