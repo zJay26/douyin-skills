@@ -182,16 +182,6 @@ def cmd_verify_code(args: argparse.Namespace) -> None:
     _output(result, exit_code=0 if result.get("logged_in") else 1)
 
 
-def cmd_list_feeds(args: argparse.Namespace) -> None:
-    _browser, page = _connect(args)
-    _output(list_feeds(page))
-
-
-def cmd_trending_topics(args: argparse.Namespace) -> None:
-    _browser, page = _connect(args)
-    _output(get_trending_topics(page))
-
-
 def cmd_search_videos(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = search_videos(page, args.keyword, limit=args.limit)
