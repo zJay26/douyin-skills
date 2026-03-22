@@ -3,17 +3,6 @@ name: douyin-auth
 description: |
   抖音认证管理技能。检查登录状态、登录（二维码或手机号）、多账号管理。
   当用户要求登录抖音、检查登录状态、切换账号时触发。
-version: 1.0.0
-metadata:
-  openclaw:
-    requires:
-      bins:
-        - python3
-        - uv
-    emoji: "\U0001F510"
-    os:
-      - darwin
-      - linux
 ---
 
 # 抖音认证管理

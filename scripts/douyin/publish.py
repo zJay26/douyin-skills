@@ -3,6 +3,8 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+from .login import RISK_PAGE_KEYWORDS, RISK_STRONG_HINTS
+
 IMAGE_UPLOAD_URL = "https://creator.douyin.com/creator-micro/content/upload?default-tab=3"
 
 
@@ -19,6 +21,34 @@ def _wait_until(page, fn: str, timeout: float = 30.0, interval: float = 0.5):
 
 def _js_quote(text: str) -> str:
     return repr(text)
+
+
+def _page_snapshot(page) -> dict:
+    return page.evaluate(
+        """
+        (() => ({
+          href: location.href || '',
+          title: document.title || '',
+          text: (document.body?.innerText || '').slice(0, 3000)
+        }))()
+        """
+    ) or {}
+
+
+def _risk_result(page, message: str) -> dict | None:
+    state = _page_snapshot(page)
+    title = state.get('title', '') or ''
+    text = state.get('text', '') or ''
+    risk = any(k in title or k in text for k in (RISK_PAGE_KEYWORDS + RISK_STRONG_HINTS))
+    if not risk:
+        return None
+    return {
+        'success': False,
+        'risk_page': True,
+        'message': message,
+        'page_title': title,
+        'page': state,
+    }
 
 
 def _fill_title_and_desc(page, title: str, desc: str) -> dict:
@@ -76,8 +106,15 @@ def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> d
     page.navigate(IMAGE_UPLOAD_URL)
     page.wait_for_load(30)
 
+    risk = _risk_result(page, "当前处于验证码/风控页，无法继续填写图文发布表单。")
+    if risk:
+        return risk
+
     ok = _wait_until(page, """(() => !!document.querySelector('input[type="file"]'))()""", timeout=20)
     if not ok:
+        risk = _risk_result(page, "当前处于验证码/风控页，无法继续填写图文发布表单。")
+        if risk:
+            return risk
         return {"success": False, "message": "未找到图文上传输入框。"}
 
     image_paths = [str(Path(x).resolve()) for x in images]
@@ -136,6 +173,9 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
 
     opened = page.click('span.action-Q1y01k') or page.click('.container-right-uW7Pj1') or page.click('.container-JngpiB')
     if not opened:
+        risk = _risk_result(page, "当前处于验证码/风控页，无法打开音乐面板。")
+        if risk:
+            return risk
         return {"success": False, "message": "未找到音乐选择入口。"}
 
     panel_ready = _wait_until(
@@ -150,6 +190,9 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
         interval=0.5,
     )
     if not panel_ready:
+        risk = _risk_result(page, "当前处于验证码/风控页，无法打开音乐面板。")
+        if risk:
+            return risk
         return {"success": False, "message": "音乐面板未成功打开。"}
 
     picked = None
@@ -257,21 +300,24 @@ def validate_publish_state(page, require_topic: bool = False) -> dict:
     }})()
     """
     state = page.evaluate(script)
-    return state or {"success": False, "errors": ["无法读取发布页状态"]}
+    if state:
+        return state
+    risk = _risk_result(page, "当前处于验证码/风控页，无法读取发布页状态。")
+    if risk:
+        return risk
+    return {"success": False, "errors": ["无法读取发布页状态"]}
 
 
 def click_publish(page, require_topic: bool = False) -> dict:
     check = validate_publish_state(page, require_topic=require_topic)
+    if check.get("risk_page"):
+        return check
     if not check.get("success"):
-        errors = check.get("errors") or []
-        non_blocking = {"未选择音乐", "无法读取发布页状态"}
-        blocking_errors = [e for e in errors if e not in non_blocking]
-        if blocking_errors:
-            return {
-                "success": False,
-                "message": "发布前校验失败",
-                "validation": check,
-            }
+        return {
+            "success": False,
+            "message": "发布前校验失败",
+            "validation": check,
+        }
 
     result = page.evaluate(
         """

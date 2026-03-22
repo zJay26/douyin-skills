@@ -24,6 +24,37 @@ from douyin.login import check_login_state, get_qrcode, wait_login, send_code, v
 from douyin.publish import click_publish, fill_publish_image, select_music, validate_publish_state
 from douyin.search import get_trending_topics, get_video_detail, list_feeds, search_videos
 
+
+def _wslg_headed_env_exports() -> str:
+    return "DISPLAY=:0 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 FORCE_HEADED=1"
+
+
+def _maybe_switch_to_headed_for_risk(args: argparse.Namespace, result: dict, reason: str):
+    if not isinstance(result, dict) or not result.get("risk_page"):
+        return None
+    if getattr(args, "headed", False):
+        page_title = result.get("page_title") or ""
+        return {
+            **result,
+            "action": "needs_user_verification",
+            "needs_user_verification": True,
+            "message": f"已处于有头模式，请在浏览器中手动完成验证码/身份验证后重试。原因：{reason}",
+            "page_title": page_title,
+        }
+    headed_args = argparse.Namespace(**vars(args))
+    headed_args.headed = True
+    _browser, page = _connect(headed_args)
+    page.navigate("https://www.douyin.com/")
+    page.wait_for_load(20)
+    body = _risk_or_verify_text(page)
+    return {
+        **result,
+        "action": "switched_to_headed",
+        "needs_user_verification": True,
+        "message": f"已自动切换到有头模式，请在浏览器中手动完成验证码/身份验证后重试。原因：{reason}。WSLg 环境请显式使用：{_wslg_headed_env_exports()}",
+        "page_excerpt": body[:1500],
+    }
+
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -163,7 +194,11 @@ def cmd_trending_topics(args: argparse.Namespace) -> None:
 
 def cmd_search_videos(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
-    _output(search_videos(page, args.keyword, limit=args.limit))
+    result = search_videos(page, args.keyword, limit=args.limit)
+    switched = _maybe_switch_to_headed_for_risk(args, result, "搜索页检测到验证码/风控")
+    if switched:
+        _output(switched, exit_code=2)
+    _output(result)
 
 
 def cmd_get_video_detail(args: argparse.Namespace) -> None:
@@ -193,12 +228,18 @@ def cmd_fill_publish_image(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     desc = Path(args.desc_file).read_text(encoding="utf-8").strip()
     result = fill_publish_image(page, args.images, desc, getattr(args, "title", "") or "")
+    switched = _maybe_switch_to_headed_for_risk(args, result, "发布页检测到验证码/风控")
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_select_music(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = select_music(page, getattr(args, "names", None))
+    switched = _maybe_switch_to_headed_for_risk(args, result, "选音乐时检测到验证码/风控")
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
@@ -211,6 +252,9 @@ def cmd_validate_publish(args: argparse.Namespace) -> None:
 def cmd_click_publish(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = click_publish(page, require_topic=getattr(args, "require_topic", False))
+    switched = _maybe_switch_to_headed_for_risk(args, result, "发布前检测到验证码/风控")
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
