@@ -22,10 +22,8 @@ description: |
 
 | 子命令 | 用途 |
 |--------|------|
-| `list-feeds` | 获取首页推荐 Feed |
 | `search-videos` | 关键词搜索视频 |
 | `get-video-detail` | 获取作品详情 |
-| `trending-topics` | 获取热门话题榜单 |
 
 ## 账号选择（前置步骤）
 
@@ -59,12 +57,6 @@ python scripts/cli.py list-accounts
 3. 从作品卡片上的公开链接提取真实 `note_id` / `video_id`
 4. 再交给 `douyin-interact` 执行互动
 
-### 首页 Feed
-
-```bash
-python scripts/cli.py list-feeds
-```
-
 ### 搜索视频
 
 ```bash
@@ -75,12 +67,6 @@ python scripts/cli.py search-videos --keyword "关键词" --limit 7
 
 ```bash
 python scripts/cli.py get-video-detail --video-id VIDEO_ID
-```
-
-### 获取热门话题
-
-```bash
-python scripts/cli.py trending-topics
 ```
 
 ## 明确不支持

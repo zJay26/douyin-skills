@@ -27,7 +27,6 @@ description: |
 | `wait-login` | 等待扫码完成（阻塞） |
 | `send-code [--phone]` | 发送手机验证码；在身份验证页可不传手机号，直接触发“接收短信验证码” |
 | `verify-code --code` | 提交验证码完成登录 |
-| `delete-cookies` | 退出登录并清除 cookies |
 | `add-account --name` | 添加命名账号（自动分配端口） |
 | `list-accounts` | 列出所有命名账号及端口 |
 | `remove-account --name` | 删除命名账号 |
@@ -60,13 +59,14 @@ python scripts/cli.py list-accounts
 
 1. 用户要求"检查登录 / 是否登录 / 登录状态"：执行登录状态检查。
 2. 用户要求"登录 / 扫码登录 / 手机登录 / 打开登录页"：执行登录流程。
-3. 用户要求"切换账号 / 换一个账号 / 退出登录 / 清除登录"：执行 cookie 清除。
+3. 用户要求"切换账号 / 换一个账号"：执行账号切换相关操作。
+4. 用户要求"退出登录 / 清除登录"：当前 CLI **未提供稳定公开命令**，不要承诺可直接执行，需先说明该能力未对外开放。
 
 ## 必做约束
 
 - 所有 CLI 命令位于 `scripts/cli.py`，输出 JSON。
-- 默认以**有头模式**启动 Chrome，方便用户在可见窗口中手动通过验证码/风控页面。
-- 在 WSLg / Linux 图形环境下，调用登录相关命令时显式附带：`DISPLAY=:0 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 FORCE_HEADED=1`，避免 exec 环境丢失显示变量导致误启无头模式。
+- 默认以**无头模式**启动 Chrome；只有在检测到验证码、身份验证或风控页时，才切到有头模式供用户人工处理。
+- 在 WSLg / Linux 图形环境下，只有切换到有头模式时，才显式附带：`DISPLAY=:0 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 FORCE_HEADED=1`。
 - 需要先有运行中的 Chrome（`ensure_chrome` 会自动启动）。
 - 如果使用文件路径，必须使用绝对路径。
 
@@ -150,11 +150,15 @@ python scripts/cli.py verify-code --code <用户提供的6位验证码>
 - 自动填写验证码、点击登录。
 - 输出：`{"logged_in": true, "message": "登录成功"}`
 
-### 清除 Cookies（切换账号/退出登录）
+### 切换账号
+
+当前公开 CLI 仅支持通过命名账号与默认账号切换，不提供稳定公开的 `delete-cookies` / 强制退出登录命令。
+如果用户要求换号，优先使用：
 
 ```bash
-python scripts/cli.py delete-cookies
-python scripts/cli.py --account work delete-cookies  # 指定账号
+python scripts/cli.py list-accounts
+python scripts/cli.py set-default-account --name work
+python scripts/cli.py --account work check-login
 ```
 
 ## 多账号工作流

@@ -30,46 +30,6 @@
 
 ---
 
-## 安装
-
-### 方法一：下载 ZIP 安装（推荐）
-
-适用于 OpenClaw 及所有支持 `SKILL.md` 的 Agent 平台。
-
-1. 在 GitHub 仓库页面点击 **Code → Download ZIP**，下载项目压缩包。
-2. 解压后，将 `douyin-skills/` 文件夹放到你的 Agent skills 目录下。
-
-```text
-# OpenClaw 示例
-<openclaw-project>/skills/douyin-skills/
-
-# Claude Code 示例
-<your-project>/.claude/skills/douyin-skills/
-```
-
-### 方法二：Git 克隆安装
-
-如果你希望后续通过 `git pull` 持续更新，直接克隆到 skills 目录即可：
-
-```bash
-# OpenClaw 示例
-git clone <your-repo-url> <openclaw-project>/skills/douyin-skills
-
-# Claude Code 示例
-git clone <your-repo-url> <your-project>/.claude/skills/douyin-skills
-```
-
-### 方法三：作为独立脚本工程使用
-
-如果你不准备把它作为 Skill 目录接入，也可以直接把这个仓库当成普通脚本项目运行：
-
-```bash
-git clone <your-repo-url>
-cd douyin-skills
-```
-
----
-
 ## 设计取向
 
 项目采用较小的公开命令面，重点放在以下几点：
@@ -342,13 +302,14 @@ python3 scripts/cli.py share-video --video-id 7619615485310668078
 
 1. 填表
 2. 选音乐
-3. 看页面状态是否正常
+3. 人工复核页面状态与预览效果
 4. 发布
 
-之前项目里曾经有更复杂的校验思路，但最后没有继续保留为正式公开命令。
-原因很简单：
-
-> 页面检查可以辅助判断，但不能把它包装成百分百可靠的“正式校验器”。
+说明：
+- 当前公开 CLI **没有**单独暴露 `validate-publish` 命令。
+- 页面检查仍然重要，但当前把它作为发布前人工复核要求，而不是包装成一个对外承诺的稳定校验命令。
+- 默认优先无头运行；只有遇到验证码、身份验证或风控页时，才切到有头模式。
+- 自动配图时，默认优先使用接近 9:16 的竖版图片，避免上下留白或白条。
 
 ---
 
