@@ -2,7 +2,7 @@
 
 # douyin-skills
 
-**抖音网页自动化Skills**  
+**开箱即用的抖音网页自动化Skills**  
 **支持登录、搜索、图文发布、点赞、收藏、分享，可作为 OpenClaw Skill 集成使用。**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](./LICENSE)
