@@ -14,7 +14,7 @@
 
 ---
 
-## 项目简介
+## 📖 项目简介
 
 `douyin-skills` 是一个面向 **抖音网页版 / 创作者中心网页版** 的自动化工具集，覆盖登录、搜索、图文发布与基础互动等常见工作流。
 
@@ -30,48 +30,25 @@
 
 ---
 
-## 设计取向
+## 📦 安装方式
 
-项目采用较小的公开命令面，重点放在以下几点：
+1. 在 GitHub 仓库页面点击 **Code → Download ZIP**  
+2. 将解压后的 `douyin-skills` 文件夹放入对应路径：
 
-- 以高频场景为主，避免一次性暴露过多不稳定能力
-- 保持命令边界清晰，降低维护成本
-- 将运行依赖、发布流程、互动流程拆分为独立子 Skill，便于复用与迁移
-- 在网页结构波动较大的场景下，优先保留可维护性而非追求表面上的功能覆盖率
-
----
-
-## 当前能力
-
-### 1）认证与账号管理
-- 检查登录状态
-- 二维码登录
-- 手机验证码登录
-- 多账号管理
-- 默认账号切换
-
-### 2）搜索与内容发现
-- 按关键词搜索作品
-- 根据作品 ID 获取详情
-
-### 3）图文发布
-- 填写图文发布表单
-- 选择音乐
-- 发布图文
-
-### 4）基础互动
-- 点赞
-- 收藏
-- 分享链接
-
-### 5）环境配置
-- 说明运行依赖
-- 说明迁移到另一台电脑时需要准备什么
-- 说明如何做环境自检
+##### OpenClaw
+```bash
+<openclaw-project>/skills/douyin-skills/
+```
 
 ---
 
-## 未来拓展
+## 🚀 快速开始
+
+**先让Agent根据douyin-env skill完成环境配置，之后直接用自然语言指挥Agent操作抖音就行了。第一次需要手动登录抖音网页版，之后会自动记住登录信息，偶尔可能会遇到风控页，此时需要以有头模式启动浏览器并手动过验证。**
+
+---
+
+## 🔮 未来拓展
 
 暂不支持以下能力：
 
@@ -85,7 +62,7 @@
 
 ---
 
-## 仓库结构
+## 🗂️ 仓库结构
 
 ```text
 .
@@ -127,48 +104,52 @@
 
 ---
 
-## 当前保留命令
+## 📜 当前命令
 
-### 认证 / 账号
-- `check-login`
-- `get-qrcode`
-- `wait-login`
-- `send-code`
-- `verify-code`
-- `list-accounts`
-- `add-account`
-- `remove-account`
-- `set-default-account`
+### 🔐 认证 / 账号
+| 命令 | 说明 |
+|------|------|
+| `check-login` | 检查当前登录状态 |
+| `get-qrcode` | 获取二维码进行扫码登录 |
+| `wait-login` | 等待用户扫码完成登录 |
+| `send-code` | 发送短信验证码 |
+| `verify-code` | 校验短信验证码 |
+| `list-accounts` | 列出已保存账号 |
+| `add-account` | 添加新账号 |
+| `remove-account` | 删除账号 |
+| `set-default-account` | 设置默认使用账号 |
 
-### 搜索发现
-- `search-videos`
-- `get-video-detail`
+### 🔍 搜索 / 内容发现
+| 命令 | 说明 |
+|------|------|
+| `search-videos` | 按关键词搜索作品 |
+| `get-video-detail` | 根据作品 ID 获取详细信息 |
 
-### 图文发布
-- `fill-publish-image`
-- `select-music`
-- `click-publish`
+### 📝 图文发布
+| 命令 | 说明 |
+|------|------|
+| `fill-publish-image` | 填写图文发布表单及上传配图 |
+| `select-music` | 选择背景音乐 |
+| `click-publish` | 执行发布操作 |
 
-### 基础互动
-- `like-video`
-- `favorite-video`
-- `share-video`
-
-这就是当前项目对外保留的核心命令面。
+### ❤️ 基础互动
+| 命令 | 说明 |
+|------|------|
+| `like-video` | 给作品点赞 |
+| `favorite-video` | 收藏作品 |
+| `share-video` | 分享作品链接 |
 
 ---
 
-## 运行机制
+## 💻 运行机制
 
 - 默认优先使用 **headless** 模式运行。
 - 只有检测到**验证码 / 身份验证 / 风控页**时，才切到 **headed** 模式，请用户手动完成验证。
 - 图文发布默认要求：**竖版配图 + 发布前人工复核**，避免上下留白、白条、异常元素或封面裁切问题。
 
-项目原则：**优先让高频流程稳定工作，而不是为了“全自动”硬上。**
-
 ---
 
-## 环境要求
+## ⚙️ 环境要求（可让Agent根据douyin-env skill自动完成环境配置）
 
 ### 必需二进制
 - `python3`
@@ -178,7 +159,7 @@
 
 ### 必需依赖
 - Node 包：`ws`
-- Python 包：`Pillow`（如果你会用本地图片生成脚本）
+- Python 包：`Pillow`
 
 ### 浏览器要求
 浏览器需要支持 remote debugging。脚本会尝试以下名称之一：
@@ -196,182 +177,6 @@ CHROME_BIN=/path/to/chrome
 
 ---
 
-## 安装方式
+## 📄 License
 
-### 1）克隆仓库
-
-```bash
-git clone <your-repo-url>
-cd douyin-skills
-```
-
-### 2）安装 Node 依赖
-
-```bash
-npm install ws
-```
-
-### 3）安装 Python 依赖
-
-```bash
-pip install pillow
-```
-
----
-
-## 快速开始
-
-### 检查登录状态
-
-```bash
-python3 scripts/cli.py check-login
-```
-
-### 获取登录二维码
-
-```bash
-python3 scripts/cli.py get-qrcode
-```
-
-### 等待登录完成
-
-```bash
-python3 scripts/cli.py wait-login
-```
-
-### 搜索视频
-
-```bash
-python3 scripts/cli.py search-videos --keyword "AI焦虑" --limit 7
-```
-
-### 获取作品详情
-
-```bash
-python3 scripts/cli.py get-video-detail --video-id 7619615485310668078
-```
-
-### 填写图文发布表单
-
-```bash
-python3 scripts/cli.py fill-publish-image \
-  --title "你的标题" \
-  --desc-file /abs/path/desc.txt \
-  --images /abs/path/pic1.jpg /abs/path/pic2.jpg
-```
-
-### 选择音乐
-
-```bash
-python3 scripts/cli.py select-music
-```
-
-### 发布
-
-```bash
-python3 scripts/cli.py click-publish
-```
-
-### 点赞 / 收藏 / 分享
-
-```bash
-python3 scripts/cli.py like-video --video-id 7619615485310668078
-python3 scripts/cli.py favorite-video --video-id 7619615485310668078
-python3 scripts/cli.py share-video --video-id 7619615485310668078
-```
-
----
-
-## 发布相关说明
-
-当前图文发布流程有意保持简单：
-
-1. 填表
-2. 选音乐
-3. 人工复核页面状态与预览效果
-4. 发布
-
-说明：
-- 当前公开 CLI **没有**单独暴露 `validate-publish` 命令。
-- 页面检查仍然重要，但当前把它作为发布前人工复核要求，而不是包装成一个对外承诺的稳定校验命令。
-- 默认优先无头运行；只有遇到验证码、身份验证或风控页时，才切到有头模式。
-- 自动配图时，默认优先使用接近 9:16 的竖版图片，避免上下留白或白条。
-
----
-
-## 关于“刚发布的作品”
-
-刚发完作品后，不要默认认为搜索立刻能搜到它。
-
-更可靠的路径是：
-1. 打开自己的抖音主页
-2. 从作品列表里找到刚发的图文
-3. 提取真实公开 `note` / `video` 链接
-4. 再去做点赞、收藏、分享等互动
-
-这一点在实际使用里非常重要。
-
----
-
-## 既可以单独用，也可以接入 OpenClaw
-
-这个仓库本身就是一套可以独立维护的脚本与 Skill 结构。
-
-### 如果你单独使用
-你可以直接运行：
-- `python3 scripts/cli.py ...`
-
-### 如果你接入 OpenClaw
-它也已经按 OpenClaw Skill 的结构组织好了：
-- 主入口：`SKILL.md`
-- 子技能：
-  - `skills/douyin-auth/`
-  - `skills/douyin-env/`
-  - `skills/douyin-explore/`
-  - `skills/douyin-interact/`
-  - `skills/douyin-publish/`
-
-所以它并不只是一个“只能给 OpenClaw 用的内部文件夹”，而是：
-
-> **既能独立运行，也能无缝作为 OpenClaw Skill 使用。**
-
----
-
-## 局限性
-
-这是一个基于真实网站页面的自动化项目，不是官方 API。
-
-因此它天然会受这些变化影响：
-- DOM 结构变化
-- 反爬/风控策略变化
-- 登录流程变化
-- 创作者中心上传流程变化
-- note / video 页面布局变化
-
-所以更准确的理解应该是：
-
-> **这是一个持续维护的自动化工具，而不是一个稳定不变的平台接口。**
-
----
-
-## 后续值得继续做的方向
-
-可以继续增强，但应继续保持克制：
-- 更完整的环境自检脚本
-- 更明确的一键安装流程
-- 更稳的创作者中心异常恢复逻辑
-- 更稳的发布页状态识别与上传完成判断
-
-## 贡献建议
-
-- 命令面尽量小
-- 不要把实验功能包装成稳定能力
-- 宁可少一点，也不要误导用户
-- 先能维护，再谈扩展
-
----
-
-## License
-
-本项目采用 MIT License。  
-详见 [LICENSE](./LICENSE)。
+本项目采用 MIT License，欢迎自由使用和二次开发。
