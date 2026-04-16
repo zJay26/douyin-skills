@@ -1,18 +1,25 @@
 <div align="center">
+  <h1>douyin-skills</h1>
+  <p><strong>开箱即用的抖音自动化Skills</strong></p>
+  <p><strong>支持登录、搜索、图文发布、点赞、收藏、分享，可作为 OpenClaw Skill 集成使用。</strong></p>
 
-# douyin-skills
-
-**开箱即用的抖音自动化Skills**  
-**支持登录、搜索、图文发布、点赞、收藏、分享，可作为 OpenClaw Skill 集成使用。**
-
-[!\[License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](./LICENSE)
-[!\[Python](https://img.shields.io/badge/Python-3.x-blue?style=for-the-badge\&logo=python\&logoColor=white)](https://www.python.org/)
-[!\[Node.js](https://img.shields.io/badge/Node.js-required-43853d?style=for-the-badge\&logo=node.js\&logoColor=white)](https://nodejs.org/)
-[!\[OpenClaw Skill](https://img.shields.io/badge/OpenClaw-Compatible-6f42c1?style=for-the-badge)](https://docs.openclaw.ai)
-
+  <p>
+    <a href="./LICENSE">
+      <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License: MIT">
+    </a>
+    <a href="https://www.python.org/">
+      <img src="https://img.shields.io/badge/Python-3.x-blue.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+    </a>
+    <a href="https://nodejs.org/">
+      <img src="https://img.shields.io/badge/Node.js-required-43853d?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js">
+    </a>
+    <a href="https://docs.openclaw.ai">
+      <img src="https://img.shields.io/badge/OpenClaw-Compatible-6f42c1?style=for-the-badge" alt="OpenClaw Skill">
+    </a>
+  </p>
 </div>
 
-\---
+---
 
 ## 📖 项目简介
 
