@@ -231,8 +231,17 @@ Every command returns JSON. Put global account options before the subcommand:
 python scripts/cli.py --account work check-login
 ```
 
+Discover the installed runtime and result-contract versions without launching Chrome:
+
+```bash
+python scripts/cli.py version
+```
+
+Agent integrations should follow the stable minimum fields and certainty rules in the [JSON result contract](./docs/RESULT_CONTRACT.md).
+
 | Area | Command | Purpose |
 | --- | --- | --- |
+| Runtime | `version` | Return project and result-contract versions without Chrome |
 | Environment | `doctor` | Check Python, Node.js, `ws`, Chrome, and display availability |
 | Auth | `check-login` | Inspect login, risk, and human-verification state |
 | Auth | `get-qrcode` / `wait-login` | Retrieve a QR image and wait once for scanning |

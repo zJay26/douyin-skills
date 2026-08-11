@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
+import json
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -12,6 +16,30 @@ import cli
 
 
 class CliTests(unittest.TestCase):
+    def test_version_command_returns_contract_metadata_without_chrome(self) -> None:
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(
+                cli,
+                "_connect",
+                side_effect=AssertionError("version must not connect to Chrome"),
+            ),
+            contextlib.redirect_stdout(stdout),
+            self.assertRaises(SystemExit) as exit_context,
+        ):
+            cli.main(["version"])
+
+        self.assertEqual(exit_context.exception.code, 0)
+        self.assertEqual(
+            json.loads(stdout.getvalue()),
+            {
+                "success": True,
+                "project": "douyin-skills",
+                "version": "1.0.0",
+                "result_contract_version": "1.0",
+            },
+        )
+
     def test_doctor_command_is_exposed(self) -> None:
         args = cli.build_parser().parse_args(["doctor"])
         self.assertEqual(args.command, "doctor")

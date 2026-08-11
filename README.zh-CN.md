@@ -222,8 +222,17 @@ Linux 容器以 root 运行时会按 Chrome 要求加入 `--no-sandbox`；普通
 python scripts/cli.py --account work check-login
 ```
 
+无需启动 Chrome 即可读取已安装的运行时版本和结果契约版本：
+
+```bash
+python scripts/cli.py version
+```
+
+Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的最小字段与结果确定性规则。
+
 | 分类 | 命令 | 说明 |
 | --- | --- | --- |
+| 运行时 | `version` | 不启动 Chrome，返回项目与结果契约版本 |
 | 环境 | `doctor` | 检查 Python、Node.js、`ws`、Chrome 和图形环境 |
 | 认证 | `check-login` | 检查登录、风控与人工验证状态 |
 | 认证 | `get-qrcode` / `wait-login` | 获取二维码并单次等待扫码结果 |
