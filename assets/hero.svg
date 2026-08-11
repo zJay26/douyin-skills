@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
   <title id="title">douyin-skills</title>
-  <desc id="desc">把常用抖音操作交给 Agent。本地浏览器、人工确认发布、五个可组合 Skills。</desc>
+  <desc id="desc">Agent-powered Douyin workflows in your local browser, with human-reviewed publishing and five composable Skills.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#07080D"/>
@@ -45,8 +45,8 @@
     <rect x="188" y="226" width="68" height="7" rx="3.5" fill="#7C5CFC"/>
     <rect x="254" y="226" width="38" height="7" rx="3.5" fill="#FF3B78"/>
 
-    <text x="72" y="303" fill="#F2F3F8" font-size="36" font-weight="650" letter-spacing="0.4">把常用抖音操作交给 Agent</text>
-    <text x="72" y="351" fill="#A9ADBC" font-size="20" font-weight="450">登录、搜索、图文发布与基础互动，都在你的本地浏览器完成。</text>
+    <text x="72" y="303" fill="#F2F3F8" font-size="34" font-weight="650" letter-spacing="0">Douyin workflows, on your terms</text>
+    <text x="72" y="351" fill="#A9ADBC" font-size="18" font-weight="450">Login, search, publish, and interact through local Chrome.</text>
 
     <g transform="translate(72 412)">
       <rect width="472" height="94" rx="20" fill="#FFFFFF" fill-opacity="0.055" stroke="#FFFFFF" stroke-opacity="0.11"/>
@@ -54,8 +54,8 @@
         <circle cx="24" cy="24" r="24" fill="#2DE2E6" fill-opacity="0.13"/>
         <path d="M15 24.5l6 6 12-14" fill="none" stroke="#2DE2E6" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
-      <text x="88" y="39" fill="#F2F3F8" font-size="17" font-weight="700">安全边界写进流程</text>
-      <text x="88" y="66" fill="#989CAB" font-size="14">人工处理验证 · 发布显式确认 · 未确认结果不重试</text>
+      <text x="88" y="39" fill="#F2F3F8" font-size="17" font-weight="700">Guardrails built into every step</text>
+      <text x="88" y="66" fill="#989CAB" font-size="14">Human checks · explicit publish · no blind retries</text>
     </g>
 
     <text x="72" y="568" fill="#727786" font-size="14" font-weight="600" letter-spacing="0.6">PYTHON 3.9+  ·  NODE.JS 18+  ·  CHROME / CHROMIUM</text>
@@ -82,33 +82,33 @@
         <g transform="translate(0 182)">
           <rect width="138" height="66" rx="16" fill="#20232E" stroke="#2DE2E6" stroke-opacity="0.36"/>
           <circle cx="21" cy="24" r="7" fill="#2DE2E6"/>
-          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">登录</text>
-          <text x="12" y="51" fill="#858A99" font-size="10">二维码 · 短信 · 多账号</text>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">Login</text>
+          <text x="12" y="51" fill="#858A99" font-size="10">QR · SMS · Profiles</text>
         </g>
         <g transform="translate(150 182)">
           <rect width="138" height="66" rx="16" fill="#20232E" stroke="#7C5CFC" stroke-opacity="0.38"/>
           <circle cx="21" cy="24" r="7" fill="#7C5CFC"/>
-          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">搜索</text>
-          <text x="12" y="51" fill="#858A99" font-size="10">关键词 · 视频 · 图文</text>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">Discover</text>
+          <text x="12" y="51" fill="#858A99" font-size="10">Search · Video · Notes</text>
         </g>
         <g transform="translate(300 182)">
           <rect width="138" height="66" rx="16" fill="#20232E" stroke="#FF3B78" stroke-opacity="0.38"/>
           <circle cx="21" cy="24" r="7" fill="#FF3B78"/>
-          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">发布</text>
-          <text x="12" y="51" fill="#858A99" font-size="10">图片 · 文案 · 音乐</text>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">Publish</text>
+          <text x="12" y="51" fill="#858A99" font-size="10">Photos · Copy · Music</text>
         </g>
 
         <g transform="translate(68 273)">
           <rect width="143" height="66" rx="16" fill="#20232E" stroke="#FFFFFF" stroke-opacity="0.15"/>
           <circle cx="21" cy="24" r="7" fill="#E6E8EF"/>
-          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">互动</text>
-          <text x="14" y="51" fill="#858A99" font-size="10">点赞 · 收藏 · 分享</text>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">Interact</text>
+          <text x="14" y="51" fill="#858A99" font-size="10">Like · Save · Share</text>
         </g>
         <g transform="translate(227 273)">
           <rect width="143" height="66" rx="16" fill="#20232E" stroke="#FFFFFF" stroke-opacity="0.15"/>
           <circle cx="21" cy="24" r="7" fill="#E6E8EF"/>
-          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">环境</text>
-          <text x="14" y="51" fill="#858A99" font-size="10">安装 · 自检 · 迁移</text>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">Setup</text>
+          <text x="14" y="51" fill="#858A99" font-size="10">Install · Check · Move</text>
         </g>
 
         <rect x="49" y="377" width="340" height="44" rx="14" fill="#0E1017" stroke="#FFFFFF" stroke-opacity="0.08"/>
