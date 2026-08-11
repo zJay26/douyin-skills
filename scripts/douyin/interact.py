@@ -113,7 +113,13 @@ def like_video(page, video_id: str) -> dict:
         "url": opened.get("href"),
     }
     if clicked:
-        return {"success": True, **meta, "selector": selector}
+        return {
+            "success": True,
+            **meta,
+            "selector": selector,
+            "state_verified": False,
+            "message": "已点击点赞按钮，但当前页面未提供可稳定读取的最终状态；不要自动重复点击。",
+        }
     if opened.get("kind") == "note":
         result = _click_note_action(page, "like")
         return {
@@ -121,6 +127,10 @@ def like_video(page, video_id: str) -> dict:
             **meta,
             "selector": "note-action-bar:first-child",
             "detail": result,
+            "state_verified": False,
+            "message": "已点击点赞区域，但当前页面未提供可稳定读取的最终状态；不要自动重复点击。"
+            if result.get("ok")
+            else "未找到可用的点赞区域。",
         }
     return {"success": False, **meta, "error": "未找到点赞按钮"}
 
@@ -140,6 +150,10 @@ def favorite_video(page, video_id: str) -> dict:
             "url": opened.get("href"),
             "selector": "note-action-bar:favorite",
             "detail": result,
+            "state_verified": False,
+            "message": "已点击收藏区域，但当前页面未提供可稳定读取的最终状态；不要自动重复点击。"
+            if result.get("ok")
+            else "未找到可用的收藏区域。",
         }
     clicked = _click_text(page, "收藏")
     return {
@@ -149,6 +163,10 @@ def favorite_video(page, video_id: str) -> dict:
         "page_kind": opened.get("kind"),
         "url": opened.get("href"),
         "selector": "text:收藏" if clicked else "",
+        "state_verified": False,
+        "message": "已点击收藏按钮，但当前页面未提供可稳定读取的最终状态；不要自动重复点击。"
+        if clicked
+        else "未找到收藏按钮。",
         "error": "未找到收藏按钮" if not clicked else "",
     }
 
