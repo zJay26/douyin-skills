@@ -6,6 +6,14 @@ import WebSocket from 'ws';
 const HTTP_TIMEOUT_MS = 10_000;
 const CDP_TIMEOUT_MS = 30_000;
 
+function sameUrl(actual, expected) {
+  try {
+    return new URL(actual).href === new URL(expected).href;
+  } catch {
+    return actual === expected;
+  }
+}
+
 function httpRequestJson(host, port, path, method = 'GET') {
   return new Promise((resolve, reject) => {
     const req = http.request({ host, port, path, method }, (res) => {
@@ -117,7 +125,16 @@ async function main() {
     if (!targetId) throw new Error('targetId is required');
     result = await withTarget(host, port, targetId, async (send) => {
       if (mode === 'navigate') {
-        await send('Page.navigate', { url: input.url });
+        try {
+          await send('Page.navigate', { url: input.url });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!message.includes('Inspected target navigated or closed')) throw error;
+          const targets = await httpRequestJson(host, port, '/json/list');
+          const target = (targets || []).find((item) => item.id === targetId || item.targetId === targetId);
+          if (!target || !sameUrl(target.url, input.url)) throw error;
+          return { success: true, targetId, url: input.url, recovered: true };
+        }
         return { success: true, targetId, url: input.url };
       }
       if (mode === 'evaluate') {

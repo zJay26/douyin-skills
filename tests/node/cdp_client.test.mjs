@@ -22,13 +22,14 @@ async function invoke(mode, payload) {
 test('CDP bridge uses modern HTTP verbs and direct target commands', async (t) => {
   const requests = [];
   const commands = [];
+  let targetUrl = 'about:blank';
   const server = http.createServer((req, res) => {
     requests.push({ method: req.method, url: req.url });
     const address = server.address();
     const target = {
       id: 'target-1',
       type: 'page',
-      url: 'about:blank',
+      url: targetUrl,
       webSocketDebuggerUrl: `ws://127.0.0.1:${address.port}/devtools/page/target-1`,
     };
     if (req.url === '/json/list') {
@@ -52,6 +53,16 @@ test('CDP bridge uses modern HTTP verbs and direct target commands', async (t) =
     websocket.on('message', (raw) => {
       const message = JSON.parse(String(raw));
       commands.push(message);
+      if (message.method === 'Page.navigate') {
+        targetUrl = message.params.url;
+        websocket.send(
+          JSON.stringify({
+            id: message.id,
+            error: { message: 'Inspected target navigated or closed' },
+          }),
+        );
+        return;
+      }
       const result =
         message.method === 'Runtime.evaluate'
           ? { result: { value: 'evaluated' } }
@@ -75,10 +86,17 @@ test('CDP bridge uses modern HTTP verbs and direct target commands', async (t) =
     targetId: 'target-1',
     expression: '42',
   });
+  const navigated = await invoke('navigate', {
+    port,
+    targetId: 'target-1',
+    url: 'https://www.douyin.com/search/demo?type=video',
+  });
 
   assert.equal(listed.targets[0].id, 'target-1');
   assert.equal(created.targetId, 'target-1');
   assert.equal(evaluated.value, 'evaluated');
+  assert.equal(navigated.recovered, true);
+  assert.equal(targetUrl, 'https://www.douyin.com/search/demo?type=video');
   assert.ok(requests.some((request) => request.url === '/json/new' && request.method === 'PUT'));
   assert.deepEqual(
     commands.slice(0, 3).map((command) => command.method),
