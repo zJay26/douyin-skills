@@ -1,0 +1,42 @@
+name: Agent client integration report
+description: Share evidence from running the repository with another Agent Skills client
+title: "[Integration]: "
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Integration reports help us separate portable Agent Skills behavior from client-specific setup. A report is evidence, not an automatic compatibility promise.
+  - type: input
+    id: client
+    attributes:
+      label: Agent client and version
+      placeholder: Client name, version, and operating system
+    validations:
+      required: true
+  - type: textarea
+    id: installation
+    attributes:
+      label: Installation layout
+      description: Explain where the complete repository was placed and how the root Skill was discovered.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What worked and what did not?
+      description: List the exact commands or workflows tested, plus observed limits.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Include logs or screenshots only after removing account and session data.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed all cookies, credentials, personal identifiers, QR codes, and profile data.
+          required: true

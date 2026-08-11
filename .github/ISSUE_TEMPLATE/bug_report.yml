@@ -1,52 +1,52 @@
-name: Bug 报告
-description: 报告可复现的运行错误或页面兼容问题
+name: Bug report
+description: Report a reproducible runtime error or page-compatibility problem
 title: "[Bug]: "
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        感谢反馈。请先移除 Cookie、手机号、验证码、二维码和本地 Profile 路径等敏感信息。
+        Thank you for the report. Remove cookies, phone numbers, verification codes, QR codes, and local profile paths before posting.
   - type: textarea
     id: summary
     attributes:
-      label: 问题概述
-      description: 实际发生了什么？你原本期待什么结果？
+      label: What happened?
+      description: Describe the actual result and what you expected instead.
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: 复现步骤
+      label: Reproduction steps
       placeholder: |
-        1. 运行命令……
-        2. 页面进入……
-        3. 出现错误……
+        1. Run command...
+        2. Reach page...
+        3. Observe error...
     validations:
       required: true
   - type: input
     id: command
     attributes:
-      label: 使用的 CLI 子命令
+      label: CLI command
       placeholder: python scripts/cli.py check-login
     validations:
       required: true
   - type: textarea
     id: environment
     attributes:
-      label: 环境
-      description: 操作系统、Python、Node.js、Chrome 版本，以及 doctor 的脱敏结果。
+      label: Environment
+      description: Operating system, Python, Node.js, Chrome, and sanitized doctor output.
     validations:
       required: true
   - type: textarea
     id: output
     attributes:
-      label: 脱敏后的 JSON 或日志
+      label: Sanitized JSON or logs
       render: shell
   - type: checkboxes
     id: safety
     attributes:
-      label: 隐私确认
+      label: Privacy check
       options:
-        - label: 我已移除 Cookie、手机号、验证码、二维码和本地 Profile 数据。
+        - label: I removed cookies, phone numbers, verification codes, QR codes, and local profile data.
           required: true

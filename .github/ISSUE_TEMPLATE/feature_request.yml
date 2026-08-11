@@ -1,32 +1,39 @@
-name: 功能建议
-description: 提议一个清晰、合规且适合本地自动化的改进
+name: Feature request
+description: Propose a clear, responsible improvement to the local agent workflow
 title: "[Feature]: "
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: 使用场景
-      description: 你正在解决什么实际问题？
+      label: User problem
+      description: What real workflow is difficult today?
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: 建议方案
-      description: 希望 Skill 或 CLI 如何工作？
+      label: Proposed behavior
+      description: How should the Skill or CLI behave?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Validation path
+      description: How could a maintainer test this without exposing account data?
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
-      label: 你尝试过的替代方案
+      label: Alternatives considered
   - type: checkboxes
     id: boundaries
     attributes:
-      label: 边界确认
+      label: Safety boundaries
       options:
-        - label: 该建议不依赖绕过验证码、风控或平台限制。
+        - label: This proposal does not depend on bypassing captcha, risk controls, or platform limits.
           required: true
-        - label: 该建议不用于批量刷量、养号或未经授权的账号操作。
+        - label: This proposal is not intended for engagement inflation, account farming, or unauthorized actions.
           required: true
