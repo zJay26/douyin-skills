@@ -88,6 +88,20 @@ python scripts/cli.py doctor
 
 环境就绪的判断标准是：`doctor` 返回的 JSON 中 `success` 为 `true`，且 `required_failures` 为空。
 
+### 下载稳定版本
+
+如需版本固定且可校验的安装包，请从 [v1.0.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.0.0) 下载 `douyin-skills-v1.0.0.zip` 与 `SHA256SUMS`，解压前先校验：
+
+```bash
+# Linux / macOS
+sha256sum -c SHA256SUMS
+
+# Windows PowerShell：将结果与 SHA256SUMS 对应行比较
+Get-FileHash .\douyin-skills-v1.0.0.zip -Algorithm SHA256
+```
+
+这个命名 ZIP 会把完整仓库放在一个版本目录中，并包含脱敏 Demo。GitHub 自动生成的源码压缩包是另一组文件，不适用这里发布的校验值。
+
 ## 第一次使用
 
 1. **检查环境**
@@ -303,7 +317,7 @@ ruff check scripts tests/python
 ruff format --check scripts tests/python
 ```
 
-CI 在 Windows（Python 3.13 / Node.js 24）与 Ubuntu（Python 3.9 / Node.js 18）运行测试，并单独检查 Ruff。真实账号登录、验证码和发布不会在 CI 中执行；这类端到端结果仍取决于当时的账号、页面和平台策略。完整的发布门槛与非承诺范围见[验证与支持边界](./docs/VALIDATION.md)，各版本变化见[更新日志](./CHANGELOG.md)。
+CI 在 Windows（Python 3.13 / Node.js 24）与 Ubuntu（Python 3.9 / Node.js 18）运行测试，并单独检查 Ruff。真实账号登录、验证码和发布不会在 CI 中执行；这类端到端结果仍取决于当时的账号、页面和平台策略。完整的发布门槛与非承诺范围见[验证与支持边界](./docs/VALIDATION.md)，各版本变化见[更新日志](./CHANGELOG.md)，维护者步骤见[发布流程](./docs/RELEASING.md)。
 
 参与开发前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。开放式工作流和适配器想法可以放到 [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions)，可复现缺陷与范围明确的工作使用 Issues。安全问题请按 [SECURITY.md](./SECURITY.md) 私下报告，不要在公开 Issue 中粘贴账号或会话数据。
 

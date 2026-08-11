@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
+
+from project_metadata import PROJECT_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_OWNER = "zJay26"
@@ -226,8 +229,9 @@ def _check_visual_assets(root: Path) -> list[str]:
         Path("assets/demo/index.html"),
         Path("assets/hero-agent.svg"),
         Path("CHANGELOG.md"),
+        Path("docs/RELEASING.md"),
         Path("docs/VALIDATION.md"),
-        Path("docs/releases/v1.0.0.md"),
+        Path(f"docs/releases/v{PROJECT_VERSION}.md"),
     ]
     for relative in required:
         if not (root / relative).is_file():
@@ -286,11 +290,51 @@ def _check_visual_assets(root: Path) -> list[str]:
     return errors
 
 
+def _check_version_consistency(root: Path) -> list[str]:
+    errors: list[str] = []
+    for relative in [Path("package.json"), Path("package-lock.json")]:
+        path = root / relative
+        if not path.is_file():
+            errors.append(f"missing package metadata: {relative.as_posix()}")
+            continue
+        try:
+            metadata = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as error:
+            errors.append(f"invalid {relative.as_posix()}: {error}")
+            continue
+        if metadata.get("version") != PROJECT_VERSION:
+            errors.append(
+                f"{relative.as_posix()} version must be {PROJECT_VERSION}, "
+                f"found {metadata.get('version')!r}"
+            )
+
+    lock_path = root / "package-lock.json"
+    if lock_path.is_file():
+        try:
+            lock = json.loads(lock_path.read_text(encoding="utf-8"))
+            root_package_version = lock.get("packages", {}).get("", {}).get("version")
+        except (json.JSONDecodeError, OSError):
+            root_package_version = None
+        if root_package_version != PROJECT_VERSION:
+            errors.append(
+                "package-lock.json root package version must be "
+                f"{PROJECT_VERSION}, found {root_package_version!r}"
+            )
+
+    release_note = root / "docs" / "releases" / f"v{PROJECT_VERSION}.md"
+    if not release_note.is_file():
+        errors.append(
+            f"missing versioned release note: {release_note.relative_to(root)}"
+        )
+    return errors
+
+
 def validate_repository(root: Path = ROOT) -> list[str]:
     files = repository_files(root)
     errors = _check_markdown_links(root, files)
     errors.extend(_check_repository_owners(root, files))
     errors.extend(_check_visual_assets(root))
+    errors.extend(_check_version_consistency(root))
     return errors
 
 
