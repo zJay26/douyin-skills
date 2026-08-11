@@ -1,6 +1,6 @@
 {
   "name": "douyin-skills-runtime",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Local Chrome DevTools Protocol bridge for douyin-skills",
   "type": "module",
@@ -8,8 +8,10 @@
     "node": ">=18"
   },
   "scripts": {
-    "check": "node --check scripts/cdp_client.mjs",
-    "test": "node --test tests/node/cdp_client.test.mjs"
+    "check": "node --check scripts/cdp_client.mjs && node --check scripts/render_demo.mjs",
+    "test": "node --test tests/node/cdp_client.test.mjs",
+    "render:demo": "node scripts/render_demo.mjs",
+    "build:release": "python scripts/build_release.py --version v1.0.0"
   },
   "dependencies": {
     "ws": "^8.21.3"

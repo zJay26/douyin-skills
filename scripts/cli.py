@@ -37,6 +37,7 @@ from douyin.publish import (
     validate_publish_state,
 )
 from douyin.search import get_video_detail, search_videos
+from project_metadata import version_payload
 
 
 def _wslg_headed_env_exports() -> str:
@@ -181,6 +182,10 @@ def cmd_set_default_account(args: argparse.Namespace) -> None:
 def cmd_doctor(_args: argparse.Namespace) -> None:
     result = run_doctor()
     _output(result, exit_code=0 if result.get("success") else 2)
+
+
+def cmd_version(_args: argparse.Namespace) -> None:
+    _output(version_payload())
 
 
 def cmd_check_login(args: argparse.Namespace) -> None:
@@ -393,7 +398,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    for name in ["doctor", "check-login", "get-qrcode", "wait-login", "list-accounts"]:
+    for name in [
+        "version",
+        "doctor",
+        "check-login",
+        "get-qrcode",
+        "wait-login",
+        "list-accounts",
+    ]:
         sub.add_parser(name)
 
     p = sub.add_parser("send-code")
@@ -456,6 +468,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     dispatch = {
+        "version": cmd_version,
         "doctor": cmd_doctor,
         "list-accounts": cmd_list_accounts,
         "add-account": cmd_add_account,

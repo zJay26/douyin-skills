@@ -24,14 +24,14 @@ The baseline does **not** prove arbitrary page-version compatibility or authenti
 ## Next: strengthen the Douyin foundation
 
 - [ ] Add sanitized selector and page-state fixtures for login, risk, search, detail, and publishing flows
-- [ ] Publish a repeatable manual validation checklist with Chrome and page-version notes
-- [ ] Add a synthetic, privacy-safe demo of the end-to-end agent workflow
-- [ ] Define a release and changelog cadence so users can distinguish stable behavior from ongoing work
+- [x] Publish a repeatable manual validation checklist with Chrome and page-version notes
+- [x] Add a synthetic, privacy-safe demo of the end-to-end agent workflow
+- [x] Define a release and changelog cadence so users can distinguish stable behavior from ongoing work
 - [ ] Turn common page-drift reports into focused regression tests
 
 ## Then: extract the reusable contract
 
-- [ ] Document a stable cross-command result envelope for confirmed, failed, blocked, and unconfirmed outcomes
+- [x] Document a stable cross-command result envelope for confirmed, failed, blocked, and unconfirmed outcomes
 - [ ] Isolate platform URLs, selectors, and page flows behind an explicit adapter boundary
 - [ ] Keep browser lifecycle, profiles, timeouts, and human checkpoints platform-neutral
 - [ ] Add an integration smoke test for at least one Agent Skills client beyond the primary OpenClaw path

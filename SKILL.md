@@ -20,6 +20,14 @@ python "{baseDir}/scripts/cli.py" doctor
 
 CLI 始终输出 JSON。根据字段判断结果，不要只看进程退出码或按钮是否被点击。
 
+在依赖特定字段前运行以下命令读取运行时与结果契约版本：
+
+```bash
+python "{baseDir}/scripts/cli.py" version
+```
+
+解析规则、确认/未确认状态和退出码见 `{baseDir}/docs/RESULT_CONTRACT.md`。
+
 ## 路由任务
 
 | 用户意图 | 使用子技能 |
@@ -52,6 +60,7 @@ CLI 始终输出 JSON。根据字段判断结果，不要只看进程退出码�
 
 ## 当前公开命令
 
+- 运行时：`version`
 - 环境：`doctor`
 - 认证：`check-login`、`get-qrcode`、`wait-login`、`send-code`、`verify-code`
 - 账号：`list-accounts`、`add-account`、`remove-account`、`set-default-account`

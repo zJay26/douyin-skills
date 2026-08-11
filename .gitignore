@@ -28,6 +28,7 @@ Thumbs.db
 .chrome/
 .douyin-skills/
 playwright-report/
+dist/
 
 # Project-local caches or generated artifacts that should not be versioned by default
 scripts/__pycache__/

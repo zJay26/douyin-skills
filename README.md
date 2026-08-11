@@ -51,12 +51,22 @@ What makes it different:
 - **Composable**: authentication, environment, discovery, publishing, and interactions work independently or as a workflow.
 - **Maintainable**: one JSON CLI, unit tests, cross-platform CI, and Skills that document the real runtime contract.
 
+## See the guarded workflow
+
+<p align="center">
+  <img src="./assets/demo.gif" alt="Privacy-safe 40-second simulation of an agent moving from user intent through Skills, the JSON CLI, local Chrome, and human review" width="100%">
+</p>
+
+This 40-second walkthrough is entirely synthetic: it makes no network requests and contains no real Douyin page, account, cookie, QR code, phone number, profile path, or user content. It demonstrates the control flow and deliberately ends at **Prepared · not published**. It is not evidence that a live page version or account passed end-to-end validation.
+
+The source is [`assets/demo/index.html`](./assets/demo/index.html). Maintainers with Chrome and FFmpeg can reproduce the GIF with `npm run render:demo`.
+
 ## Start in three minutes
 
 ### OpenClaw: full bundled experience (recommended)
 
 ```bash
-openclaw skills install git:cd-JJGong/douyin-skills@main
+openclaw skills install git:zJay26/douyin-skills@main
 ```
 
 Then tell your agent:
@@ -68,7 +78,7 @@ This installation command and nested Skill discovery model follow the [official 
 ### Manual runtime setup
 
 ```bash
-git clone https://github.com/cd-JJGong/douyin-skills.git
+git clone https://github.com/zJay26/douyin-skills.git
 cd douyin-skills
 npm install
 python scripts/cli.py doctor
@@ -77,6 +87,20 @@ python scripts/cli.py doctor
 You can also choose **Code → Download ZIP** on GitHub, extract the complete directory, and run the same `npm install` and `doctor` commands. Replace `python` with `python3` if needed.
 
 The environment is ready when the JSON from `doctor` contains `"success": true` and an empty `required_failures` list.
+
+### Stable release download
+
+For a versioned, checksum-verifiable install, download `douyin-skills-v1.0.0.zip` and `SHA256SUMS` from the [v1.0.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.0.0). Verify the ZIP before extracting it:
+
+```bash
+# Linux / macOS
+sha256sum -c SHA256SUMS
+
+# Windows PowerShell: compare this value with the matching SHA256SUMS line
+Get-FileHash .\douyin-skills-v1.0.0.zip -Algorithm SHA256
+```
+
+The named ZIP contains the complete repository under one versioned directory, including the privacy-safe Demo. GitHub's automatic source archives are separate and are not covered by the published checksum.
 
 ## Your first workflow
 
@@ -221,8 +245,17 @@ Every command returns JSON. Put global account options before the subcommand:
 python scripts/cli.py --account work check-login
 ```
 
+Discover the installed runtime and result-contract versions without launching Chrome:
+
+```bash
+python scripts/cli.py version
+```
+
+Agent integrations should follow the stable minimum fields and certainty rules in the [JSON result contract](./docs/RESULT_CONTRACT.md).
+
 | Area | Command | Purpose |
 | --- | --- | --- |
+| Runtime | `version` | Return project and result-contract versions without Chrome |
 | Environment | `doctor` | Check Python, Node.js, `ws`, Chrome, and display availability |
 | Auth | `check-login` | Inspect login, risk, and human-verification state |
 | Auth | `get-qrcode` / `wait-login` | Retrieve a QR image and wait once for scanning |
@@ -293,7 +326,7 @@ ruff check scripts tests/python
 ruff format --check scripts tests/python
 ```
 
-CI tests Windows (Python 3.13 / Node.js 24) and Ubuntu (Python 3.9 / Node.js 18), with a separate Ruff check. CI does not perform real account login, captcha, or publishing; those end-to-end outcomes still depend on the account, page version, and platform policy at that moment.
+CI tests Windows (Python 3.13 / Node.js 24) and Ubuntu (Python 3.9 / Node.js 18), with a separate Ruff check. CI does not perform real account login, captcha, or publishing; those end-to-end outcomes still depend on the account, page version, and platform policy at that moment. The exact release gate and non-goals are recorded in [Validation and support boundaries](./docs/VALIDATION.md); versioned changes are listed in the [changelog](./CHANGELOG.md), and maintainer steps live in the [release process](./docs/RELEASING.md).
 
 Read [CONTRIBUTING.md](./CONTRIBUTING.md) before sending changes. Use [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions) for open-ended workflow and adapter ideas, and Issues for reproducible defects or scoped work. Report security problems privately through [SECURITY.md](./SECURITY.md), and never paste account or session data into a public issue.
 

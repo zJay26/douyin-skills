@@ -51,12 +51,22 @@ Agent 可以规划多步骤任务，但真正进入社交网站后，还要面�
 - **可组合**：认证、环境、发现、发布、互动各自独立，也能串成完整流程。
 - **可维护**：统一 JSON CLI、单元测试、双平台 CI、原子化 Skill 文档。
 
+## 看一遍完整的安全流程
+
+<p align="center">
+  <img src="./assets/demo.gif" alt="隐私安全的 40 秒模拟演示：Agent 从用户意图依次经过 Skill、JSON CLI、本地 Chrome 与人工复核" width="100%">
+</p>
+
+这段 40 秒演示完全由合成数据生成：不会发起网络请求，也不包含真实抖音页面、账号、Cookie、二维码、手机号、Profile 路径或用户内容。它只展示控制流程，并刻意停在 **Prepared · not published**。它不能证明任意线上页面版本或账号已经通过端到端验证。
+
+演示源码位于 [`assets/demo/index.html`](./assets/demo/index.html)。维护者安装 Chrome 与 FFmpeg 后可运行 `npm run render:demo` 复现 GIF。
+
 ## 3 分钟上手
 
 ### 方式一：让 OpenClaw 从 Git 安装（推荐）
 
 ```bash
-openclaw skills install git:cd-JJGong/douyin-skills@main
+openclaw skills install git:zJay26/douyin-skills@main
 ```
 
 然后告诉 Agent：
@@ -68,7 +78,7 @@ openclaw skills install git:cd-JJGong/douyin-skills@main
 ### 方式二：手动安装
 
 ```bash
-git clone https://github.com/cd-JJGong/douyin-skills.git
+git clone https://github.com/zJay26/douyin-skills.git
 cd douyin-skills
 npm install
 python scripts/cli.py doctor
@@ -77,6 +87,20 @@ python scripts/cli.py doctor
 也可以在仓库页面选择 **Code → Download ZIP**，解压完整目录后运行同样的 `npm install` 和 `doctor`。如果系统只有 `python3`，请替换示例中的 `python`。
 
 环境就绪的判断标准是：`doctor` 返回的 JSON 中 `success` 为 `true`，且 `required_failures` 为空。
+
+### 下载稳定版本
+
+如需版本固定且可校验的安装包，请从 [v1.0.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.0.0) 下载 `douyin-skills-v1.0.0.zip` 与 `SHA256SUMS`，解压前先校验：
+
+```bash
+# Linux / macOS
+sha256sum -c SHA256SUMS
+
+# Windows PowerShell：将结果与 SHA256SUMS 对应行比较
+Get-FileHash .\douyin-skills-v1.0.0.zip -Algorithm SHA256
+```
+
+这个命名 ZIP 会把完整仓库放在一个版本目录中，并包含脱敏 Demo。GitHub 自动生成的源码压缩包是另一组文件，不适用这里发布的校验值。
 
 ## 第一次使用
 
@@ -212,8 +236,17 @@ Linux 容器以 root 运行时会按 Chrome 要求加入 `--no-sandbox`；普通
 python scripts/cli.py --account work check-login
 ```
 
+无需启动 Chrome 即可读取已安装的运行时版本和结果契约版本：
+
+```bash
+python scripts/cli.py version
+```
+
+Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的最小字段与结果确定性规则。
+
 | 分类 | 命令 | 说明 |
 | --- | --- | --- |
+| 运行时 | `version` | 不启动 Chrome，返回项目与结果契约版本 |
 | 环境 | `doctor` | 检查 Python、Node.js、`ws`、Chrome 和图形环境 |
 | 认证 | `check-login` | 检查登录、风控与人工验证状态 |
 | 认证 | `get-qrcode` / `wait-login` | 获取二维码并单次等待扫码结果 |
@@ -284,7 +317,7 @@ ruff check scripts tests/python
 ruff format --check scripts tests/python
 ```
 
-CI 在 Windows（Python 3.13 / Node.js 24）与 Ubuntu（Python 3.9 / Node.js 18）运行测试，并单独检查 Ruff。真实账号登录、验证码和发布不会在 CI 中执行；这类端到端结果仍取决于当时的账号、页面和平台策略。
+CI 在 Windows（Python 3.13 / Node.js 24）与 Ubuntu（Python 3.9 / Node.js 18）运行测试，并单独检查 Ruff。真实账号登录、验证码和发布不会在 CI 中执行；这类端到端结果仍取决于当时的账号、页面和平台策略。完整的发布门槛与非承诺范围见[验证与支持边界](./docs/VALIDATION.md)，各版本变化见[更新日志](./CHANGELOG.md)，维护者步骤见[发布流程](./docs/RELEASING.md)。
 
 参与开发前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。开放式工作流和适配器想法可以放到 [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions)，可复现缺陷与范围明确的工作使用 Issues。安全问题请按 [SECURITY.md](./SECURITY.md) 私下报告，不要在公开 Issue 中粘贴账号或会话数据。
 
