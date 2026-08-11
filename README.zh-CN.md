@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/zJay26/douyin-skills/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/zJay26/douyin-skills/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
-  <a href="https://github.com/zJay26/douyin-skills/stargazers"><img src="https://img.shields.io/github/stars/zJay26/douyin-skills?style=flat-square" alt="GitHub Stars"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/github/license/zJay26/douyin-skills?style=flat-square" alt="MIT License"></a>
+  <a href="https://github.com/cd-JJGong/douyin-skills/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/cd-JJGong/douyin-skills/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
+  <a href="https://github.com/cd-JJGong/douyin-skills/stargazers"><img src="https://img.shields.io/github/stars/cd-JJGong/douyin-skills?style=flat-square" alt="GitHub Stars"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/cd-JJGong/douyin-skills?style=flat-square" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.9+">
   <img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 18+">
   <a href="https://docs.openclaw.ai/skills"><img src="https://img.shields.io/badge/OpenClaw-Skill-7C5CFC?style=flat-square" alt="OpenClaw Skill"></a>
@@ -47,7 +47,7 @@
 ### 方式一：让 OpenClaw 从 Git 安装（推荐）
 
 ```bash
-openclaw skills install git:zJay26/douyin-skills@main
+openclaw skills install git:cd-JJGong/douyin-skills@main
 ```
 
 然后告诉 Agent：
@@ -59,7 +59,7 @@ openclaw skills install git:zJay26/douyin-skills@main
 ### 方式二：手动安装
 
 ```bash
-git clone https://github.com/zJay26/douyin-skills.git
+git clone https://github.com/cd-JJGong/douyin-skills.git
 cd douyin-skills
 npm install
 python scripts/cli.py doctor
