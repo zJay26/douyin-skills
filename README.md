@@ -51,6 +51,16 @@ What makes it different:
 - **Composable**: authentication, environment, discovery, publishing, and interactions work independently or as a workflow.
 - **Maintainable**: one JSON CLI, unit tests, cross-platform CI, and Skills that document the real runtime contract.
 
+## See the guarded workflow
+
+<p align="center">
+  <img src="./assets/demo.gif" alt="Privacy-safe 40-second simulation of an agent moving from user intent through Skills, the JSON CLI, local Chrome, and human review" width="100%">
+</p>
+
+This 40-second walkthrough is entirely synthetic: it makes no network requests and contains no real Douyin page, account, cookie, QR code, phone number, profile path, or user content. It demonstrates the control flow and deliberately ends at **Prepared · not published**. It is not evidence that a live page version or account passed end-to-end validation.
+
+The source is [`assets/demo/index.html`](./assets/demo/index.html). Maintainers with Chrome and FFmpeg can reproduce the GIF with `npm run render:demo`.
+
 ## Start in three minutes
 
 ### OpenClaw: full bundled experience (recommended)

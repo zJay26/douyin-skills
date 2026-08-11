@@ -8,8 +8,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "check": "node --check scripts/cdp_client.mjs",
-    "test": "node --test tests/node/cdp_client.test.mjs"
+    "check": "node --check scripts/cdp_client.mjs && node --check scripts/render_demo.mjs",
+    "test": "node --test tests/node/cdp_client.test.mjs",
+    "render:demo": "node scripts/render_demo.mjs"
   },
   "dependencies": {
     "ws": "^8.21.3"

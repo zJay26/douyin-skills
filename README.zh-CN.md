@@ -51,6 +51,16 @@ Agent 可以规划多步骤任务，但真正进入社交网站后，还要面�
 - **可组合**：认证、环境、发现、发布、互动各自独立，也能串成完整流程。
 - **可维护**：统一 JSON CLI、单元测试、双平台 CI、原子化 Skill 文档。
 
+## 看一遍完整的安全流程
+
+<p align="center">
+  <img src="./assets/demo.gif" alt="隐私安全的 40 秒模拟演示：Agent 从用户意图依次经过 Skill、JSON CLI、本地 Chrome 与人工复核" width="100%">
+</p>
+
+这段 40 秒演示完全由合成数据生成：不会发起网络请求，也不包含真实抖音页面、账号、Cookie、二维码、手机号、Profile 路径或用户内容。它只展示控制流程，并刻意停在 **Prepared · not published**。它不能证明任意线上页面版本或账号已经通过端到端验证。
+
+演示源码位于 [`assets/demo/index.html`](./assets/demo/index.html)。维护者安装 Chrome 与 FFmpeg 后可运行 `npm run render:demo` 复现 GIF。
+
 ## 3 分钟上手
 
 ### 方式一：让 OpenClaw 从 Git 安装（推荐）

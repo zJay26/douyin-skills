@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>douyin-skills privacy-safe walkthrough</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #f7f8fc;
+        --muted: #949aaa;
+        --line: rgba(255, 255, 255, 0.11);
+        --panel: #171923;
+        --panel-2: #20232e;
+        --cyan: #2de2e6;
+        --violet: #7c5cfc;
+        --pink: #ff3b78;
+        --green: #52d48a;
+        --accent: var(--cyan);
+      }
+
+      * { box-sizing: border-box; }
+
+      html,
+      body {
+        width: 960px;
+        height: 540px;
+        margin: 0;
+        overflow: hidden;
+        background: #07080d;
+        color: var(--ink);
+        font-family: Inter, "Segoe UI Variable", "Segoe UI", sans-serif;
+      }
+
+      body::before {
+        position: fixed;
+        inset: 0;
+        content: "";
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          radial-gradient(circle at 82% 78%, rgba(124, 92, 252, 0.13), transparent 38%);
+        background-size: 32px 32px, 32px 32px, 100% 100%;
+        pointer-events: none;
+      }
+
+      .shell {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        padding: 24px 28px 20px;
+        display: grid;
+        grid-template-rows: 28px 1fr 30px;
+        gap: 16px;
+      }
+
+      header,
+      footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #858b9b;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.15px;
+        text-transform: uppercase;
+      }
+
+      .privacy-mark {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        color: #d8dae3;
+      }
+
+      .privacy-mark i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--cyan);
+        box-shadow: 0 0 18px rgba(45, 226, 230, 0.7);
+      }
+
+      main {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 330px 1fr;
+        gap: 24px;
+      }
+
+      .story {
+        padding: 10px 0 2px;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .brand {
+        margin-bottom: 20px;
+        font-size: 25px;
+        font-weight: 780;
+        letter-spacing: -1px;
+      }
+
+      .brand span { color: var(--accent); }
+
+      .kicker {
+        min-height: 15px;
+        color: var(--accent);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        min-height: 72px;
+        margin: 9px 0 10px;
+        font-size: 31px;
+        line-height: 1.08;
+        letter-spacing: -1.05px;
+      }
+
+      .summary {
+        min-height: 52px;
+        margin: 0;
+        color: #aeb2c0;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .prompt {
+        min-height: 77px;
+        margin: 16px 0 18px;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-left: 2px solid var(--accent);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .prompt label {
+        display: block;
+        margin-bottom: 7px;
+        color: #7f8595;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 1px;
+      }
+
+      .prompt p {
+        margin: 0;
+        color: #e4e6ed;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .pipeline {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 7px;
+        margin: auto 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pipeline::before {
+        position: absolute;
+        top: 12px;
+        left: 26px;
+        right: 26px;
+        height: 2px;
+        content: "";
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .step {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+        color: #666d7d;
+        font-size: 8px;
+        font-weight: 700;
+        text-align: center;
+      }
+
+      .step i {
+        width: 24px;
+        height: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 50%;
+        background: #11131b;
+      }
+
+      .step.passed { color: #b8bdc9; }
+      .step.passed i { background: var(--accent); border-color: var(--accent); }
+      .step.active { color: var(--ink); }
+      .step.active i {
+        border: 5px solid #11131b;
+        background: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent), 0 0 22px color-mix(in srgb, var(--accent) 48%, transparent);
+      }
+
+      .workbench {
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 22px;
+        background: var(--panel);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+      }
+
+      .browser-bar {
+        height: 48px;
+        padding: 0 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        background: #222530;
+      }
+
+      .browser-bar > i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      .browser-bar > i:nth-child(1) { background: #ff667e; }
+      .browser-bar > i:nth-child(2) { background: #f7c95f; }
+      .browser-bar > i:nth-child(3) { background: #62d38c; }
+
+      .address {
+        height: 25px;
+        margin-left: 9px;
+        padding: 0 15px;
+        display: flex;
+        align-items: center;
+        flex: 1;
+        gap: 8px;
+        border-radius: 13px;
+        background: #0f1119;
+        color: #7e8494;
+        font: 600 10px/1 "Cascadia Code", Consolas, monospace;
+      }
+
+      .address b {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--cyan);
+      }
+
+      .work-content {
+        height: calc(100% - 48px);
+        padding: 22px;
+        display: grid;
+        grid-template-rows: auto 112px 1fr;
+        gap: 16px;
+      }
+
+      .state-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .state-head p {
+        margin: 0 0 5px;
+        color: #7f8595;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 1.2px;
+      }
+
+      .state-head h2 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.4px;
+      }
+
+      .state-badge {
+        padding: 7px 10px;
+        border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+        color: var(--accent);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.7px;
+      }
+
+      .state-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .state-card {
+        min-width: 0;
+        padding: 13px 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel-2);
+      }
+
+      .state-card small {
+        display: block;
+        margin-bottom: 11px;
+        color: #7c8292;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: 0.9px;
+        text-transform: uppercase;
+      }
+
+      .state-card strong {
+        display: block;
+        overflow: hidden;
+        color: #e7e9f0;
+        font-size: 12px;
+        line-height: 1.35;
+        text-overflow: ellipsis;
+      }
+
+      .terminal {
+        min-height: 0;
+        overflow: hidden;
+        padding: 15px 17px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 15px;
+        background: #0d0f16;
+        font: 500 11px/1.55 "Cascadia Code", Consolas, monospace;
+      }
+
+      .command {
+        min-height: 18px;
+        color: #eff1f6;
+        white-space: nowrap;
+      }
+
+      .command::before {
+        margin-right: 8px;
+        color: var(--accent);
+        content: "$";
+        font-weight: 800;
+      }
+
+      .output {
+        margin-top: 10px;
+        display: grid;
+        gap: 3px;
+        color: #8e95a6;
+      }
+
+      .output span {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      .output span.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .output span::before {
+        margin-right: 8px;
+        color: var(--green);
+        content: "›";
+      }
+
+      .progress-wrap {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        bottom: 37px;
+        height: 2px;
+        overflow: hidden;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .progress {
+        width: 0;
+        height: 100%;
+        background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink));
+      }
+
+      .clock {
+        min-width: 42px;
+        color: #c5c9d4;
+        font-family: "Cascadia Code", Consolas, monospace;
+        text-align: right;
+      }
+
+      .scene-motion {
+        transform-origin: 50% 50%;
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <span class="privacy-mark"><i></i>Privacy-safe simulation</span>
+        <span>40-second walkthrough · no account data</span>
+      </header>
+
+      <main>
+        <section class="story scene-motion">
+          <div class="brand">douyin<span>-skills</span></div>
+          <div class="kicker" id="kicker"></div>
+          <h1 id="title"></h1>
+          <p class="summary" id="summary"></p>
+          <div class="prompt">
+            <label id="prompt-label">User intent</label>
+            <p id="prompt"></p>
+          </div>
+          <ol class="pipeline" id="pipeline">
+            <li class="step"><i></i><span>Intent</span></li>
+            <li class="step"><i></i><span>Skill</span></li>
+            <li class="step"><i></i><span>JSON CLI</span></li>
+            <li class="step"><i></i><span>Local Chrome</span></li>
+            <li class="step"><i></i><span>Human review</span></li>
+          </ol>
+        </section>
+
+        <section class="workbench scene-motion">
+          <div class="browser-bar">
+            <i></i><i></i><i></i>
+            <div class="address"><b></b>127.0.0.1 · simulated local Chrome</div>
+          </div>
+          <div class="work-content">
+            <div class="state-head">
+              <div>
+                <p>Agent workflow</p>
+                <h2 id="panel-title"></h2>
+              </div>
+              <span class="state-badge" id="badge"></span>
+            </div>
+            <div class="state-grid">
+              <div class="state-card">
+                <small>Local session</small>
+                <strong id="session-state"></strong>
+              </div>
+              <div class="state-card">
+                <small>Agent decision</small>
+                <strong id="decision-state"></strong>
+              </div>
+              <div class="state-card">
+                <small>Human action</small>
+                <strong id="human-state"></strong>
+              </div>
+            </div>
+            <div class="terminal">
+              <div class="command" id="command"></div>
+              <div class="output" id="output"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div class="progress-wrap"><div class="progress" id="progress"></div></div>
+      <footer>
+        <span>Simulated workflow · no network requests · no real account, session, or content</span>
+        <span class="clock" id="clock">00:00</span>
+      </footer>
+    </div>
+
+    <script>
+      const scenes = [
+        {
+          start: 0, end: 4, accent: "#2de2e6", active: 0,
+          kicker: "One intent · guarded execution",
+          title: "A safer bridge to the social web",
+          summary: "See how an agent turns a request into small, inspectable local actions.",
+          promptLabel: "Demo mode",
+          prompt: "Synthetic inputs only. No real account is connected.",
+          panelTitle: "Workflow overview", badge: "SIMULATED",
+          session: "Not connected", decision: "Explain the boundary", human: "Stay in control",
+          command: "douyin-skills · privacy-safe walkthrough",
+          output: ["No network requests", "No account or session data", "No real Douyin content"],
+        },
+        {
+          start: 4, end: 9, accent: "#2de2e6", active: 0,
+          kicker: "Step 1 · describe the outcome", title: "Say what you want",
+          summary: "The Skill turns natural language into a bounded workflow with explicit stops.",
+          promptLabel: "User intent",
+          prompt: "Prepare a photo post from these demo images. Stop before publishing.",
+          panelTitle: "Intent routed", badge: "INTENT",
+          session: "Local by default", decision: "Use douyin-publish", human: "Review before publish",
+          command: "Agent → douyin-publish",
+          output: ["Intent matched", "Guardrail: explicit confirmation", "Scope: one photo post"],
+        },
+        {
+          start: 9, end: 14, accent: "#7c5cfc", active: 1,
+          kicker: "Step 2 · verify prerequisites", title: "Check the local runtime",
+          summary: "Dependencies and the browser are checked before any platform action begins.",
+          promptLabel: "Safety rule", prompt: "Fail early when a required local dependency is missing.",
+          panelTitle: "Environment ready", badge: "CHECKED",
+          session: "No profile opened", decision: "Requirements passed", human: "No action needed",
+          command: "python scripts/cli.py doctor",
+          output: ['{"success": true}', '"required_failures": []', '"browser": "local Chrome"'],
+        },
+        {
+          start: 14, end: 19, accent: "#7c5cfc", active: 2,
+          kicker: "Step 3 · preserve local state", title: "Reuse a local session",
+          summary: "The browser profile stays on this machine; verification remains a human step.",
+          promptLabel: "Synthetic state",
+          prompt: "This frame uses a fake profile name and contains no login data.",
+          panelTitle: "Session state read", badge: "LOCAL",
+          session: "demo-local · synthetic", decision: "Continue safely", human: "Handle risk checks",
+          command: "python scripts/cli.py check-login",
+          output: ['{"success": true}', '"logged_in": true', '"profile": "demo-local"'],
+        },
+        {
+          start: 19, end: 25, accent: "#2de2e6", active: 3,
+          kicker: "Step 4 · inspect public context", title: "Discover, then decide",
+          summary: "Structured results keep public discovery separate from actions that change state.",
+          promptLabel: "Synthetic query", prompt: "Find three examples for a city-night photo concept.",
+          panelTitle: "Three demo results", badge: "READ-ONLY",
+          session: "Loopback Chrome", decision: "Return structured items", human: "Choose what is useful",
+          command: 'python scripts/cli.py search-videos --keyword "city night" --limit 3',
+          output: ['"count": 3', '"items": ["synthetic-01", "synthetic-02", "synthetic-03"]', '"source": "demo fixture"'],
+        },
+        {
+          start: 25, end: 31, accent: "#ff3b78", active: 3,
+          kicker: "Step 5 · prepare without publishing", title: "Fill the form once",
+          summary: "Synthetic filenames demonstrate preparation while the publish click stays locked.",
+          promptLabel: "Prepared content",
+          prompt: "Two demo images, a sample title, and a clearly marked synthetic caption.",
+          panelTitle: "Form prepared", badge: "NOT PUBLISHED",
+          session: "Visible review available", decision: "Stop after fill", human: "Inspect every field",
+          command: "python scripts/cli.py fill-publish-image …",
+          output: ['"status": "filled"', '"images": ["demo-01.jpg", "demo-02.jpg"]', '"publish_clicked": false'],
+        },
+        {
+          start: 31, end: 36, accent: "#ff3b78", active: 4,
+          kicker: "Step 6 · require a human checkpoint", title: "Review before consequence",
+          summary: "Validation can say the form is ready. Only the user can authorize publication.",
+          promptLabel: "Human checkpoint",
+          prompt: "Check the title, caption, images, music, account, and final page state.",
+          panelTitle: "Waiting for review", badge: "HUMAN CHECK",
+          session: "Visible local browser", decision: "Do not click publish", human: "Approve or revise",
+          command: "python scripts/cli.py validate-publish",
+          output: ['{"success": true}', '"publish_enabled": true', '"next": "human review"'],
+        },
+        {
+          start: 36, end: 40, accent: "#52d48a", active: 4,
+          kicker: "Outcome · report only what is known", title: "Prepared. Not published.",
+          summary: "The agent names the verified state and never invents a successful publish.",
+          promptLabel: "Agent report", prompt: "The post is ready for review. No publish click occurred.",
+          panelTitle: "Honest result", badge: "SAFE STOP",
+          session: "Still local", decision: "Report known state", human: "Choose the next step",
+          command: "Agent report",
+          output: ["Prepared for review", "Published: no", "Blind retry: never"],
+        },
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      const output = $("output");
+      const steps = [...document.querySelectorAll(".step")];
+      const motion = [...document.querySelectorAll(".scene-motion")];
+
+      function reveal(text, progress, start = 0.06, end = 0.55) {
+        const normalized = Math.max(0, Math.min(1, (progress - start) / (end - start)));
+        return text.slice(0, Math.ceil(text.length * normalized));
+      }
+
+      function setText(id, value) { $(id).textContent = value; }
+
+      window.setDemoTime = (rawTime) => {
+        const time = Math.max(0, Math.min(39.999, Number(rawTime) || 0));
+        const scene = scenes.find((item) => time >= item.start && time < item.end) || scenes.at(-1);
+        const sceneProgress = (time - scene.start) / (scene.end - scene.start);
+        const edgeFade = Math.min(1, sceneProgress / 0.08, (1 - sceneProgress) / 0.08);
+
+        document.documentElement.style.setProperty("--accent", scene.accent);
+        setText("kicker", scene.kicker);
+        setText("title", scene.title);
+        setText("summary", scene.summary);
+        setText("prompt-label", scene.promptLabel);
+        setText("prompt", scene.start === 4 ? reveal(scene.prompt, sceneProgress, 0.06, 0.72) : scene.prompt);
+        setText("panel-title", scene.panelTitle);
+        setText("badge", scene.badge);
+        setText("session-state", scene.session);
+        setText("decision-state", scene.decision);
+        setText("human-state", scene.human);
+        setText("command", reveal(scene.command, sceneProgress, 0.08, 0.46));
+
+        output.replaceChildren();
+        scene.output.forEach((line, index) => {
+          const item = document.createElement("span");
+          item.textContent = line;
+          if (sceneProgress >= 0.3 + index * 0.14) item.className = "visible";
+          output.append(item);
+        });
+
+        steps.forEach((step, index) => {
+          step.className = "step";
+          if (index < scene.active) step.classList.add("passed");
+          if (index === scene.active) step.classList.add("active");
+        });
+
+        motion.forEach((node) => {
+          node.style.opacity = String(Math.max(0.3, edgeFade));
+          node.style.transform = `translateY(${(1 - edgeFade) * 5}px)`;
+        });
+
+        $("progress").style.width = `${(time / 40) * 100}%`;
+        setText("clock", `00:${String(Math.floor(time)).padStart(2, "0")}`);
+        return { time, scene: scene.title };
+      };
+
+      window.setDemoTime(0.5);
+    </script>
+  </body>
+</html>
