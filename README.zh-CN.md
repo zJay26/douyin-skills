@@ -1,28 +1,36 @@
 <p align="right"><a href="./README.md">English</a></p>
 
 <p align="center">
-  <img src="./assets/hero.svg" alt="douyin-skills：把常用抖音操作交给 Agent" width="100%">
+  <img src="./assets/hero-agent.svg" alt="douyin-skills：连接 Agent 与社交网络的本地执行桥梁" width="100%">
 </p>
 
 <h1 align="center">douyin-skills</h1>
 
 <p align="center">
-  用自然语言驱动本机 Chrome，完成抖音登录、搜索、图文发布与基础互动。
+  面向社交网络的本地 Agent 工作流——从抖音开始。
 </p>
 
 <p align="center">
-  <a href="https://github.com/cd-JJGong/douyin-skills/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/cd-JJGong/douyin-skills/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
-  <a href="https://github.com/cd-JJGong/douyin-skills/stargazers"><img src="https://img.shields.io/github/stars/cd-JJGong/douyin-skills?style=flat-square" alt="GitHub Stars"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/github/license/cd-JJGong/douyin-skills?style=flat-square" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.9+">
-  <img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 18+">
-  <a href="https://docs.openclaw.ai/skills"><img src="https://img.shields.io/badge/OpenClaw-Skill-7C5CFC?style=flat-square" alt="OpenClaw Skill"></a>
+  <a href="https://github.com/zJay26/douyin-skills/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/zJay26/douyin-skills/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
+  <a href="https://github.com/zJay26/douyin-skills/stargazers"><img src="https://img.shields.io/github/stars/zJay26/douyin-skills?style=flat-square" alt="GitHub Stars"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/zJay26/douyin-skills?style=flat-square" alt="MIT License"></a>
+  <a href="https://agentskills.io"><img src="https://img.shields.io/badge/Agent_Skills-open_format-2A9DAB?style=flat-square" alt="Agent Skills open format"></a>
+  <a href="https://docs.openclaw.ai/skills"><img src="https://img.shields.io/badge/OpenClaw-ready-7C5CFC?style=flat-square" alt="OpenClaw ready"></a>
+  <img src="https://img.shields.io/badge/execution-local--first-FF3B78?style=flat-square" alt="Local-first execution">
 </p>
 
 > [!IMPORTANT]
-> 这是本地、人工在环的网页自动化工具，不是抖音官方产品。仅操作你有权使用的账号与内容；验证码和风控必须由用户手动完成，本项目不提供批量刷量或绕过平台限制的能力。
+> 当前仓库真正实现的是抖音工作流。其他 Agent 客户端与其他社交平台属于可复用方向，不是已经交付的兼容能力。本项目不是抖音官方产品，也不提供批量刷量或绕过平台限制的能力。
 
-## 为什么用它
+## 这个项目为什么存在
+
+Agent 可以规划多步骤任务，但真正进入社交网站后，还要面对持续登录状态、不断变化的页面、风控验证，以及可能产生真实后果的发布按钮。一次点击不能被轻率地等同于成功，一个无法确认的结果也不应该被 Agent 自信地汇报为已完成。
+
+`douyin-skills` 尝试把这条边界做得更清楚：用可版本管理的 Skill 描述意图和约束，用结构化 JSON CLI 执行浏览器动作，把账号会话保留在本机 Chrome 中，并在验证页或结果不确定时停下来交给用户。
+
+抖音是当前的落地点，也是一个足够真实的检验场景。项目并不是批量运营套件，而是先把登录、搜索、图文发布和基础互动做成小而可核对的构件。
+
+## 当前已经能做什么
 
 很多抖音网页操作并不复杂，但登录状态、浏览器启动、页面切换和发布复核很容易打断工作。`douyin-skills` 把这些步骤拆成 5 个可组合的 Skill，让 Agent 理解你的意图，再通过本机浏览器执行。
 
@@ -37,6 +45,7 @@
 核心特点：
 
 - **普通用户先行**：安装后直接用自然语言，不需要先理解 CDP 或页面选择器。
+- **Agent 可读契约**：Skill 指令和 JSON 结果可以被检查，不把关键行为藏在临时 Prompt 里。
 - **本地优先**：浏览器和账号 Profile 留在本机，调试端口只监听 `127.0.0.1`。
 - **安全地失败**：发布前强制校验和显式确认；验证码、风控与不确定结果都会停下来交给用户。
 - **可组合**：认证、环境、发现、发布、互动各自独立，也能串成完整流程。
@@ -91,6 +100,40 @@ python scripts/cli.py doctor
 
 首次登录会保存独立的本地 Chrome Profile。偶尔出现验证码、身份验证或风控页时，CLI 会切换为可见浏览器，等你手动处理后再继续。
 
+## 它对 Agent 生态的意义
+
+这个仓库更大的价值，不是宣称已经统一了所有社交平台，而是把“Agent 决定做什么”和“真实浏览器被允许做什么”分开。
+
+| 层次 | 当前仓库给出的实现 | 可以复用的方向 |
+| --- | --- | --- |
+| Skill 契约 | 在 `SKILL.md` 中记录意图、步骤、安全边界与失败处理 | 可被理解开放 Agent Skills 格式的客户端读取 |
+| 执行契约 | 明确参数和结构化 JSON 结果 | 其他 Agent 或工具协议可以复用同一个 CLI 边界 |
+| 本地会话 | 独立 Chrome Profile 与仅限 loopback 的 CDP | 适合需要用户保持登录、又不希望上传会话的场景 |
+| 人工检查点 | 可见浏览器验证与显式发布确认 | 可用于其他高风险或不可逆网页动作 |
+| 结果语义 | 区分已确认、未执行和点击后无法确认 | 减少 Agent 过度自信地汇报完成 |
+| 平台适配层 | 抖音 URL、选择器和创作者流程位于共享运行时之后 | 未来平台可以替换适配层，而不必放弃全部安全约束 |
+
+根目录 [`SKILL.md`](./SKILL.md) 采用开放的 [Agent Skills 规范](https://agentskills.io/specification)。OpenClaw 同样遵循该规范，并且是当前仓库已经写明完整安装流程的客户端。其他客户端的执行兼容尚未进入 CI，因此这里强调的是可复用结构，不是“开箱即用支持所有 Agent”。
+
+## 从抖音开始，但不只考虑抖音
+
+当前实现仍然是抖音专用的：URL、页面选择器、登录页、创作者表单和内容类型都不能直接搬到另一家平台。更通用的是它们外围的结构：
+
+```mermaid
+flowchart LR
+    A["用户意图"] --> B["Agent Skill"]
+    B --> C["结构化 JSON CLI"]
+    C --> D["本地浏览器运行时"]
+    D --> E["人工检查点"]
+    D --> F["平台适配层"]
+    F --> G["抖音 · 当前已实现"]
+    F -. "未来适配工作" .-> H["其他社交 / 创作者平台"]
+```
+
+未来如果为其他社交或创作者平台增加适配器，可以复用 Skill 到 CLI 的边界、浏览器生命周期、本地 Profile、超时、结果状态与人工复核策略；但仍必须重新实现并验证登录、URL、选择器、业务规则和平台合规边界。
+
+当前仓库没有交付其他平台适配器。更完整的边界说明见 [Agent 生态设计说明](./docs/AGENT_ECOSYSTEM.md)，阶段计划见 [ROADMAP.md](./ROADMAP.md)。
+
 ## 5 个可组合 Skills
 
 | Skill | 负责什么 | 典型意图 |
@@ -123,7 +166,7 @@ python scripts/cli.py doctor
 > [!WARNING]
 > 网页结构会变化，自动化也可能被平台限制。请保持合理频率，并在重要操作后查看真实页面。使用者需要自行遵守适用法律、平台规则和内容授权要求。
 
-## 技术架构
+## 当前实现架构
 
 ```mermaid
 flowchart LR
@@ -141,6 +184,7 @@ flowchart LR
 - Chrome launcher 负责跨平台查找浏览器、端口检查、Profile 隔离和 headless/headed 切换。
 - CDP bridge 通过超时受控的 HTTP/WebSocket 调用驱动页面，不向局域网或公网暴露调试端口。
 - 页面模块按认证、搜索、发布和互动拆分，公共 URL、等待与错误处理单独复用。
+- 当前平台代码还不是通用适配器；[Agent 生态设计说明](./docs/AGENT_ECOSYSTEM.md)列出了在尝试第二个平台前应当抽离的边界。
 
 ## 环境要求
 
@@ -221,6 +265,8 @@ python scripts/cli.py --account work check-login
 │   └── douyin/               # 认证、发现、发布、互动模块
 ├── tests/                    # Python 单元测试与 Node.js bridge 测试
 ├── assets/                   # README 与社交预览视觉资产
+├── docs/                     # Agent 生态与适配器设计说明
+├── ROADMAP.md                # 以验证证据为门槛的路线图
 └── .github/                  # CI、依赖更新与协作模板
 ```
 
@@ -240,7 +286,7 @@ ruff format --check scripts tests/python
 
 CI 在 Windows（Python 3.13 / Node.js 24）与 Ubuntu（Python 3.9 / Node.js 18）运行测试，并单独检查 Ruff。真实账号登录、验证码和发布不会在 CI 中执行；这类端到端结果仍取决于当时的账号、页面和平台策略。
 
-参与开发前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。安全问题请按 [SECURITY.md](./SECURITY.md) 私下报告，不要在公开 Issue 中粘贴账号或会话数据。
+参与开发前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。开放式工作流和适配器想法可以放到 [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions)，可复现缺陷与范围明确的工作使用 Issues。安全问题请按 [SECURITY.md](./SECURITY.md) 私下报告，不要在公开 Issue 中粘贴账号或会话数据。
 
 ## 常见问题
 
@@ -270,10 +316,10 @@ CLI 检测到验证码、身份验证或风控页后会切到 headed 模式，�
 
 ## 贡献、许可与声明
 
-欢迎提交聚焦、可测试且符合安全边界的 Issue 与 Pull Request。请先阅读 [参与贡献](./CONTRIBUTING.md)。
+欢迎提交聚焦、可测试且符合安全边界的 Issue 与 Pull Request。可从页面兼容性复现、选择器 fixture、更清楚的结果语义、其他 Agent Skills 客户端安装文档，以及平台适配层设计开始。请先阅读 [参与贡献](./CONTRIBUTING.md)和[路线图](./ROADMAP.md)。
 
 本项目采用 [MIT License](./LICENSE)。`douyin-skills` 与抖音、字节跳动及 OpenClaw 均无隶属、授权或官方合作关系；产品名称仅用于说明兼容对象。
 
 <p align="center">
-  如果它让你的工作流更顺手，欢迎点一个 Star，让更多需要本地、可控自动化的人看到它。
+  如果你实际使用过它，欢迎告诉我们哪一步有帮助、哪一步失败了。真实使用反馈比宽泛的兼容性口号更有价值。
 </p>

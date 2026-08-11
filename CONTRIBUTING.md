@@ -1,10 +1,21 @@
-# 参与贡献
+# Contributing
 
-感谢你帮助改进 douyin-skills。提交前请先确认改动面向真实用户问题，并保持 CLI、Skill 文档和安全边界一致。
+Thank you for helping improve `douyin-skills`. The most useful contributions solve a real user problem, preserve the project's safety model, and make the evidence as clear as the implementation.
 
-## 本地开发
+## Good ways to help
 
-需要 Python 3.9+、Node.js 18+、npm 和 Chrome/Chromium。
+- report a reproducible Douyin page change with sanitized evidence;
+- turn a selector regression into a focused fixture or test;
+- make result states more precise without overstating success;
+- document a verified installation on another Agent Skills client;
+- help separate reusable browser runtime code from platform-specific behavior;
+- improve the English or Chinese documentation without letting the two guides contradict each other.
+
+Use [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions) for open-ended workflow, Agent client, or future-adapter ideas. Open an Issue when the work is specific enough to reproduce and verify.
+
+## Local development
+
+You need Python 3.9+, Node.js 18+, npm, and Chrome/Chromium.
 
 ```bash
 npm install
@@ -14,7 +25,7 @@ npm run check
 npm test
 ```
 
-代码风格检查使用 Ruff 0.16.2：
+Code style uses Ruff 0.16.2:
 
 ```bash
 python -m pip install ruff==0.16.2
@@ -22,14 +33,17 @@ ruff check scripts tests/python
 ruff format --check scripts tests/python
 ```
 
-## 提交建议
+## Change guidelines
 
-1. 一个提交只解决一类问题，使用清楚的命令式提交信息，例如 `fix: reject unsafe publish retry`。
-2. 行为变化必须补测试，并同步对应的 `SKILL.md` 与 README。
-3. 页面选择器变化要说明验证过的页面、Chrome 版本和仍未验证的场景。
-4. 不提交 `node_modules/`、`__pycache__/`、Cookie、验证码、二维码、账号配置或 Chrome Profile。
-5. 不加入验证码绕过、批量刷量、养号或未经授权账号操作。
+1. Keep each commit focused on one class of change. Use a clear imperative message such as `fix: reject unsafe publish retry`.
+2. Add tests for behavior changes and update the relevant `SKILL.md` and README contract.
+3. For selector changes, state the page, Chrome version, account state, and scenarios you did **not** verify.
+4. Do not commit `node_modules/`, `__pycache__/`, cookies, phone numbers, verification codes, QR codes, account configuration, or Chrome profiles.
+5. Do not add captcha bypasses, engagement inflation, account farming, or unauthorized account actions.
+6. Do not advertise another Agent client or social platform as supported without a repeatable validation path.
 
-## Pull Request
+## Pull requests
 
-PR 中请写明用户问题、方案、验证证据与剩余边界。真实页面截图和日志必须脱敏。安全漏洞请按 [SECURITY.md](SECURITY.md) 私下报告。
+Explain the user problem, the solution, validation evidence, and remaining limits. Sanitize real-page screenshots and logs. Documentation-only changes should still run relative-link and GitHub Markdown rendering checks.
+
+Report security vulnerabilities privately through [SECURITY.md](SECURITY.md).

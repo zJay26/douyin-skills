@@ -1,8 +1,14 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 安全漏洞
+  - name: Security vulnerability
     url: https://github.com/zJay26/douyin-skills/security/advisories/new
-    about: 请私下报告可能泄露账号、会话或本机数据的安全问题
-  - name: OpenClaw Skills 文档
+    about: Privately report issues that could expose accounts, sessions, or local data
+  - name: Open-ended idea or workflow
+    url: https://github.com/zJay26/douyin-skills/discussions
+    about: Discuss Agent clients, real workflows, and future adapter directions before scoping an Issue
+  - name: Agent Skills specification
+    url: https://agentskills.io/specification
+    about: Review the open Skill format used by the root SKILL.md
+  - name: OpenClaw Skills documentation
     url: https://docs.openclaw.ai/skills
-    about: 查看 OpenClaw 的 Skill 安装与发现规则
+    about: Review the currently documented installation and nested Skill discovery path

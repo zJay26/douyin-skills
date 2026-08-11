@@ -1,28 +1,36 @@
-<p align="right"><a href="./README.zh-CN.md">简体中文</a></p>
+<p align="right"><a href="./README.zh-CN.md">中文</a></p>
 
 <p align="center">
-  <img src="./assets/hero.svg" alt="douyin-skills: delegate everyday Douyin tasks to your agent" width="100%">
+  <img src="./assets/hero-agent.svg" alt="douyin-skills: a local-first bridge from agents to the social web" width="100%">
 </p>
 
 <h1 align="center">douyin-skills</h1>
 
 <p align="center">
-  Control your local Chrome with natural language for Douyin login, discovery, photo publishing, and basic interactions.
+  Local-first agent workflows for the social web—starting with Douyin.
 </p>
 
 <p align="center">
-  <a href="https://github.com/cd-JJGong/douyin-skills/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/cd-JJGong/douyin-skills/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
-  <a href="https://github.com/cd-JJGong/douyin-skills/stargazers"><img src="https://img.shields.io/github/stars/cd-JJGong/douyin-skills?style=flat-square" alt="GitHub Stars"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/github/license/cd-JJGong/douyin-skills?style=flat-square" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.9+">
-  <img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 18+">
-  <a href="https://docs.openclaw.ai/skills"><img src="https://img.shields.io/badge/OpenClaw-Skill-7C5CFC?style=flat-square" alt="OpenClaw Skill"></a>
+  <a href="https://github.com/zJay26/douyin-skills/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/zJay26/douyin-skills/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
+  <a href="https://github.com/zJay26/douyin-skills/stargazers"><img src="https://img.shields.io/github/stars/zJay26/douyin-skills?style=flat-square" alt="GitHub Stars"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/zJay26/douyin-skills?style=flat-square" alt="MIT License"></a>
+  <a href="https://agentskills.io"><img src="https://img.shields.io/badge/Agent_Skills-open_format-2A9DAB?style=flat-square" alt="Agent Skills open format"></a>
+  <a href="https://docs.openclaw.ai/skills"><img src="https://img.shields.io/badge/OpenClaw-ready-7C5CFC?style=flat-square" alt="OpenClaw ready"></a>
+  <img src="https://img.shields.io/badge/execution-local--first-FF3B78?style=flat-square" alt="Local-first execution">
 </p>
 
 > [!IMPORTANT]
-> This is a local, human-in-the-loop web automation toolkit—not an official Douyin product. Only use accounts and content you are authorized to operate. Users must complete captchas and risk checks themselves; this project does not provide bulk engagement or platform-control bypasses.
+> This repository implements Douyin workflows today. Support for other Agent clients and social platforms is a direction, not a shipped compatibility claim. It is not an official Douyin product, and it does not provide bulk engagement or platform-control bypasses.
 
-## Why use it?
+## Why this project exists
+
+Agents can plan a multi-step task, but the social web is where plans meet stateful logins, changing pages, risk checks, and buttons with real consequences. A publishing click cannot be treated like a harmless text-generation step, and an uncertain result should not be reported as success.
+
+`douyin-skills` is a concrete attempt to make that boundary easier to inspect and reuse. It packages intent as versioned Skills, exposes browser actions through a structured JSON CLI, keeps account sessions in local Chrome, and stops for human review when the page or outcome is uncertain.
+
+Douyin is the current proving ground: a major social platform with real creator workflows and enough operational friction to test whether an agent integration is actually dependable. The project is intentionally narrower than a social-media management suite; it focuses on small, verifiable actions that can become reliable building blocks.
+
+## What works today
 
 Everyday Douyin web tasks are not inherently complicated, but browser startup, login state, page transitions, and publish review can interrupt your flow. `douyin-skills` turns those steps into five composable Skills: your agent understands the intent, then acts through Chrome on your computer.
 
@@ -37,6 +45,7 @@ Everyday Douyin web tasks are not inherently complicated, but browser startup, l
 What makes it different:
 
 - **Built for everyday users**: install it, then describe the task instead of learning CDP or selectors.
+- **Agent-readable contract**: Skill instructions and JSON results make the workflow reviewable instead of hiding behavior in prompts.
 - **Local-first**: Chrome and account profiles stay on your computer; the debug endpoint only listens on `127.0.0.1`.
 - **Fails safely**: publishing requires validation and explicit confirmation; risk pages and uncertain outcomes stop for human review.
 - **Composable**: authentication, environment, discovery, publishing, and interactions work independently or as a workflow.
@@ -44,7 +53,7 @@ What makes it different:
 
 ## Start in three minutes
 
-### Option 1: Install from Git with OpenClaw (recommended)
+### OpenClaw: full bundled experience (recommended)
 
 ```bash
 openclaw skills install git:cd-JJGong/douyin-skills@main
@@ -54,9 +63,9 @@ Then tell your agent:
 
 > Use `douyin-env` to install dependencies and run the environment checks.
 
-This installation command and Skill discovery model follow the [official OpenClaw documentation](https://docs.openclaw.ai/skills).
+This installation command and nested Skill discovery model follow the [official OpenClaw documentation](https://docs.openclaw.ai/skills).
 
-### Option 2: Install manually
+### Manual runtime setup
 
 ```bash
 git clone https://github.com/cd-JJGong/douyin-skills.git
@@ -91,6 +100,49 @@ The environment is ready when the JSON from `doctor` contains `"success": true` 
 
 The first login creates an isolated local Chrome profile. If Douyin later presents a captcha, identity check, or risk page, the CLI switches to a visible browser and waits for you to complete it manually.
 
+## Why this matters to the Agent ecosystem
+
+The larger contribution is not a claim that one repository has solved every social platform. It is a working separation between what an agent decides and what a real browser is allowed to do.
+
+| Layer | What this repository demonstrates | What may transfer |
+| --- | --- | --- |
+| Skill contract | Versioned intent, steps, guardrails, and failure handling in `SKILL.md` | Any client that understands the open Agent Skills format |
+| Execution contract | Explicit arguments and structured JSON results | Other agent or tool surfaces can wrap the same stable CLI boundary |
+| Local session | Isolated Chrome profiles and loopback-only CDP | Workflows where users must stay signed in without exporting sessions |
+| Human checkpoint | Visible-browser verification and explicit publish confirmation | Other risk-sensitive or irreversible web actions |
+| Result semantics | Confirmed, failed, and clicked-but-unconfirmed are different states | Agents can avoid confident but false completion reports |
+| Platform adapter | Douyin URLs, selectors, and creator flows live behind shared runtime pieces | A future platform can replace its adapter without discarding every guardrail |
+
+The root [`SKILL.md`](./SKILL.md) follows the open [Agent Skills specification](https://agentskills.io/specification), which is designed for portable, version-controlled agent knowledge. OpenClaw follows that specification and currently provides the documented installation path for this repository. Execution on other Agent Skills clients is not part of CI yet, so treat cross-client use as integration work rather than plug-and-play support.
+
+This distinction matters: the repository offers a reusable pattern today, not a universal compatibility badge.
+
+### Who may find the pattern useful
+
+- **Operators** who want useful automation without handing browser sessions to a hosted control service.
+- **Agent builders** looking for a concrete contract between model intent and stateful browser actions.
+- **Tool and client maintainers** exploring how Agent Skills, CLIs, or tool protocols can share one execution core.
+- **Researchers and reviewers** interested in human checkpoints, uncertainty, and honest completion semantics.
+
+## Starting with Douyin, not ending there
+
+The current implementation is specific to Douyin. Its URLs, selectors, login pages, creator forms, and content types must not be presented as portable code. The surrounding architecture is more general:
+
+```mermaid
+flowchart LR
+    A["User intent"] --> B["Agent Skill"]
+    B --> C["Structured JSON CLI"]
+    C --> D["Local browser runtime"]
+    D --> E["Human checkpoint"]
+    D --> F["Platform adapter"]
+    F --> G["Douyin · implemented today"]
+    F -. "future adapter work" .-> H["Other social / creator platforms"]
+```
+
+A future adapter for another social or creator platform could reuse the Skill-to-CLI boundary, browser lifecycle, local profiles, timeouts, validation states, and human-review policy. It would still need its own authorized login flow, URLs, selectors, domain rules, tests, and platform-policy review.
+
+No other platform adapter ships in this repository today. See the [Agent ecosystem design note](./docs/AGENT_ECOSYSTEM.md) for the portability boundary and [ROADMAP.md](./ROADMAP.md) for the staged plan.
+
 ## Five composable Skills
 
 | Skill | Responsibility | Example intent |
@@ -123,7 +175,7 @@ The root [`SKILL.md`](./SKILL.md) routes multi-step requests. Child Skills addre
 > [!WARNING]
 > Web interfaces change and automation may be restricted by the platform. Use a reasonable frequency and verify important actions on the actual page. You remain responsible for applicable law, platform rules, and content permissions.
 
-## Architecture
+## Implementation architecture
 
 ```mermaid
 flowchart LR
@@ -141,6 +193,7 @@ flowchart LR
 - The Chrome launcher handles cross-platform browser discovery, port checks, profile isolation, and headless/headed transitions.
 - The CDP bridge drives pages through timeout-bounded HTTP/WebSocket calls without exposing the debug port to LAN or public networks.
 - Page logic is split into authentication, discovery, publishing, and interaction modules, with shared URL, wait, and error handling.
+- The platform-facing code is not generic yet; the [ecosystem design note](./docs/AGENT_ECOSYSTEM.md) identifies the boundary that should be extracted before another adapter is attempted.
 
 ## Requirements
 
@@ -221,6 +274,8 @@ The default data directory is `~/.douyin-skills/`; set `DOUYIN_SKILLS_HOME` to u
 │   └── douyin/               # Auth, discovery, publish, interaction modules
 ├── tests/                    # Python unit tests and Node.js bridge test
 ├── assets/                   # README and social-preview artwork
+├── docs/                     # Agent ecosystem and adapter design notes
+├── ROADMAP.md                # Evidence-led project direction
 └── .github/                  # CI, dependency updates, collaboration templates
 ```
 
@@ -240,7 +295,7 @@ ruff format --check scripts tests/python
 
 CI tests Windows (Python 3.13 / Node.js 24) and Ubuntu (Python 3.9 / Node.js 18), with a separate Ruff check. CI does not perform real account login, captcha, or publishing; those end-to-end outcomes still depend on the account, page version, and platform policy at that moment.
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before sending changes. Report security problems privately through [SECURITY.md](./SECURITY.md), and never paste account or session data into a public issue.
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) before sending changes. Use [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions) for open-ended workflow and adapter ideas, and Issues for reproducible defects or scoped work. Report security problems privately through [SECURITY.md](./SECURITY.md), and never paste account or session data into a public issue.
 
 ## FAQ
 
@@ -270,10 +325,10 @@ No. The project intentionally focuses on small, clear local workflows: login, di
 
 ## Contributing, license, and trademarks
 
-Focused, tested contributions that preserve the safety model are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md).
+Focused, tested contributions that preserve the safety model are welcome. Useful starting points include reproducible page-compatibility reports, selector fixtures, clearer result semantics, documentation for another Agent Skills client, and design work toward a clean platform-adapter boundary. Start with [CONTRIBUTING.md](./CONTRIBUTING.md) and the [roadmap](./ROADMAP.md).
 
 This project is available under the [MIT License](./LICENSE). `douyin-skills` is not affiliated with, authorized by, or officially connected to Douyin, ByteDance, or OpenClaw. Product names are used only to identify compatibility.
 
 <p align="center">
-  If this makes your workflow easier, consider leaving a Star so more people can discover local, controllable automation.
+  If you use it, tell us which workflow helped—or where it failed. Real usage reports are more valuable than broad compatibility claims.
 </p>
