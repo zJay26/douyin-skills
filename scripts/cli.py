@@ -158,22 +158,6 @@ def _risk_or_verify_text(page) -> str:
     return f"{title}\n{text}"
 
 
-def _switch_to_headed_for_verification(args: argparse.Namespace, reason: str):
-    headed_args = argparse.Namespace(**vars(args))
-    headed_args.headed = True
-    _browser, page = _connect(headed_args)
-    page.navigate("https://www.douyin.com/")
-    page.wait_for_load(20)
-    body = _risk_or_verify_text(page)
-    return {
-        "success": False,
-        "action": "switched_to_headed",
-        "needs_user_verification": True,
-        "message": f"已切换到有头模式，请在浏览器中手动完成验证码/身份验证后再重试。原因：{reason}",
-        "page_excerpt": body[:1500],
-    }
-
-
 def cmd_list_accounts(_args: argparse.Namespace) -> None:
     accounts = list_accounts()
     _output({"success": True, "count": len(accounts), "accounts": accounts})
@@ -204,10 +188,9 @@ def cmd_check_login(args: argparse.Namespace) -> None:
     page.navigate("https://www.douyin.com/")
     page.wait_for_load(20)
     state = check_login_state(page)
-    if state.get("risk_page") and not getattr(args, "headed", False):
-        _output(
-            _switch_to_headed_for_verification(args, "检测到验证码/风控页"), exit_code=2
-        )
+    switched = _maybe_switch_to_headed_for_risk(args, state, "检测到验证码/风控页")
+    if switched:
+        _output(switched, exit_code=2)
     _output(state, exit_code=0 if state.get("logged_in") else 1)
 
 
@@ -217,24 +200,44 @@ def cmd_get_qrcode(args: argparse.Namespace) -> None:
         page.navigate("https://www.douyin.com/")
         page.wait_for_load(20)
     result = get_qrcode(page)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "读取登录二维码时检测到验证码/风控"
+    )
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_wait_login(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = wait_login(page)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "等待登录时检测到验证码/风控"
+    )
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("logged_in") else 1)
 
 
 def cmd_send_code(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = send_code(page, getattr(args, "phone", "") or "")
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "发送验证码时检测到验证码/风控"
+    )
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_verify_code(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = verify_code(page, args.code)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "提交验证码时检测到验证码/风控"
+    )
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("logged_in") else 1)
 
 
@@ -244,29 +247,46 @@ def cmd_search_videos(args: argparse.Namespace) -> None:
     switched = _maybe_switch_to_headed_for_risk(args, result, "搜索页检测到验证码/风控")
     if switched:
         _output(switched, exit_code=2)
-    _output(result)
+    _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_get_video_detail(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
-    _output(get_video_detail(page, args.video_id))
+    result = get_video_detail(page, args.video_id)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "读取作品详情时检测到验证码/风控"
+    )
+    if switched:
+        _output(switched, exit_code=2)
+    _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_like_video(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = like_video(page, args.video_id)
+    switched = _maybe_switch_to_headed_for_risk(args, result, "点赞时检测到验证码/风控")
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_favorite_video(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = favorite_video(page, args.video_id)
+    switched = _maybe_switch_to_headed_for_risk(args, result, "收藏时检测到验证码/风控")
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_share_video(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = share_video(page, args.video_id)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "获取分享链接时检测到验证码/风控"
+    )
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 

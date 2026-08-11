@@ -1,5 +1,5 @@
 LOGIN_TEXT_KEYWORDS = ["登录", "立即登录", "扫码登录", "手机号登录"]
-LOGGED_IN_TEXT_HINTS = ["消息", "朋友", "关注", "推荐", "创作者服务中心", "投稿", "私信", "客户端"]
+LOGGED_IN_TEXT_HINTS = ["创作者服务中心", "投稿", "私信", "消息"]
 
 SEARCH_RESULT_SELECTORS = [
     'a[href*="/video/"]',
@@ -9,7 +9,7 @@ SEARCH_RESULT_SELECTORS = [
 
 DETAIL_DESC_SELECTORS = [
     '[data-e2e="video-desc"]',
-    'h1 span span span span span',
+    "h1 span span span span span",
     'div[class*="title"] span',
 ]
 
