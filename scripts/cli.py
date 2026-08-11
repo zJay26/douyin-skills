@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import ipaddress
 import json
 import os
 import sys
@@ -12,24 +13,39 @@ from pathlib import Path
 from account_manager import (
     add_account,
     get_account_port,
+    get_default_account,
     get_profile_dir,
     list_accounts,
     remove_account,
     set_default_account,
 )
-from chrome_launcher import ensure_chrome, has_display
+from chrome_launcher import DEFAULT_PORT, ensure_chrome
+from doctor import run_doctor
 from douyin.cdp import Browser
 from douyin.interact import favorite_video, like_video, share_video
-from douyin.login import check_login_state, get_qrcode, wait_login, send_code, verify_code
-from douyin.publish import click_publish, fill_publish_image, select_music, validate_publish_state
-from douyin.search import get_trending_topics, get_video_detail, list_feeds, search_videos
+from douyin.login import (
+    check_login_state,
+    get_qrcode,
+    send_code,
+    verify_code,
+    wait_login,
+)
+from douyin.publish import (
+    click_publish,
+    fill_publish_image,
+    select_music,
+    validate_publish_state,
+)
+from douyin.search import get_video_detail, search_videos
 
 
 def _wslg_headed_env_exports() -> str:
     return "DISPLAY=:0 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 FORCE_HEADED=1"
 
 
-def _maybe_switch_to_headed_for_risk(args: argparse.Namespace, result: dict, reason: str):
+def _maybe_switch_to_headed_for_risk(
+    args: argparse.Namespace, result: dict, reason: str
+):
     if not isinstance(result, dict) or not result.get("risk_page"):
         return None
     if getattr(args, "headed", False):
@@ -55,6 +71,7 @@ def _maybe_switch_to_headed_for_risk(args: argparse.Namespace, result: dict, rea
         "page_excerpt": body[:1500],
     }
 
+
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -65,7 +82,9 @@ def _output(data: dict, exit_code: int = 0) -> None:
 
 
 def _session_tab_file(port: int) -> str:
-    return os.path.join(tempfile.gettempdir(), "douyin-skills", f"session_tab_{port}.txt")
+    return os.path.join(
+        tempfile.gettempdir(), "douyin-skills", f"session_tab_{port}.txt"
+    )
 
 
 def _save_session_tab(target_id: str, port: int) -> None:
@@ -81,18 +100,45 @@ def _load_session_tab(port: int) -> str | None:
     return None
 
 
+def _is_loopback_host(host: str) -> bool:
+    if host.strip().lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host.strip()).is_loopback
+    except ValueError:
+        return False
+
+
 def _resolve_account(args: argparse.Namespace) -> str | None:
-    if not getattr(args, "account", ""):
-        return None
-    args.port = get_account_port(args.account)
-    return get_profile_dir(args.account)
+    requested = str(getattr(args, "account", "") or "").strip()
+    explicit_port = getattr(args, "port", None)
+    if requested:
+        account_port = get_account_port(requested)
+        if explicit_port is not None and explicit_port != account_port:
+            raise ValueError("--account 与其他账号端口的 --port 不能同时使用")
+        args.account = requested
+        args.port = account_port
+        return get_profile_dir(requested)
+
+    selected = get_default_account() if explicit_port is None else ""
+    if selected:
+        args.account = selected
+        args.port = get_account_port(selected)
+        return get_profile_dir(selected)
+
+    args.port = explicit_port or DEFAULT_PORT
+    return None
 
 
 def _connect(args: argparse.Namespace):
+    if not _is_loopback_host(args.host):
+        raise ValueError("出于安全考虑，--host 只允许 localhost、127.0.0.1 或 ::1")
     user_data_dir = _resolve_account(args)
     desired_headless = not getattr(args, "headed", False)
-    if not ensure_chrome(port=args.port, headless=desired_headless, user_data_dir=user_data_dir):
-        _output({"success": False, "error": "无法启动 Chrome"}, exit_code=2)
+    if not ensure_chrome(
+        port=args.port, headless=desired_headless, user_data_dir=user_data_dir
+    ):
+        raise RuntimeError("无法启动 Chrome")
     browser = Browser(host=args.host, port=args.port)
     browser.connect()
     saved = _load_session_tab(args.port)
@@ -104,7 +150,10 @@ def _connect(args: argparse.Namespace):
 
 
 def _risk_or_verify_text(page) -> str:
-    text = page.evaluate("(document.body && document.body.innerText || '').slice(0, 3000)") or ""
+    text = (
+        page.evaluate("(document.body && document.body.innerText || '').slice(0, 3000)")
+        or ""
+    )
     title = page.evaluate("document.title || ''") or ""
     return f"{title}\n{text}"
 
@@ -145,13 +194,20 @@ def cmd_set_default_account(args: argparse.Namespace) -> None:
     _output({"success": True, "default": args.name})
 
 
+def cmd_doctor(_args: argparse.Namespace) -> None:
+    result = run_doctor()
+    _output(result, exit_code=0 if result.get("success") else 2)
+
+
 def cmd_check_login(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     page.navigate("https://www.douyin.com/")
     page.wait_for_load(20)
     state = check_login_state(page)
     if state.get("risk_page") and not getattr(args, "headed", False):
-        _output(_switch_to_headed_for_verification(args, "检测到验证码/风控页"), exit_code=2)
+        _output(
+            _switch_to_headed_for_verification(args, "检测到验证码/风控页"), exit_code=2
+        )
     _output(state, exit_code=0 if state.get("logged_in") else 1)
 
 
@@ -172,7 +228,7 @@ def cmd_wait_login(args: argparse.Namespace) -> None:
 
 def cmd_send_code(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
-    result = send_code(page, getattr(args, 'phone', '') or '')
+    result = send_code(page, getattr(args, "phone", "") or "")
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
@@ -217,7 +273,9 @@ def cmd_share_video(args: argparse.Namespace) -> None:
 def cmd_fill_publish_image(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     desc = Path(args.desc_file).read_text(encoding="utf-8").strip()
-    result = fill_publish_image(page, args.images, desc, getattr(args, "title", "") or "")
+    result = fill_publish_image(
+        page, args.images, desc, getattr(args, "title", "") or ""
+    )
     switched = _maybe_switch_to_headed_for_risk(args, result, "发布页检测到验证码/风控")
     if switched:
         _output(switched, exit_code=2)
@@ -227,7 +285,9 @@ def cmd_fill_publish_image(args: argparse.Namespace) -> None:
 def cmd_select_music(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     result = select_music(page, getattr(args, "names", None))
-    switched = _maybe_switch_to_headed_for_risk(args, result, "选音乐时检测到验证码/风控")
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "选音乐时检测到验证码/风控"
+    )
     if switched:
         _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
@@ -235,7 +295,9 @@ def cmd_select_music(args: argparse.Namespace) -> None:
 
 def cmd_validate_publish(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
-    result = validate_publish_state(page, require_topic=getattr(args, "require_topic", False))
+    result = validate_publish_state(
+        page, require_topic=getattr(args, "require_topic", False)
+    )
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
@@ -248,15 +310,36 @@ def cmd_click_publish(args: argparse.Namespace) -> None:
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
-def main() -> None:
+def _valid_port(value: str) -> int:
+    try:
+        port = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("端口必须是整数") from exc
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError("端口必须在 1 到 65535 之间")
+    return port
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="douyin-skills CLI")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=9222)
-    parser.add_argument("--account", default="")
-    parser.add_argument("--headed", action="store_true", help="强制使用有头模式；默认无头运行")
+    parser.add_argument(
+        "--host", default="127.0.0.1", help="本地 Chrome 调试地址（仅允许 loopback）"
+    )
+    parser.add_argument(
+        "--port",
+        type=_valid_port,
+        default=None,
+        help="Chrome 调试端口；不与 --account 同时使用",
+    )
+    parser.add_argument(
+        "--account", default="", help="命名账号；省略时使用已设置的默认账号"
+    )
+    parser.add_argument(
+        "--headed", action="store_true", help="强制使用有头模式；默认无头运行"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    for name in ["check-login", "get-qrcode", "wait-login", "list-accounts"]:
+    for name in ["doctor", "check-login", "get-qrcode", "wait-login", "list-accounts"]:
         sub.add_parser(name)
 
     p = sub.add_parser("send-code")
@@ -302,9 +385,16 @@ def main() -> None:
     p = sub.add_parser("share-video")
     p.add_argument("--video-id", required=True)
 
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(argv)
 
     dispatch = {
+        "doctor": cmd_doctor,
         "list-accounts": cmd_list_accounts,
         "add-account": cmd_add_account,
         "remove-account": cmd_remove_account,
@@ -323,7 +413,17 @@ def main() -> None:
         "favorite-video": cmd_favorite_video,
         "share-video": cmd_share_video,
     }
-    dispatch[args.command](args)
+    try:
+        dispatch[args.command](args)
+    except (FileNotFoundError, OSError, RuntimeError, TypeError, ValueError) as exc:
+        _output(
+            {
+                "success": False,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            },
+            exit_code=2,
+        )
 
 
 if __name__ == "__main__":

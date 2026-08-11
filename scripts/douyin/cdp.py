@@ -10,10 +10,25 @@ NODE_CLIENT = SCRIPT_DIR / "cdp_client.mjs"
 
 def _run_node(mode: str, payload: dict) -> dict:
     cmd = ["node", str(NODE_CLIENT), mode, json.dumps(payload, ensure_ascii=False)]
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    try:
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, check=False, timeout=45
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError("未找到 Node.js；请先安装 Node.js 18 或更高版本") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"CDP 命令超时: {mode}") from exc
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or f"node command failed: {mode}")
-    return json.loads(proc.stdout)
+        raise RuntimeError(
+            proc.stderr.strip() or proc.stdout.strip() or f"node command failed: {mode}"
+        )
+    try:
+        result = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"CDP 命令返回了无效 JSON: {mode}") from exc
+    if not isinstance(result, dict):
+        raise TypeError(f"CDP 命令返回格式无效: {mode}")
+    return result
 
 
 class Page:
@@ -23,10 +38,26 @@ class Page:
         self.target_id = target_id
 
     def navigate(self, url: str) -> None:
-        _run_node("navigate", {"host": self.host, "port": self.port, "targetId": self.target_id, "url": url})
+        _run_node(
+            "navigate",
+            {
+                "host": self.host,
+                "port": self.port,
+                "targetId": self.target_id,
+                "url": url,
+            },
+        )
 
     def evaluate(self, expression: str):
-        result = _run_node("evaluate", {"host": self.host, "port": self.port, "targetId": self.target_id, "expression": expression})
+        result = _run_node(
+            "evaluate",
+            {
+                "host": self.host,
+                "port": self.port,
+                "targetId": self.target_id,
+                "expression": expression,
+            },
+        )
         return result.get("value")
 
     def click(self, selector: str) -> bool:
@@ -81,13 +112,27 @@ class Page:
     def press_enter(self) -> None:
         _run_node(
             "keypress",
-            {"host": self.host, "port": self.port, "targetId": self.target_id, "key": "Enter", "code": "Enter", "keyCode": 13, "text": "\r"},
+            {
+                "host": self.host,
+                "port": self.port,
+                "targetId": self.target_id,
+                "key": "Enter",
+                "code": "Enter",
+                "keyCode": 13,
+                "text": "\r",
+            },
         )
 
     def set_files(self, selector: str, files: list[str]) -> bool:
         result = _run_node(
             "set-file-input-files",
-            {"host": self.host, "port": self.port, "targetId": self.target_id, "selector": selector, "files": files},
+            {
+                "host": self.host,
+                "port": self.port,
+                "targetId": self.target_id,
+                "selector": selector,
+                "files": files,
+            },
         )
         return bool(result.get("success"))
 

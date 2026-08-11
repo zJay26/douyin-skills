@@ -5,10 +5,12 @@ import re
 import time
 
 from .login import RISK_PAGE_KEYWORDS
-from .selectors import COMMENT_ITEM_SELECTORS, DETAIL_DESC_SELECTORS, SEARCH_RESULT_SELECTORS
-from .urls import HOME_URL, jingxuan_url, search_url, trending_url, video_url
+from .selectors import (
+    COMMENT_ITEM_SELECTORS,
+    DETAIL_DESC_SELECTORS,
+)
+from .urls import jingxuan_url, search_url, trending_url, video_url
 from .waiters import wait_for_meaningful_text
-
 
 DEFAULT_SEARCH_LIMIT = 7
 
@@ -248,7 +250,7 @@ def get_trending_topics(page) -> dict:
             const txt = (node.innerText || '').trim();
             if (!txt) continue;
             const lines = txt.split(/\n/).map(x => x.trim()).filter(Boolean);
-            const name = lines.find(x => /^#?\S{2,40}$/.test(x) && /热|榜|话题|挑战|同城|推荐|音乐|剧情|搞笑|美食|穿搭|旅行|开箱|测评/.test(txt)) || lines[0] || '';
+            const name = lines.find(x => /^#?\\S{2,40}$/.test(x) && /热|榜|话题|挑战|同城|推荐|音乐|剧情|搞笑|美食|穿搭|旅行|开箱|测评/.test(txt)) || lines[0] || '';
             if (!name || seen.has(name)) continue;
             seen.add(name);
             topics.push({ name, summary: lines.slice(0, 4).join(' | ').slice(0, 200) });
