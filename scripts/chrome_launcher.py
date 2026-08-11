@@ -214,10 +214,8 @@ def _read_runtime_state(port: int) -> dict:
 
 
 def _remove_runtime_state(port: int) -> None:
-    try:
+    with contextlib.suppress(FileNotFoundError):
         _state_file(port).unlink()
-    except FileNotFoundError:
-        pass
 
 
 def _process_cmdline(pid: int) -> str:

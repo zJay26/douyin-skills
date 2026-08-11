@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞
+    url: https://github.com/zJay26/douyin-skills/security/advisories/new
+    about: 请私下报告可能泄露账号、会话或本机数据的安全问题
+  - name: OpenClaw Skills 文档
+    url: https://docs.openclaw.ai/skills
+    about: 查看 OpenClaw 的 Skill 安装与发现规则
