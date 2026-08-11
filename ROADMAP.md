@@ -24,9 +24,9 @@ The baseline does **not** prove arbitrary page-version compatibility or authenti
 ## Next: strengthen the Douyin foundation
 
 - [ ] Add sanitized selector and page-state fixtures for login, risk, search, detail, and publishing flows
-- [ ] Publish a repeatable manual validation checklist with Chrome and page-version notes
-- [ ] Add a synthetic, privacy-safe demo of the end-to-end agent workflow
-- [ ] Define a release and changelog cadence so users can distinguish stable behavior from ongoing work
+- [x] Publish a repeatable manual validation checklist with Chrome and page-version notes
+- [x] Add a synthetic, privacy-safe demo of the end-to-end agent workflow
+- [x] Define a release and changelog cadence so users can distinguish stable behavior from ongoing work
 - [ ] Turn common page-drift reports into focused regression tests
 
 ## Then: extract the reusable contract
