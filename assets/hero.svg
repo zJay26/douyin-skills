@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">douyin-skills</title>
+  <desc id="desc">把常用抖音操作交给 Agent。本地浏览器、人工确认发布、五个可组合 Skills。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07080D"/>
+      <stop offset="0.58" stop-color="#10111A"/>
+      <stop offset="1" stop-color="#171225"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2DE2E6"/>
+      <stop offset="0.52" stop-color="#7C5CFC"/>
+      <stop offset="1" stop-color="#FF3B78"/>
+    </linearGradient>
+    <radialGradient id="cyanGlow" cx="0" cy="0" r="1" gradientTransform="translate(1040 102) rotate(123) scale(390 330)">
+      <stop offset="0" stop-color="#2DE2E6" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#2DE2E6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pinkGlow" cx="0" cy="0" r="1" gradientTransform="translate(1070 556) rotate(-125) scale(380 300)">
+      <stop offset="0" stop-color="#FF3B78" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FF3B78" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#000000" flood-opacity="0.42"/>
+    </filter>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#FFFFFF" stroke-opacity="0.035" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="640" rx="32" fill="url(#bg)"/>
+  <rect width="1280" height="640" rx="32" fill="url(#grid)"/>
+  <rect width="1280" height="640" rx="32" fill="url(#cyanGlow)"/>
+  <rect width="1280" height="640" rx="32" fill="url(#pinkGlow)"/>
+
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+    <g transform="translate(72 68)">
+      <rect width="286" height="34" rx="17" fill="#FFFFFF" fill-opacity="0.07" stroke="#FFFFFF" stroke-opacity="0.13"/>
+      <circle cx="19" cy="17" r="5" fill="#2DE2E6"/>
+      <text x="34" y="22" fill="#D5D7E2" font-size="13" font-weight="700" letter-spacing="1.4">OPENCLAW SKILL KIT · LOCAL-FIRST</text>
+    </g>
+
+    <text x="72" y="202" fill="#F8F9FD" font-size="78" font-weight="760" letter-spacing="-3">douyin-skills</text>
+    <rect x="74" y="226" width="116" height="7" rx="3.5" fill="#2DE2E6"/>
+    <rect x="188" y="226" width="68" height="7" rx="3.5" fill="#7C5CFC"/>
+    <rect x="254" y="226" width="38" height="7" rx="3.5" fill="#FF3B78"/>
+
+    <text x="72" y="303" fill="#F2F3F8" font-size="36" font-weight="650" letter-spacing="0.4">把常用抖音操作交给 Agent</text>
+    <text x="72" y="351" fill="#A9ADBC" font-size="20" font-weight="450">登录、搜索、图文发布与基础互动，都在你的本地浏览器完成。</text>
+
+    <g transform="translate(72 412)">
+      <rect width="472" height="94" rx="20" fill="#FFFFFF" fill-opacity="0.055" stroke="#FFFFFF" stroke-opacity="0.11"/>
+      <g transform="translate(24 23)">
+        <circle cx="24" cy="24" r="24" fill="#2DE2E6" fill-opacity="0.13"/>
+        <path d="M15 24.5l6 6 12-14" fill="none" stroke="#2DE2E6" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <text x="88" y="39" fill="#F2F3F8" font-size="17" font-weight="700">安全边界写进流程</text>
+      <text x="88" y="66" fill="#989CAB" font-size="14">人工处理验证 · 发布显式确认 · 未确认结果不重试</text>
+    </g>
+
+    <text x="72" y="568" fill="#727786" font-size="14" font-weight="600" letter-spacing="0.6">PYTHON 3.9+  ·  NODE.JS 18+  ·  CHROME / CHROMIUM</text>
+
+    <g transform="translate(684 72)" filter="url(#softShadow)">
+      <rect width="524" height="496" rx="28" fill="#171923" stroke="#FFFFFF" stroke-opacity="0.14"/>
+      <rect x="1" y="1" width="522" height="54" rx="27" fill="#20222E"/>
+      <path d="M1 54h522" stroke="#FFFFFF" stroke-opacity="0.08"/>
+      <circle cx="25" cy="27" r="5" fill="#FF5C75"/>
+      <circle cx="43" cy="27" r="5" fill="#FFC857"/>
+      <circle cx="61" cy="27" r="5" fill="#52D48A"/>
+      <rect x="92" y="15" width="330" height="24" rx="12" fill="#0E1017"/>
+      <circle cx="109" cy="27" r="4" fill="#2DE2E6"/>
+      <text x="121" y="31.5" fill="#7E8393" font-size="11" font-weight="650">127.0.0.1 · local Chrome</text>
+
+      <g transform="translate(42 91)">
+        <text x="0" y="15" fill="#7F8494" font-size="12" font-weight="700" letter-spacing="1.4">ONE INTENT · FIVE SKILLS</text>
+
+        <path d="M219 64 C219 95 219 109 219 132 M219 132 C219 159 69 147 69 182 M219 132 C219 159 219 182 219 182 M219 132 C219 159 369 147 369 182" fill="none" stroke="url(#accent)" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+        <circle cx="219" cy="63" r="36" fill="#11131B" stroke="url(#accent)" stroke-width="2.5"/>
+        <path d="M207 64h24M219 52v24" stroke="#F8F9FD" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="219" cy="63" r="47" fill="none" stroke="#FFFFFF" stroke-opacity="0.06"/>
+
+        <g transform="translate(0 182)">
+          <rect width="138" height="66" rx="16" fill="#20232E" stroke="#2DE2E6" stroke-opacity="0.36"/>
+          <circle cx="21" cy="24" r="7" fill="#2DE2E6"/>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">登录</text>
+          <text x="12" y="51" fill="#858A99" font-size="10">二维码 · 短信 · 多账号</text>
+        </g>
+        <g transform="translate(150 182)">
+          <rect width="138" height="66" rx="16" fill="#20232E" stroke="#7C5CFC" stroke-opacity="0.38"/>
+          <circle cx="21" cy="24" r="7" fill="#7C5CFC"/>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">搜索</text>
+          <text x="12" y="51" fill="#858A99" font-size="10">关键词 · 视频 · 图文</text>
+        </g>
+        <g transform="translate(300 182)">
+          <rect width="138" height="66" rx="16" fill="#20232E" stroke="#FF3B78" stroke-opacity="0.38"/>
+          <circle cx="21" cy="24" r="7" fill="#FF3B78"/>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">发布</text>
+          <text x="12" y="51" fill="#858A99" font-size="10">图片 · 文案 · 音乐</text>
+        </g>
+
+        <g transform="translate(68 273)">
+          <rect width="143" height="66" rx="16" fill="#20232E" stroke="#FFFFFF" stroke-opacity="0.15"/>
+          <circle cx="21" cy="24" r="7" fill="#E6E8EF"/>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">互动</text>
+          <text x="14" y="51" fill="#858A99" font-size="10">点赞 · 收藏 · 分享</text>
+        </g>
+        <g transform="translate(227 273)">
+          <rect width="143" height="66" rx="16" fill="#20232E" stroke="#FFFFFF" stroke-opacity="0.15"/>
+          <circle cx="21" cy="24" r="7" fill="#E6E8EF"/>
+          <text x="38" y="29" fill="#F1F3F8" font-size="16" font-weight="700">环境</text>
+          <text x="14" y="51" fill="#858A99" font-size="10">安装 · 自检 · 迁移</text>
+        </g>
+
+        <rect x="49" y="377" width="340" height="44" rx="14" fill="#0E1017" stroke="#FFFFFF" stroke-opacity="0.08"/>
+        <circle cx="72" cy="399" r="5" fill="#52D48A"/>
+        <text x="86" y="404" fill="#B3B7C4" font-size="13" font-weight="600">Agent → Skill → CLI → Chrome → Douyin</text>
+      </g>
+    </g>
+  </g>
+</svg>
