@@ -1,8 +1,8 @@
-## 改动说明
+## What changed
 
-说明用户问题、解决方式和刻意没有覆盖的边界。
+Describe the user problem, the solution, and the boundary you deliberately did not expand.
 
-## 验证
+## Validation
 
 - [ ] `python -m unittest discover -s tests/python -v`
 - [ ] `npm test`
@@ -10,10 +10,11 @@
 - [ ] `ruff check scripts tests/python`
 - [ ] `ruff format --check scripts tests/python`
 
-如涉及真实页面，请补充浏览器版本、账号状态、页面结果与脱敏截图；不要上传 Cookie、验证码、二维码或 Chrome Profile。
+For real-page changes, include the browser version, account state, page result, and a sanitized screenshot or DOM clue. Never upload cookies, verification codes, QR codes, phone numbers, or Chrome profiles.
 
-## 安全检查
+## Safety and compatibility
 
-- [ ] 没有降低 loopback、人工验证、发布确认或操作频率限制
-- [ ] 没有提交密钥、会话数据、手机号或本地 Profile
-- [ ] 文档与实际 CLI 行为一致
+- [ ] Loopback-only CDP, human verification, publish confirmation, and reasonable-frequency boundaries remain intact
+- [ ] No secrets, session data, personal identifiers, or local profiles are included
+- [ ] Skill and README documentation match the actual CLI behavior
+- [ ] Any new Agent client or platform claim has a repeatable validation path
