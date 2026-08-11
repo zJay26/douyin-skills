@@ -271,8 +271,19 @@ def cmd_share_video(args: argparse.Namespace) -> None:
 
 
 def cmd_fill_publish_image(args: argparse.Namespace) -> None:
+    desc_path = Path(args.desc_file).expanduser()
+    if not desc_path.is_absolute():
+        raise ValueError("--desc-file 必须使用绝对路径")
+    try:
+        desc_path = desc_path.resolve(strict=True)
+    except FileNotFoundError as exc:
+        raise ValueError(f"正文文件不存在：{args.desc_file}") from exc
+    if not desc_path.is_file():
+        raise ValueError(f"正文路径不是文件：{args.desc_file}")
+    desc = desc_path.read_text(encoding="utf-8").strip()
+    if not desc:
+        raise ValueError("正文文件不能为空")
     _browser, page = _connect(args)
-    desc = Path(args.desc_file).read_text(encoding="utf-8").strip()
     result = fill_publish_image(
         page, args.images, desc, getattr(args, "title", "") or ""
     )
@@ -298,10 +309,23 @@ def cmd_validate_publish(args: argparse.Namespace) -> None:
     result = validate_publish_state(
         page, require_topic=getattr(args, "require_topic", False)
     )
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "发布校验时检测到验证码/风控"
+    )
+    if switched:
+        _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_click_publish(args: argparse.Namespace) -> None:
+    if not getattr(args, "confirm", False):
+        _output(
+            {
+                "success": False,
+                "error": "click-publish 必须显式传入 --confirm，表示已完成内容与页面复核",
+            },
+            exit_code=2,
+        )
     _browser, page = _connect(args)
     result = click_publish(page, require_topic=getattr(args, "require_topic", False))
     switched = _maybe_switch_to_headed_for_risk(args, result, "发布前检测到验证码/风控")
@@ -367,14 +391,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("fill-publish-image")
     p.add_argument("--desc-file", required=True)
-    p.add_argument("--title", default="")
+    p.add_argument("--title", required=True)
     p.add_argument("--images", nargs="+", required=True)
 
     p = sub.add_parser("select-music")
     p.add_argument("--names", nargs="*", default=[])
 
+    p = sub.add_parser("validate-publish")
+    p.add_argument("--require-topic", action="store_true")
+
     p = sub.add_parser("click-publish")
     p.add_argument("--require-topic", action="store_true")
+    p.add_argument(
+        "--confirm",
+        action="store_true",
+        help="确认已人工复核标题、正文、图片、音乐和页面状态",
+    )
 
     p = sub.add_parser("like-video")
     p.add_argument("--video-id", required=True)
@@ -408,6 +440,7 @@ def main(argv: list[str] | None = None) -> None:
         "get-video-detail": cmd_get_video_detail,
         "fill-publish-image": cmd_fill_publish_image,
         "select-music": cmd_select_music,
+        "validate-publish": cmd_validate_publish,
         "click-publish": cmd_click_publish,
         "like-video": cmd_like_video,
         "favorite-video": cmd_favorite_video,

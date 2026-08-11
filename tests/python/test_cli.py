@@ -16,6 +16,13 @@ class CliTests(unittest.TestCase):
         args = cli.build_parser().parse_args(["doctor"])
         self.assertEqual(args.command, "doctor")
 
+    def test_publish_validation_and_confirmation_are_explicit(self) -> None:
+        validate_args = cli.build_parser().parse_args(["validate-publish"])
+        publish_args = cli.build_parser().parse_args(["click-publish", "--confirm"])
+
+        self.assertEqual(validate_args.command, "validate-publish")
+        self.assertTrue(publish_args.confirm)
+
     def test_non_loopback_hosts_are_rejected(self) -> None:
         self.assertTrue(cli._is_loopback_host("127.0.0.1"))
         self.assertTrue(cli._is_loopback_host("::1"))
