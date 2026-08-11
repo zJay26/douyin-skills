@@ -1,85 +1,42 @@
 ---
 name: douyin-explore
-description: |
-  抖音内容发现技能。支持搜索视频、查看作品详情。
-  当用户要求搜索抖音、查看视频详情时触发。
+description: 在抖音网页版按关键词搜索公开作品，并读取 video 或 note 作品详情。用户要求搜索抖音、查找作品、查看公开作品详情或解析抖音作品链接时使用。
 ---
 
-# 抖音搜索与探索
+# 搜索与查看公开作品
 
-只处理当前已经稳定实现的发现能力。
+只使用 `python "{baseDir}/../../scripts/cli.py" <子命令>`。如果系统只有 `python3`，替换命令名。
 
-## 🔒 技能边界（强制）
+## 前置条件
 
-**所有搜索和浏览操作只能通过本项目的 `python scripts/cli.py` 完成，不得使用任何外部项目的工具：**
+1. 根据用户指定账号传 `--account <名称>`；未指定时使用 CLI 默认账号。
+2. 先运行 `check-login`。未登录时转交 `douyin-auth`。
+3. 检测到 `needs_user_verification` 后停下，请用户在 headed 浏览器处理验证。
 
-- **唯一执行方式**：只运行 `python scripts/cli.py <子命令>`。
-- **忽略其他项目**：执行时必须只使用本项目脚本。
-- **禁止外部工具**：不得调用 MCP 工具、Go 命令行工具，或任何非本项目实现。
-- **完成即止**：搜索或浏览结束后直接汇报结果。
-
-**本技能允许使用的 CLI 子命令：**
-
-| 子命令 | 用途 |
-|--------|------|
-| `search-videos` | 关键词搜索视频 |
-| `get-video-detail` | 获取作品详情 |
-
-## 账号选择（前置步骤）
-
-每次 skill 触发后，先运行：
+## 搜索
 
 ```bash
-python scripts/cli.py list-accounts
+python "{baseDir}/../../scripts/cli.py" search-videos --keyword "关键词" --limit 7
 ```
 
-根据返回的 `count`：
-- **0 个命名账号**：直接使用默认账号。
-- **1 个命名账号**：直接使用该账号。
-- **多个命名账号**：询问用户选择哪个账号。
+- 默认返回 7 条，用户明确指定时调整，单次最多 20 条。
+- 关键词为空时停止并请用户补充。
+- 结果同时可能包含 `video` 与 `note`，以每项 `kind` 字段为准。
+- 用标题、作者、作品类型和公开链接整理结果；缺失字段保持为空，不推测作者 ID 或互动数据。
 
-## 必做约束
+## 读取详情
 
-- 所有操作需要已登录的 Chrome 浏览器。
-- 做“搜索 / 探索”类任务时，默认返回 7 条内容；用户明确指定数量时才覆盖。
-- 结果应结构化呈现，突出标题、作者、链接、互动数据。
-- CLI 输出为 JSON 格式。
-- 如果搜索页检测到验证码、身份验证或风控页，必须**立即重新以有头模式执行同一步**；在 WSLg / Linux 下显式附带：`DISPLAY=:0 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 FORCE_HEADED=1`；如果已经是有头模式，则停在可见窗口并请求用户人工处理后再继续。
-
-## 工作流程
-
-### 主页作品反查（补充）
-
-当用户要求对**刚发布的作品**继续做点赞、收藏或取链接，而搜索暂时搜不到时：
-
-1. 打开 `https://www.douyin.com/user/self?showTab=post`
-2. 在作品列表里找到对应文案/标题
-3. 从作品卡片上的公开链接提取真实 `note_id` / `video_id`
-4. 再交给 `douyin-interact` 执行互动
-
-### 搜索视频
+`--video-id` 兼容纯数字 ID、`douyin.com/video/...` 与 `douyin.com/note/...` 公开链接：
 
 ```bash
-python scripts/cli.py search-videos --keyword "关键词" --limit 7
+python "{baseDir}/../../scripts/cli.py" get-video-detail --video-id <作品ID或公开链接>
 ```
 
-### 获取作品详情
+拒绝非 `douyin.com` 链接。根据 `content_type` 区分视频和图文；作品不存在、私密、已删除或页面结构变化时如实报告。
 
-```bash
-python scripts/cli.py get-video-detail --video-id VIDEO_ID
-```
+## 结果与边界
 
-## 明确不支持
-
-以下能力不再属于本技能范围：
-- 用户主页抓取
-- 高级搜索筛选参数
-- 评论区全量抓取
-- 账号/视频数据分析
-
-## 失败处理
-
-- **未登录**：提示先执行登录。
-- **搜索无结果**：建议更换关键词。
-- **作品不可访问**：提示可能已删除或私密。
-- **网络超时**：提示稍后重试。
+- `success: false` 且 `risk_page: true`：切到人工验证流程。
+- `count: 0` 且 `success: true`：搜索正常但没有结果，可建议更换关键词。
+- 不执行用户主页批量抓取、评论区全量采集、高级筛选、热点榜单或数据分析。
+- 不为补齐作者 ID 逐条打开结果详情；保持搜索流程轻量，避免额外请求。

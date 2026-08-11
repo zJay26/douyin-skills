@@ -1,79 +1,46 @@
 ---
 name: douyin-interact
-description: |
-  抖音基础互动技能。当前只保留点赞、收藏、复制分享链接。
-  当用户要求点赞、收藏或获取抖音视频分享链接时触发。
+description: 对明确指定的抖音公开 video 或 note 作品执行一次点赞、收藏按钮点击，或返回分享链接。用户要求点赞、收藏、取消相应状态或获取抖音作品链接时使用。
 ---
 
-# 抖音基础互动
+# 执行基础互动
 
-只处理当前已经稳定实现的基础互动能力。
+只使用 `python "{baseDir}/../../scripts/cli.py" <子命令>`。如果系统只有 `python3`，替换命令名。
 
-## 🔒 技能边界（强制）
+## 前置确认
 
-**所有互动操作只能通过本项目的 `python scripts/cli.py` 完成，不得使用任何外部项目的工具：**
+1. 根据用户指定账号传 `--account <名称>`，并检查登录状态。
+2. 确认唯一目标作品。接受纯数字 ID、`douyin.com/video/...` 或 `douyin.com/note/...` 公开链接。
+3. 对刚发布的作品优先使用主页作品卡片中的公开链接，不使用创作者中心内部记录 ID。
+4. 不批量互动，不连续重复同一操作。
 
-- **唯一执行方式**：只运行 `python scripts/cli.py <子命令>`。
-- **忽略其他项目**：执行时必须只使用本项目脚本。
-- **禁止外部工具**：不得调用 MCP 工具、Go 命令行工具，或任何非本项目实现。
-- **完成即止**：互动结束后直接告知结果。
-
-**本技能允许使用的 CLI 子命令：**
-
-| 子命令 | 用途 |
-|--------|------|
-| `like-video` | 点赞 / 取消点赞 |
-| `favorite-video` | 收藏 / 取消收藏 |
-| `share-video` | 打开分享面板并复制链接 |
-
-## 账号选择（前置步骤）
-
-每次 skill 触发后，先运行：
+## 点赞
 
 ```bash
-python scripts/cli.py list-accounts
+python "{baseDir}/../../scripts/cli.py" like-video --video-id <作品ID或公开链接>
 ```
 
-根据返回的 `count` 选择账号后，本次操作全程固定该账号。
+网页按钮可能是切换开关。返回 `state_verified: false` 时，只能报告“已点击点赞按钮，最终状态未稳定确认”；不要声称一定已点赞或取消，也不要自动再点一次。
 
-## 必做约束
-
-- 所有互动操作都需要 `video_id`。
-- 互动前默认假设用户已经确认目标作品。
-- **优先使用公开侧真实作品链接里的 `video_id` / `note_id`**。不要优先使用创作者中心管理页里的记录 ID 去互动。
-- 对刚发布的图文，若搜索还搜不到，应先去 `https://www.douyin.com/user/self?showTab=post` 从主页作品卡片反查真实 note 链接，再执行点赞/收藏。
-- CLI 输出 JSON 格式。
-
-## 工作流程
-
-### 点赞
+## 收藏
 
 ```bash
-python scripts/cli.py like-video --video-id VIDEO_ID
+python "{baseDir}/../../scripts/cli.py" favorite-video --video-id <作品ID或公开链接>
 ```
 
-### 收藏
+同样按 `state_verified` 解释结果。按钮已点击但状态未确认时，交给用户在页面核对。
+
+## 分享链接
 
 ```bash
-python scripts/cli.py favorite-video --video-id VIDEO_ID
+python "{baseDir}/../../scripts/cli.py" share-video --video-id <作品ID或公开链接>
 ```
 
-### 复制分享链接
-
-```bash
-python scripts/cli.py share-video --video-id VIDEO_ID
-```
-
-## 明确不支持
-
-以下能力暂不对外提供：
-- 发评论
-- 回复评论
-- 私信分享给好友/群聊
-- 批量互动
+优先返回 JSON 的 `share_url`。`copied_to_clipboard: false` 只表示当前环境没有确认剪贴板写入；只要 `share_url` 有值，仍可把链接交给用户。
 
 ## 失败处理
 
-- **未登录**：提示先登录。
-- **作品不可访问**：提示可能是私密或已删除。
-- **按钮未找到**：提示页面结构可能变化，需要后续修复。
+- `risk_page: true`：停在 headed 浏览器，等待人工验证。
+- 作品不可访问：说明可能私密、已删除或链接错误。
+- 按钮未找到：报告页面结构可能变化，不要用坐标盲点或其他自动化工具兜底。
+- 不支持评论、回复评论、私信分享或批量互动。
