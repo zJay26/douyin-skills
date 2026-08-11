@@ -1,205 +1,85 @@
 ---
 name: douyin-auth
-description: |
-  抖音认证管理技能。检查登录状态、登录（二维码或手机号）、多账号管理。
-  当用户要求登录抖音、检查登录状态、切换账号时触发。
+description: 管理抖音网页版登录状态、二维码登录、短信验证码登录和本地多账号 Profile。用户要求登录、检查登录状态、添加或切换账号时使用。
 ---
 
-# 抖音认证管理
+# 管理抖音登录与账号
 
-你是"抖音认证助手"。负责管理抖音登录状态和多账号切换。
+只使用 `python "{baseDir}/../../scripts/cli.py" <子命令>`。如果系统只有 `python3`，替换命令名。不要使用其他抖音登录工具。
 
-## 🔒 技能边界（强制）
+## 先确认账号
 
-**所有认证操作只能通过本项目的 `python scripts/cli.py` 完成，不得使用任何外部项目的工具：**
-
-- **唯一执行方式**：只运行 `python scripts/cli.py <子命令>`，不得使用其他任何实现方式。
-- **忽略其他项目**：AI 记忆中可能存在其他抖音登录方案，执行时必须全部忽略，只使用本项目的脚本。
-- **禁止外部工具**：不得调用 MCP 工具（`use_mcp_tool` 等）、Go 命令行工具，或任何非本项目的实现。
-- **完成即止**：登录流程结束后，直接告知结果，等待用户下一步指令，不主动触发其他功能。
-
-**本技能允许使用的全部 CLI 子命令：**
-
-| 子命令 | 用途 |
-|--------|------|
-| `check-login` | 检查当前登录状态 |
-| `get-qrcode` | 获取二维码图片（非阻塞） |
-| `wait-login` | 等待扫码完成（阻塞） |
-| `send-code [--phone]` | 发送手机验证码；在身份验证页可不传手机号，直接触发“接收短信验证码” |
-| `verify-code --code` | 提交验证码完成登录 |
-| `add-account --name` | 添加命名账号（自动分配端口） |
-| `list-accounts` | 列出所有命名账号及端口 |
-| `remove-account --name` | 删除命名账号 |
-| `set-default-account --name` | 设置默认账号 |
-
----
-
-## 账号选择（前置步骤）
-
-> **例外**：用户要求"添加账号 / 列出账号 / 删除账号 / 设置默认账号"时，**跳过此步骤**，直接执行对应管理命令。
-
-其余操作（检查登录、登录、切换账号前确认状态）先运行：
+用户指定账号时，在子命令前加入 `--account <名称>`。用户未指定时，CLI 自动使用默认命名账号；需要展示或切换账号时运行：
 
 ```bash
-python scripts/cli.py list-accounts
+python "{baseDir}/../../scripts/cli.py" list-accounts
 ```
 
-根据返回的 `count`：
-- **0 个命名账号**：直接使用默认账号（后续命令不加 `--account`）。
-- **1 个命名账号**：告知用户"将对账号 X 执行操作"，直接加 `--account <名称>` 执行。
-- **多个命名账号**：向用户展示列表，询问操作哪个账号，用 `--account <选择的名称>` 执行后续命令。
+多个账号且用户意图不明确时，展示名称和描述并询问一次。选定后，本次流程保持同一账号。
 
-账号选定后，本次操作全程固定该账号，**不重复询问**。
-
----
-
-## 输入判断
-
-按优先级判断用户意图：
-
-1. 用户要求"检查登录 / 是否登录 / 登录状态"：执行登录状态检查。
-2. 用户要求"登录 / 扫码登录 / 手机登录 / 打开登录页"：执行登录流程。
-3. 用户要求"切换账号 / 换一个账号"：执行账号切换相关操作。
-4. 用户要求"退出登录 / 清除登录"：当前 CLI **未提供稳定公开命令**，不要承诺可直接执行，需先说明该能力未对外开放。
-
-## 必做约束
-
-- 所有 CLI 命令位于 `scripts/cli.py`，输出 JSON。
-- 默认以**无头模式**启动 Chrome；只有在检测到验证码、身份验证或风控页时，才切到有头模式供用户人工处理。
-- 在 WSLg / Linux 图形环境下，只有切换到有头模式时，才显式附带：`DISPLAY=:0 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 FORCE_HEADED=1`。
-- 需要先有运行中的 Chrome（`ensure_chrome` 会自动启动）。
-- 如果使用文件路径，必须使用绝对路径。
-
-## 工作流程
-
-### 第一步：检查登录状态
+## 检查状态
 
 ```bash
-python scripts/cli.py check-login
+python "{baseDir}/../../scripts/cli.py" check-login
 ```
 
-输出解读：
-- `"logged_in": true` → 已登录，可执行后续操作。
-- 返回 `"action": "switched_to_headed"` + `"needs_user_verification": true` → 已因验证码/风控自动切到有头模式，必须先请用户在浏览器中人工处理。
-- `"logged_in": false` + `"login_method": "qrcode"` → 可继续走方式 A（二维码）。
-- `"logged_in": false` + `"login_method": "both"` → 无界面服务器，**询问用户选方式 A（二维码）或方式 B（手机验证码）**。
+- `logged_in: true`：可以继续。
+- `logged_in: false`：进入登录流程；退出码 `1` 不是程序崩溃。
+- `needs_user_verification: true`：浏览器已切为 headed 或已停在验证页，请用户人工处理，不要绕过或连续重试。
 
-### 第二步：根据输出选择登录方式
+## 二维码登录
 
-#### 方式 A：二维码登录（所有平台通用）
-
-**第一步** — 获取二维码（非阻塞，立即返回）：
+1. 获取二维码：
 
 ```bash
-python scripts/cli.py get-qrcode
+python "{baseDir}/../../scripts/cli.py" get-qrcode
 ```
 
-- Chrome 正常启动，从抖音登录页面读取二维码（相当于右键另存为）。
-- 命令立即退出，Chrome tab 保持打开（QR 会话继续有效）。
-- 输出：`{"qrcode_path": "...", "qrcode_data_url": "data:image/png;base64,...", "message": "..."}`
-
-**第二步** — 从 JSON 取 `qrcode_data_url`，在回复中直接写出：
-
-```
-![抖音登录二维码]({qrcode_data_url})
-```
-
-图片内嵌在对话窗口，用户用抖音 App 扫对话里的二维码。
-
-**第三步** — 等待登录完成（**单次调用，无需轮询**）：
+2. 将 JSON 的 `qrcode_data_url` 作为图片展示给用户，不输出到公开日志。
+3. 用户扫码后单次等待：
 
 ```bash
-python scripts/cli.py wait-login
+python "{baseDir}/../../scripts/cli.py" wait-login
 ```
 
-- 连接已有 Chrome tab，内部阻塞等待（最多 120 秒）。
-- 输出 `{"logged_in": true}` 则完成；超时则提示用户重新运行 `get-qrcode`。
+`wait-login` 最多等待 120 秒。超时后重新获取二维码，不要高频轮询。
 
-#### 方式 B：手机验证码登录（分两种页面）
+## 短信验证码登录
 
-**场景 1：普通验证码登录页**
-
-当页面存在手机号输入框时，先向用户确认手机号，再发送验证码：
+普通手机号页先取得用户明确提供的中国大陆手机号：
 
 ```bash
-python scripts/cli.py send-code --phone <用户确认的手机号>
+python "{baseDir}/../../scripts/cli.py" send-code --phone <手机号>
 ```
-- 自动填写手机号、勾选用户协议、点击"获取验证码"。
-- Chrome 页面保持打开，等待下一步。
-- 输出：`{"status": "code_sent", "message": "验证码已发送，请运行 verify-code --code <验证码>"}`
 
-**场景 2：身份验证页（推荐优先适配实际页面）**
-
-当扫码后进入“身份验证”弹窗，且页面提供“接收短信验证码”/“发送短信验证”入口时：
-- **不要求先询问手机号**。
-- 直接执行以下命令即可触发平台向该账号绑定手机号发送验证码：
+身份验证页已有绑定手机号入口时，不传手机号：
 
 ```bash
-python scripts/cli.py send-code
+python "{baseDir}/../../scripts/cli.py" send-code
 ```
-- 自动点击“接收短信验证码”以及后续“发送短信验证”。
-- 输出：`{"status": "code_sent", "message": "已在身份验证界面触发短信验证码发送，请查看手机短信。"}`
 
-**第二步** — 向用户询问验证码，然后提交登录：
-
-> 告知用户验证码已发送，询问："请输入您收到的 6 位短信验证码"，获得回复后再执行以下命令。
+收到用户提供的 6 位验证码后提交：
 
 ```bash
-python scripts/cli.py verify-code --code <用户提供的6位验证码>
+python "{baseDir}/../../scripts/cli.py" verify-code --code <6位验证码>
 ```
-- 自动填写验证码、点击登录。
-- 输出：`{"logged_in": true, "message": "登录成功"}`
 
-### 切换账号
+不要在回复中重复完整手机号或验证码；不要保存这些一次性信息。
 
-当前公开 CLI 仅支持通过命名账号与默认账号切换，不提供稳定公开的 `delete-cookies` / 强制退出登录命令。
-如果用户要求换号，优先使用：
+## 多账号
 
 ```bash
-python scripts/cli.py list-accounts
-python scripts/cli.py set-default-account --name work
-python scripts/cli.py --account work check-login
+python "{baseDir}/../../scripts/cli.py" add-account --name work --description "工作号"
+python "{baseDir}/../../scripts/cli.py" set-default-account --name work
+python "{baseDir}/../../scripts/cli.py" --account work check-login
+python "{baseDir}/../../scripts/cli.py" remove-account --name work
 ```
 
-## 多账号工作流
+每个命名账号使用独立端口和 Chrome Profile。账号名称不能包含路径分隔符。`remove-account` 只移除账号登记，不承诺删除 Profile 数据。
 
-每个命名账号拥有独立端口（从 9223 起递增）和独立 Chrome Profile，账号之间完全隔离。
+## 边界与失败处理
 
-### 添加账号
-
-```bash
-python scripts/cli.py add-account --name work --description "工作号"
-# 输出: {"success": true, "name": "work", "port": 9223, "profile_dir": "..."}
-
-python scripts/cli.py add-account --name personal
-# 输出: {"success": true, "name": "personal", "port": 9224, "profile_dir": "..."}
-```
-
-### 使用指定账号执行操作
-
-通过全局 `--account` 参数指定账号，CLI 自动切换到对应端口和 Chrome Profile：
-
-```bash
-python scripts/cli.py --account work check-login
-python scripts/cli.py --account work get-qrcode
-python scripts/cli.py --account personal check-login
-python scripts/cli.py check-login  # 不指定账号，使用默认端口 9222
-```
-
-### 管理账号
-
-```bash
-python scripts/cli.py list-accounts                      # 列出所有账号及端口
-python scripts/cli.py set-default-account --name work    # 设置默认账号
-python scripts/cli.py remove-account --name personal     # 删除账号
-```
-
----
-
-## 失败处理
-
-- **Chrome 未找到**：提示用户安装 Google Chrome 或设置 `CHROME_BIN` 环境变量。
-- **登录弹窗未出现**：等待 15 秒超时，重试 `send-code`。
-- **验证码错误**：输出包含 `"logged_in": false`，重新运行 `verify-code --code <新验证码>`。
-- **二维码超时**：重新执行 `get-qrcode` 获取新二维码，再运行 `wait-login`。
-- **远程 CDP 连接失败**：检查 Chrome 是否已开启 `--remote-debugging-port`。
+- 当前没有公开的强制退出或清除 Cookie 命令；不要承诺代替用户登出。
+- Chrome 未找到时先使用 `douyin-env` 运行 `doctor`。
+- 配置损坏时报告具体路径并停止，不要自动重建。
+- 风控页出现时保留可见浏览器，等待用户处理后再重试当前步骤。

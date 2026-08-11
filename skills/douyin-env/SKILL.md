@@ -1,137 +1,78 @@
 ---
 name: douyin-env
-description: |
-  抖音 Skill 环境配置与迁移子技能。用于检查、准备、迁移和复现 douyin-skills 运行环境，包括 Python、Node、ws、Pillow、Chrome/Chromium、字体资产与图形环境要求。
-  当用户要求在另一台电脑部署、迁移、安装、配置、检查环境、自检依赖时触发。
+description: 检查、安装、迁移和排查 douyin-skills 本地运行环境，包括 Python、Node.js、ws、Chrome/Chromium、图形环境和本地 Profile。用户要求安装、配置、部署、迁移、环境自检或解决依赖问题时使用。
 ---
 
-# 抖音 Skill 环境配置
+# 配置 douyin-skills 环境
 
-只处理 `douyin-skills` 的运行环境准备、迁移和自检。
+让本机具备运行登录、搜索、图文发布与基础互动的条件，不执行真实账号操作。
 
-## 目标
+## 定位项目
 
-让另一台电脑具备与当前工作区尽量一致的运行条件，保证以下能力可用：
-- 登录
-- 搜索
-- 图文发布
-- 点赞 / 收藏 / 分享链接
-- 图片生成（含项目字体）
+- 当前子技能目录为 `{baseDir}`。
+- 项目根目录为 `{baseDir}/../..`。
+- CLI 为 `{baseDir}/../../scripts/cli.py`。
+- 将示例中的 `python` 替换为系统可用的 `python3`（如需要）。
 
-## 必需环境
+## 环境要求
 
-### 系统二进制
-- `python3`
-- `node`
-- `npm`
-- `google-chrome` / `google-chrome-stable` / `chromium` / `chromium-browser` / `chrome`
+| 组件 | 最低要求 | 用途 |
+| --- | --- | --- |
+| Python | 3.9+ | CLI 与页面流程 |
+| Node.js | 18+ | CDP WebSocket 桥接 |
+| npm | 可用 | 安装锁定的 `ws` 依赖 |
+| Chrome / Chromium | 支持 remote debugging | 本地浏览器自动化 |
 
-### Node 依赖
-- `ws`
+Python 运行时只使用标准库，不需要 Pillow，也没有字体资产依赖。
 
-### Python 依赖
-- `Pillow`
+## 安装依赖
 
-## 必带目录 / 文件
+在 Skill 根目录安装仓库锁定的 Node 依赖：
 
-迁移到另一台机器时，至少带上：
+```bash
+npm install --prefix "{baseDir}/../.."
+```
+
+不要在未知工作目录执行全局安装，也不要删除用户现有的 Chrome Profile。
+
+## 运行自检
+
+```bash
+python "{baseDir}/../../scripts/cli.py" doctor
+```
+
+只有当 JSON 中 `success` 为 `true` 且 `required_failures` 为空时，才报告环境已就绪。`display` 是可选项，但没有图形环境时无法在风控阶段显示浏览器供人工验证。
+
+## Chrome 定位
+
+CLI 会检查 PATH，以及 Windows、macOS、Linux、WSL 中的常见安装位置。仍未找到时设置：
+
+```bash
+CHROME_BIN=/absolute/path/to/chrome
+```
+
+`CHROME_BIN` 必须指向真实文件。CDP 只绑定 `127.0.0.1`。
+
+Linux 容器以 root 运行时会按 Chrome 要求加入 `--no-sandbox`。非 root 环境不要主动关闭沙箱；只有明确了解风险时才设置 `DOUYIN_CHROME_NO_SANDBOX=1`。
+
+## 迁移
+
+优先让 OpenClaw 直接从 Git 安装完整仓库。手工迁移时复制整个项目，至少保留：
 
 ```text
-skills/douyin-skills/
-fonts/
+SKILL.md
+skills/
+scripts/
 package.json
 package-lock.json
 ```
 
-其中：
-- `skills/douyin-skills/`：主脚本和子 skill
-- `fonts/vendor/`：项目字体资产
-- `fonts/config/image-fonts.json`：默认字体方案配置
-
-## 安装步骤
-
-### 1) 安装系统依赖
-确保另一台机器有：
-- Python 3
-- Node.js / npm
-- Chrome 或 Chromium
-
-### 2) 安装 Node 依赖
-在工作区根目录执行：
-
-```bash
-npm install ws
-```
-
-### 3) 安装 Python 依赖
-在工作区根目录执行：
-
-```bash
-pip install pillow
-```
-
-### 4) 确认字体资产存在
-检查：
-
-```text
-fonts/vendor/SmileySans-Oblique.ttf
-fonts/vendor/LXGWWenKaiGBScreen.ttf
-fonts/config/image-fonts.json
-```
-
-## 图形环境要求
-
-- 默认无头模式可直接运行。
-- 如果抖音触发验证码 / 身份验证 / 风控页，skill 会切回有头模式。
-- 因此目标机器最好具备图形环境（X11 / Wayland / WSLg / 桌面环境），方便人工过验证。
-
-## 迁移后自检清单
-
-依次确认：
-
-1. `python3 --version`
-2. `node --version`
-3. `npm ls ws`
-4. `python3 -c "from PIL import Image; print('ok')"`
-5. `python3 skills/douyin-skills/scripts/cli.py --help`
-6. `python3 skills/douyin-skills/scripts/cli.py check-login`
+不要迁移 `node_modules/`、`__pycache__/`、本地日志或 `~/.douyin-skills/`。如果用户确实要迁移登录 Profile，先说明其中包含会话数据，并要求用户通过受信任的本地方式自行处理。
 
 ## 常见问题
 
-### 1. `ws` 未安装
-表现：CDP 客户端无法连接浏览器。
-
-处理：
-```bash
-npm install ws
-```
-
-### 2. `PIL` / `Pillow` 未安装
-表现：图片生成脚本报错。
-
-处理：
-```bash
-pip install pillow
-```
-
-### 3. Chrome 找不到
-表现：CLI 报无法启动 Chrome。
-
-处理：
-- 安装 Chrome / Chromium
-- 或设置 `CHROME_BIN`
-
-### 4. 无法切到有头模式
-表现：触发验证码后无法弹窗。
-
-处理：
-- 确认目标机器有图形环境
-- Linux / WSLg 下确认 `DISPLAY` / `WAYLAND_DISPLAY` 可用
-
-## 建议
-
-- 把 `fonts/` 当成项目资产一起迁移，不要依赖系统字体。
-- 新机器先跑自检，再做真实发布任务。
-- 如果目标是长期复用，后续可以再补：
-  - `requirements.txt`
-  - 更完整的一键自检脚本
+- `ws` 缺失：在项目根目录重新运行 `npm install`，再执行 `doctor`。
+- Chrome 未找到：安装 Chrome/Chromium，或设置绝对路径 `CHROME_BIN`。
+- 端口被占用：关闭冲突的调试实例，或显式使用空闲 `--port`；不要终止来源不明的进程。
+- 无法切换 headed：确认 Windows/macOS 桌面可用；Linux/WSLg 检查 `DISPLAY`、`WAYLAND_DISPLAY` 与 `XDG_RUNTIME_DIR`。
+- 配置损坏：保留原文件并报告 `~/.douyin-skills/accounts.json` 错误，不要擅自删除账号配置。

@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows / Python 3.13 / Node.js 24
+            os: windows-latest
+            python: "3.13"
+            node: "24"
+          - label: Ubuntu / Python 3.9 / Node.js 18
+            os: ubuntu-latest
+            python: "3.9"
+            node: "18"
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: python -m compileall -q scripts tests/python
+      - run: python -m unittest discover -s tests/python -v
+      - run: npm run check
+      - run: npm test
+
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: python -m pip install ruff==0.16.2
+      - run: ruff check scripts tests/python
+      - run: ruff format --check scripts tests/python

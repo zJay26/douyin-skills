@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
 from .login import RISK_PAGE_KEYWORDS, RISK_STRONG_HINTS
 
-IMAGE_UPLOAD_URL = "https://creator.douyin.com/creator-micro/content/upload?default-tab=3"
+IMAGE_UPLOAD_URL = (
+    "https://creator.douyin.com/creator-micro/content/upload?default-tab=3"
+)
+SUPPORTED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 def _wait_until(page, fn: str, timeout: float = 30.0, interval: float = 0.5):
@@ -20,34 +24,62 @@ def _wait_until(page, fn: str, timeout: float = 30.0, interval: float = 0.5):
 
 
 def _js_quote(text: str) -> str:
-    return repr(text)
+    return json.dumps(text, ensure_ascii=False)
+
+
+def _resolve_image_paths(images: list[str]) -> list[str]:
+    if not images:
+        raise ValueError("至少需要一张图片")
+    resolved: list[str] = []
+    for raw_path in images:
+        path = Path(raw_path).expanduser()
+        if not path.is_absolute():
+            raise ValueError(f"图片路径必须是绝对路径：{raw_path}")
+        try:
+            path = path.resolve(strict=True)
+        except FileNotFoundError as exc:
+            raise ValueError(f"图片不存在：{raw_path}") from exc
+        if not path.is_file():
+            raise ValueError(f"图片路径不是文件：{raw_path}")
+        if path.suffix.lower() not in SUPPORTED_IMAGE_SUFFIXES:
+            supported = ", ".join(sorted(SUPPORTED_IMAGE_SUFFIXES))
+            raise ValueError(
+                f"不支持的图片格式：{path.suffix or '无扩展名'}；支持 {supported}"
+            )
+        resolved.append(str(path))
+    return resolved
 
 
 def _page_snapshot(page) -> dict:
-    return page.evaluate(
-        """
+    return (
+        page.evaluate(
+            """
         (() => ({
           href: location.href || '',
           title: document.title || '',
           text: (document.body?.innerText || '').slice(0, 3000)
         }))()
         """
-    ) or {}
+        )
+        or {}
+    )
 
 
 def _risk_result(page, message: str) -> dict | None:
     state = _page_snapshot(page)
-    title = state.get('title', '') or ''
-    text = state.get('text', '') or ''
-    risk = any(k in title or k in text for k in (RISK_PAGE_KEYWORDS + RISK_STRONG_HINTS))
+    title = state.get("title", "") or ""
+    text = state.get("text", "") or ""
+    risk = any(
+        k in title or k in text for k in (RISK_PAGE_KEYWORDS + RISK_STRONG_HINTS)
+    )
     if not risk:
         return None
     return {
-        'success': False,
-        'risk_page': True,
-        'message': message,
-        'page_title': title,
-        'page': state,
+        "success": False,
+        "risk_page": True,
+        "message": message,
+        "page_title": title,
+        "page": state,
     }
 
 
@@ -103,6 +135,17 @@ def _fill_title_and_desc(page, title: str, desc: str) -> dict:
 
 
 def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> dict:
+    title = (title or "").strip()
+    desc = (desc or "").strip()
+    if not title:
+        return {"success": False, "message": "标题不能为空。"}
+    if not desc:
+        return {"success": False, "message": "正文不能为空。"}
+    try:
+        image_paths = _resolve_image_paths(images)
+    except ValueError as exc:
+        return {"success": False, "message": str(exc)}
+
     page.navigate(IMAGE_UPLOAD_URL)
     page.wait_for_load(30)
 
@@ -110,14 +153,15 @@ def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> d
     if risk:
         return risk
 
-    ok = _wait_until(page, """(() => !!document.querySelector('input[type="file"]'))()""", timeout=20)
+    ok = _wait_until(
+        page, """(() => !!document.querySelector('input[type="file"]'))()""", timeout=20
+    )
     if not ok:
         risk = _risk_result(page, "当前处于验证码/风控页，无法继续填写图文发布表单。")
         if risk:
             return risk
         return {"success": False, "message": "未找到图文上传输入框。"}
 
-    image_paths = [str(Path(x).resolve()) for x in images]
     if not page.set_files('input[type="file"]', image_paths):
         return {"success": False, "message": "图片上传失败。"}
 
@@ -134,11 +178,15 @@ def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> d
         interval=1,
     )
     if not editor_ready:
-        return {"success": False, "message": "图片已上传，但未等到标题/正文输入区域出现。"}
+        return {
+            "success": False,
+            "message": "图片已上传，但未等到标题/正文输入区域出现。",
+        }
 
     fill_result = _fill_title_and_desc(page, title, desc)
-    state = page.evaluate(
-        """
+    state = (
+        page.evaluate(
+            """
         (() => ({
           href: location.href,
           title: document.title,
@@ -147,8 +195,16 @@ def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> d
           editorText: (document.querySelector('[data-slate-editor="true"],.editor-kit-container,[contenteditable="true"],div[role="textbox"]')?.innerText || '').slice(0, 1200)
         }))()
         """
+        )
+        or {}
     )
-    success = bool(fill_result and fill_result.get("success") and state.get("titleValue") and desc.splitlines()[0] in state.get("editorText", ""))
+    first_line = desc.splitlines()[0]
+    success = bool(
+        fill_result
+        and fill_result.get("success")
+        and state.get("titleValue")
+        and first_line in state.get("editorText", "")
+    )
     return {
         "success": success,
         "status": "filled" if success else "partial",
@@ -157,7 +213,9 @@ def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> d
         "desc": desc,
         "fill": fill_result,
         "page": state,
-        "message": "图文发布表单已填写，请在浏览器中确认后再执行 click-publish。" if success else "图片已上传，但标题或正文填写失败。",
+        "message": "图文发布表单已填写，请在浏览器中确认后再执行 click-publish。"
+        if success
+        else "图片已上传，但标题或正文填写失败。",
     }
 
 
@@ -171,7 +229,24 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
             "Ambition (凌云志)",
         ]
 
-    opened = page.click('span.action-Q1y01k') or page.click('.container-right-uW7Pj1') or page.click('.container-JngpiB')
+    opened = (
+        page.click("span.action-Q1y01k")
+        or page.click(".container-right-uW7Pj1")
+        or page.click(".container-JngpiB")
+        or bool(
+            page.evaluate(
+                """
+                (() => {
+                  const candidates = Array.from(document.querySelectorAll('button, [role="button"], span, div'));
+                  const target = candidates.find(el => ['选择音乐', '添加音乐'].includes((el.innerText || '').trim()));
+                  if (!target) return false;
+                  target.click();
+                  return true;
+                })()
+                """
+            )
+        )
+    )
     if not opened:
         risk = _risk_result(page, "当前处于验证码/风控页，无法打开音乐面板。")
         if risk:
@@ -205,14 +280,17 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
                 return text.includes('选择音乐') && text.includes('热门榜');
               }});
               if (!portal) return {{ success: false, reason: 'no-portal' }};
-              const node = Array.from(portal.querySelectorAll('.song-name-oRge4d')).find(el => (el.innerText || '').trim() === {_js_quote(name)});
+              const node = Array.from(portal.querySelectorAll('.song-name-oRge4d, [class*="song-name"], span, div')).find(el => (el.innerText || '').trim() === {_js_quote(name)});
               if (!node) return {{ success: false, reason: 'no-song' }};
               let row = node;
               for (let i = 0; i < 8 && row; i++) {{
-                if (row.querySelector && row.querySelector('button.apply-btn-LUPP0D')) break;
+                const buttons = row.querySelectorAll ? Array.from(row.querySelectorAll('button')) : [];
+                if ((row.querySelector && row.querySelector('button.apply-btn-LUPP0D')) || buttons.some(btn => (btn.innerText || '').trim() === '使用')) break;
                 row = row.parentElement;
               }}
-              const btn = row && row.querySelector ? row.querySelector('button.apply-btn-LUPP0D') : null;
+              const btn = row && row.querySelector
+                ? row.querySelector('button.apply-btn-LUPP0D') || Array.from(row.querySelectorAll('button')).find(el => (el.innerText || '').trim() === '使用')
+                : null;
               if (!btn) return {{ success: false, reason: 'no-use-button' }};
               btn.click();
               return {{ success: true, picked: {_js_quote(name)} }};
@@ -232,41 +310,64 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
                 return text.includes('选择音乐') && text.includes('热门榜');
               });
               if (!portal) return { success: false, reason: 'no-portal' };
-              const btn = portal.querySelector('button.apply-btn-LUPP0D');
+              const btn = portal.querySelector('button.apply-btn-LUPP0D') || Array.from(portal.querySelectorAll('button')).find(el => (el.innerText || '').trim() === '使用' && !el.disabled);
               if (!btn) return { success: false, reason: 'no-apply-button' };
               const rowText = (btn.parentElement?.innerText || btn.closest('[class]')?.innerText || '').trim();
               btn.click();
-              return { success: true, picked: rowText.split('\n')[0] || '热门榜首个可用音乐' };
+              const lines = rowText.split('\n').map(x => x.trim()).filter(x => x && x !== '使用');
+              return { success: true, picked: lines[0] || '热门榜首个可用音乐' };
             })()
             """
         )
         if fallback and fallback.get("success"):
-            picked = fallback.get("picked") or '热门榜首个可用音乐'
+            picked = fallback.get("picked") or "热门榜首个可用音乐"
         else:
-            return {"success": False, "message": "音乐面板已打开，但未找到可用目标音乐。", "preferred": preferred}
+            return {
+                "success": False,
+                "message": "音乐面板已打开，但未找到可用目标音乐。",
+                "preferred": preferred,
+            }
 
     applied = _wait_until(
         page,
-        f"""
-        (() => {{
+        """
+        (() => {
           const body = document.body?.innerText || '';
-          return body.includes({_js_quote(picked)}) && body.includes('修改音乐');
-        }})()
+          return body.includes('修改音乐');
+        })()
         """,
         timeout=15,
         interval=0.5,
     )
     if not applied:
-        return {"success": False, "message": "已点击使用，但页面未确认音乐已应用。", "picked": picked}
+        return {
+            "success": False,
+            "message": "已点击使用，但页面未确认音乐已应用。",
+            "picked": picked,
+        }
 
-    state = page.evaluate(
-        """
+    state = (
+        page.evaluate(
+            """
         (() => ({
-          text: (document.body?.innerText || '').slice(0, 2500)
+          text: (document.body?.innerText || '').slice(0, 2500),
+          selectedMusic: (() => {
+            const body = document.body?.innerText || '';
+            const marker = body.indexOf('修改音乐');
+            if (marker < 0) return '';
+            return body.slice(Math.max(0, marker - 160), marker).split('\n').map(x => x.trim()).filter(Boolean).slice(-1)[0] || '';
+          })()
         }))()
         """
+        )
+        or {}
     )
-    return {"success": True, "picked": picked, "page": state}
+    return {
+        "success": True,
+        "picked": state.get("selectedMusic") or picked,
+        "requested": preferred,
+        "page": state,
+    }
 
 
 def validate_publish_state(page, require_topic: bool = False) -> dict:
@@ -277,7 +378,8 @@ def validate_publish_state(page, require_topic: bool = False) -> dict:
       const editorEl = document.querySelector('[data-slate-editor="true"], .editor-kit-container, [contenteditable="true"], div[role="textbox"]');
       const title = titleEl ? ((titleEl.value || '').trim()) : '';
       const editorText = editorEl ? (((editorEl.innerText || editorEl.textContent || '')).trim()) : '';
-      const hasImage = body.includes('继续添加') || body.includes('编辑图片') || body.includes('已添加4张图片') || body.includes('已添加1张图片') || body.includes('取消上传');
+      const fileCount = Array.from(document.querySelectorAll('input[type="file"]')).reduce((count, input) => count + (input.files?.length || 0), 0);
+      const hasImage = fileCount > 0 || body.includes('继续添加') || body.includes('编辑图片') || /已添加\\s*\\d+\\s*张图片/.test(body) || body.includes('取消上传');
       const hasMusic = body.includes('修改音乐');
       const hasTopic = body.includes('已关联热点') || body.includes('修改热点') || body.includes('关联热点\n#') || body.includes('关联热点\n话题');
       const errors = [];
@@ -285,12 +387,14 @@ def validate_publish_state(page, require_topic: bool = False) -> dict:
       if (!title) errors.push('标题为空');
       if (!editorText) errors.push('正文为空');
       if (!hasMusic) errors.push('未选择音乐');
-      if ({'true' if require_topic else 'false'} && !hasTopic) errors.push('未关联热点');
+      if ({"true" if require_topic else "false"} && !hasTopic) errors.push('未关联热点');
       return {{
         success: errors.length === 0,
-        requireTopic: {'true' if require_topic else 'false'},
+        requireTopic: {"true" if require_topic else "false"},
         title: title,
         editorText: editorText.slice(0, 1000),
+        href: location.href || '',
+        fileCount: fileCount,
         hasImage: hasImage,
         hasMusic: hasMusic,
         hasTopic: hasTopic,
@@ -300,7 +404,7 @@ def validate_publish_state(page, require_topic: bool = False) -> dict:
     }})()
     """
     state = page.evaluate(script)
-    if state:
+    if isinstance(state, dict) and state:
         return state
     risk = _risk_result(page, "当前处于验证码/风控页，无法读取发布页状态。")
     if risk:
@@ -312,34 +416,76 @@ def click_publish(page, require_topic: bool = False) -> dict:
     check = validate_publish_state(page, require_topic=require_topic)
     if check.get("risk_page"):
         return check
-    allow_fallback_click = check.get("errors") == ["无法读取发布页状态"]
-    if not check.get("success") and not allow_fallback_click:
+    if not check.get("success"):
         return {
             "success": False,
             "message": "发布前校验失败",
             "validation": check,
         }
 
-    result = page.evaluate(
-        """
+    result = (
+        page.evaluate(
+            """
         (() => {
           const body = (document.body && document.body.innerText) || '';
           const buttons = Array.from(document.querySelectorAll('button'));
           const btn = buttons.find(el => (el.innerText || '').trim() === '发布');
-          if (!btn) return { success: false, message: '未找到底部发布按钮', body: body.slice(0, 2500) };
+          if (!btn) return { clicked: false, message: '未找到底部发布按钮', body: body.slice(0, 2500) };
+          if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') {
+            return { clicked: false, message: '发布按钮当前不可用', body: body.slice(0, 2500) };
+          }
           btn.scrollIntoView({ block: 'center' });
           btn.click();
           return {
-            success: true,
+            clicked: true,
             text: (btn.innerText || '').trim(),
             className: btn.className || '',
-            body: body.slice(0, 2500)
+            hrefBefore: location.href || ''
           };
         })()
         """
+        )
+        or {}
     )
-    if result:
-        result["validation"] = check
-        if allow_fallback_click:
-            result["fallback"] = True
-    return result or {"success": False, "message": "点击发布失败", "validation": check}
+    if not result.get("clicked"):
+        return {
+            "success": False,
+            "message": result.get("message") or "点击发布失败",
+            "validation": check,
+            "click": result,
+        }
+
+    confirmation = _wait_until(
+        page,
+        """
+        (() => {
+          const body = document.body?.innerText || '';
+          const href = location.href || '';
+          const confirmed = body.includes('发布成功') || body.includes('作品发布成功') || href.includes('/content/manage');
+          return confirmed ? { confirmed: true, href, text: body.slice(0, 1200) } : null;
+        })()
+        """,
+        timeout=20,
+        interval=1,
+    )
+    if confirmation:
+        return {
+            "success": True,
+            "published": True,
+            "status": "publish_confirmed",
+            "message": "页面已确认发布成功。",
+            "validation": check,
+            "click": result,
+            "confirmation": confirmation,
+        }
+
+    return {
+        "success": True,
+        "published": False,
+        "status": "publish_clicked_unconfirmed",
+        "retry_safe": False,
+        "message": "已点击发布，但页面尚未给出明确成功信号。不要自动重试，请先到作品管理确认，避免重复发布。",
+        "validation": check,
+        "click": result,
+        "page": _page_snapshot(page),
+    }
