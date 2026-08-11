@@ -66,7 +66,7 @@ The source is [`assets/demo/index.html`](./assets/demo/index.html). Maintainers 
 ### OpenClaw: full bundled experience (recommended)
 
 ```bash
-openclaw skills install git:cd-JJGong/douyin-skills@main
+openclaw skills install git:zJay26/douyin-skills@main
 ```
 
 Then tell your agent:
@@ -78,7 +78,7 @@ This installation command and nested Skill discovery model follow the [official 
 ### Manual runtime setup
 
 ```bash
-git clone https://github.com/cd-JJGong/douyin-skills.git
+git clone https://github.com/zJay26/douyin-skills.git
 cd douyin-skills
 npm install
 python scripts/cli.py doctor
