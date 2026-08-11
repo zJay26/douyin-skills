@@ -35,6 +35,16 @@ class CliTests(unittest.TestCase):
         with self.assertRaises(argparse.ArgumentTypeError):
             cli._valid_port("70000")
 
+    def test_search_limit_is_validated(self) -> None:
+        self.assertEqual(cli._valid_search_limit("1"), 1)
+        self.assertEqual(cli._valid_search_limit("20"), 20)
+        for value in ("0", "-1", "21", "many"):
+            with (
+                self.subTest(value=value),
+                self.assertRaises(argparse.ArgumentTypeError),
+            ):
+                cli._valid_search_limit(value)
+
 
 if __name__ == "__main__":
     unittest.main()

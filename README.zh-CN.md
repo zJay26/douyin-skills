@@ -56,7 +56,7 @@ Agent 可以规划多步骤任务，但真正进入社交网站后，还要面�
 ### 方式一：让 OpenClaw 从 Git 安装（推荐）
 
 ```bash
-openclaw skills install git:zJay26/douyin-skills@main
+openclaw skills install git:cd-JJGong/douyin-skills@main
 ```
 
 然后告诉 Agent：
@@ -68,7 +68,7 @@ openclaw skills install git:zJay26/douyin-skills@main
 ### 方式二：手动安装
 
 ```bash
-git clone https://github.com/zJay26/douyin-skills.git
+git clone https://github.com/cd-JJGong/douyin-skills.git
 cd douyin-skills
 npm install
 python scripts/cli.py doctor

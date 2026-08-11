@@ -364,6 +364,16 @@ def _valid_port(value: str) -> int:
     return port
 
 
+def _valid_search_limit(value: str) -> int:
+    try:
+        limit = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("搜索数量必须是整数") from exc
+    if not 1 <= limit <= 20:
+        raise argparse.ArgumentTypeError("搜索数量必须在 1 到 20 之间")
+    return limit
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="douyin-skills CLI")
     parser.add_argument(
@@ -404,7 +414,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("search-videos")
     p.add_argument("--keyword", required=True)
-    p.add_argument("--limit", type=int, default=7)
+    p.add_argument("--limit", type=_valid_search_limit, default=7)
 
     p = sub.add_parser("get-video-detail")
     p.add_argument("--video-id", required=True)
