@@ -4,7 +4,12 @@ import json
 import time
 from pathlib import Path
 
-from .login import RISK_PAGE_KEYWORDS, RISK_STRONG_HINTS
+from .page_states import (
+    RISK_PAGE_KEYWORDS,
+    RISK_STRONG_HINTS,
+    classify_publish_outcome,
+    classify_publish_snapshot,
+)
 
 IMAGE_UPLOAD_URL = (
     "https://creator.douyin.com/creator-micro/content/upload?default-tab=3"
@@ -405,7 +410,7 @@ def validate_publish_state(page, require_topic: bool = False) -> dict:
     """
     state = page.evaluate(script)
     if isinstance(state, dict) and state:
-        return state
+        return classify_publish_snapshot(state, require_topic=require_topic)
     risk = _risk_result(page, "当前处于验证码/风控页，无法读取发布页状态。")
     if risk:
         return risk
@@ -468,11 +473,11 @@ def click_publish(page, require_topic: bool = False) -> dict:
         timeout=20,
         interval=1,
     )
-    if confirmation:
+    outcome = classify_publish_outcome(True, confirmation)
+    if outcome["status"] == "publish_confirmed":
         return {
             "success": True,
-            "published": True,
-            "status": "publish_confirmed",
+            **outcome,
             "message": "页面已确认发布成功。",
             "validation": check,
             "click": result,
@@ -481,9 +486,7 @@ def click_publish(page, require_topic: bool = False) -> dict:
 
     return {
         "success": True,
-        "published": False,
-        "status": "publish_clicked_unconfirmed",
-        "retry_safe": False,
+        **outcome,
         "message": "已点击发布，但页面尚未给出明确成功信号。不要自动重试，请先到作品管理确认，避免重复发布。",
         "validation": check,
         "click": result,

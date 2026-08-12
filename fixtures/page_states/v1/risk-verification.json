@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "id": "risk-verification",
+  "flow": "login",
+  "description": "A verification interstitial remains a human-required state even when stale authentication evidence exists.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "snapshot": {
+      "title": "安全验证",
+      "href": "https://www.douyin.com/",
+      "hasLoginKeyword": false,
+      "loggedInHintCount": 0,
+      "hasProfileUi": false,
+      "hasAuthCookie": true,
+      "hasRiskKeyword": true,
+      "hasRiskStrongHint": true,
+      "hasRiskUi": true,
+      "riskKeywordCount": 2,
+      "hasLoginPanel": false,
+      "cookieLength": 24
+    }
+  },
+  "expected": {
+    "logged_in": false,
+    "risk_page": true,
+    "certainty": "not_authenticated"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "id": "search-empty-blocked",
+  "flow": "search",
+  "description": "A fully empty extraction is treated as blocked or unreadable, not a confident zero-result search.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "snapshot": {
+      "title": "",
+      "text": "",
+      "items": [],
+      "hrefCount": 0
+    }
+  },
+  "expected": {
+    "state": "empty_or_blocked",
+    "risk_page": true,
+    "count": 0
+  }
+}

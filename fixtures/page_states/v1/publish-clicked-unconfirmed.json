@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "id": "publish-clicked-unconfirmed",
+  "flow": "publish",
+  "description": "A click without a confirmation signal remains unpublished and unsafe to retry.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "mode": "outcome",
+    "clicked": true,
+    "confirmation": null
+  },
+  "expected": {
+    "status": "publish_clicked_unconfirmed",
+    "published": false,
+    "retry_safe": false
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "id": "detail-video-ready",
+  "flow": "detail",
+  "description": "A canonical public video URL with readable content is classified as available.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "expected_kind": "video",
+    "snapshot": {
+      "title": "Synthetic video detail",
+      "description": "A synthetic public-content description.",
+      "comments": [],
+      "url": "https://www.douyin.com/video/1000000000000000003",
+      "bodyText": "Synthetic public content is visible."
+    }
+  },
+  "expected": {
+    "state": "ready",
+    "risk_page": false,
+    "available": true
+  }
+}

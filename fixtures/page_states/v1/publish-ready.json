@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "id": "publish-ready",
+  "flow": "publish",
+  "description": "Synthetic photo-post fields pass pre-publish validation without clicking publish.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "mode": "validation",
+    "require_topic": false,
+    "snapshot": {
+      "title": "Synthetic night-light study",
+      "editorText": "Synthetic caption for regression testing only.",
+      "href": "https://creator.douyin.com/creator-micro/content/upload?default-tab=3",
+      "fileCount": 2,
+      "hasImage": true,
+      "hasMusic": true,
+      "hasTopic": false,
+      "text": "Two synthetic images are prepared."
+    }
+  },
+  "expected": {
+    "success": true,
+    "state": "ready",
+    "errors": []
+  }
+}
