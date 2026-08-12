@@ -2,6 +2,19 @@
 
 All notable changes are documented here. Releases follow semantic versioning, and each stable tag has detailed notes under [`docs/releases/`](./docs/releases/).
 
+## [1.0.1] - 2026-08-12
+
+### Added
+
+- Eleven versioned, synthetic page-state fixtures for login, risk, search, detail, and photo-publishing decisions.
+- Shared production classifiers with schema, expected-result, canonical-URL, and privacy validation.
+- Regression tests and Windows/Ubuntu CI coverage for fixture-to-runtime certainty semantics.
+
+### Documentation
+
+- A fixture-authoring and redaction guide that prohibits account, session, profile, and private-content data.
+- v1.0.1 validation evidence and known limitations without treating synthetic fixtures as live-page proof.
+
 ## [1.0.0] - 2026-08-11
 
 ### Added
@@ -19,4 +32,5 @@ All notable changes are documented here. Releases follow semantic versioning, an
 - Captcha, identity checks, and platform risk controls are never bypassed.
 - Unconfirmed irreversible actions are never reported as confirmed or retried automatically.
 
+[1.0.1]: https://github.com/zJay26/douyin-skills/releases/tag/v1.0.1
 [1.0.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.0.0

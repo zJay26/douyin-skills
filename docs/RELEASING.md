@@ -16,6 +16,7 @@ python scripts/cli.py version
 npm ci
 python -m compileall -q scripts tests/python
 python -m unittest discover -s tests/python -v
+python scripts/validate_fixtures.py
 python scripts/validate_repository.py
 npm run check
 npm test
