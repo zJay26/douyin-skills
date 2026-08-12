@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "id": "detail-page-drift",
+  "flow": "detail",
+  "description": "A readable page at an unexpected route is reported as page drift instead of a successful detail read.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "expected_kind": "note",
+    "snapshot": {
+      "title": "Unexpected content shell",
+      "description": "",
+      "comments": [],
+      "url": "https://www.douyin.com/discover",
+      "bodyText": "A readable but structurally different page."
+    }
+  },
+  "expected": {
+    "state": "page_drift",
+    "risk_page": false,
+    "available": false
+  }
+}

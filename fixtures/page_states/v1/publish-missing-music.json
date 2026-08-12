@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "id": "publish-missing-music",
+  "flow": "publish",
+  "description": "A filled post without music remains incomplete and must not be published.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "mode": "validation",
+    "require_topic": false,
+    "snapshot": {
+      "title": "Synthetic night-light study",
+      "editorText": "Synthetic caption for regression testing only.",
+      "href": "https://creator.douyin.com/creator-micro/content/upload?default-tab=3",
+      "fileCount": 2,
+      "hasImage": true,
+      "hasMusic": false,
+      "hasTopic": false,
+      "text": "Two synthetic images are prepared without music."
+    }
+  },
+  "expected": {
+    "success": false,
+    "state": "incomplete",
+    "errors": [
+      "未选择音乐"
+    ]
+  }
+}

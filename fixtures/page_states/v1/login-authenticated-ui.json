@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "id": "login-authenticated-ui",
+  "flow": "login",
+  "description": "A visible self-profile marker is high-confidence login evidence.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "snapshot": {
+      "title": "Douyin web",
+      "href": "https://www.douyin.com/",
+      "hasLoginKeyword": false,
+      "loggedInHintCount": 2,
+      "hasProfileUi": true,
+      "hasAuthCookie": false,
+      "hasRiskKeyword": false,
+      "hasLoginPanel": false,
+      "cookieLength": 0
+    }
+  },
+  "expected": {
+    "logged_in": true,
+    "risk_page": false,
+    "certainty": "high"
+  }
+}

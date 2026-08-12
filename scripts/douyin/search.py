@@ -4,7 +4,11 @@ import json
 import re
 import time
 
-from .login import RISK_PAGE_KEYWORDS
+from .page_states import (
+    classify_detail_snapshot,
+    classify_search_snapshot,
+    has_risk_evidence,
+)
 from .selectors import (
     COMMENT_ITEM_SELECTORS,
     DETAIL_DESC_SELECTORS,
@@ -40,7 +44,7 @@ def _extract_author_id(url: str) -> str:
 
 
 def _is_risk_page(title: str, text: str) -> bool:
-    return any(k in title or k in text for k in RISK_PAGE_KEYWORDS)
+    return has_risk_evidence(title, text)
 
 
 def list_feeds(page) -> dict:
@@ -93,10 +97,7 @@ def search_videos(page, keyword: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict
     page.navigate(search_url(keyword))
     page.wait_for_load(20)
     seed = wait_for_meaningful_text(page, timeout=45, min_len=80)
-    if any(
-        k in (seed.get("title", "") or "") or k in (seed.get("text", "") or "")
-        for k in RISK_PAGE_KEYWORDS
-    ):
+    if has_risk_evidence(seed.get("title", ""), seed.get("text", "")):
         return {
             "success": False,
             "keyword": keyword,
@@ -149,7 +150,10 @@ def search_videos(page, keyword: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict
         time.sleep(1)
     title = page_info.get("title", "") or seed.get("title", "")
     text = page_info.get("text", "") or seed.get("text", "")
-    if _is_risk_page(title, text):
+    classification = classify_search_snapshot(
+        {"title": title, "text": text, "items": page_info.get("items", [])}
+    )
+    if classification["state"] == "risk":
         return {
             "success": False,
             "keyword": keyword,
@@ -160,7 +164,7 @@ def search_videos(page, keyword: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict
             "page_title": title,
         }
     items = page_info.get("items", [])
-    if not items and not (text or "").strip():
+    if classification["state"] == "empty_or_blocked":
         return {
             "success": False,
             "keyword": keyword,
@@ -299,11 +303,10 @@ def get_video_detail(page, video_id: str) -> dict:
         """
         )
         detail = json.loads(detail_raw) if detail_raw else {}
-        if any(
-            k in (detail.get("title", "") or seed.get("title", ""))
-            or k in (detail.get("bodyText", "") or seed.get("text", ""))
-            for k in RISK_PAGE_KEYWORDS
-        ):
+        detail["title"] = detail.get("title", "") or seed.get("title", "")
+        detail["bodyText"] = detail.get("bodyText", "") or seed.get("text", "")
+        classification = classify_detail_snapshot(detail, kind)
+        if classification["state"] == "risk":
             return {
                 "success": False,
                 "video_id": content_id,
@@ -313,8 +316,7 @@ def get_video_detail(page, video_id: str) -> dict:
             }
         href = detail.get("url", "") or ""
         body = detail.get("bodyText", "") or ""
-        inaccessible = "作品不存在" in body or "内容不可见" in body or "已删除" in body
-        if not inaccessible and f"/{kind}/" in href:
+        if classification["state"] == "ready":
             return {
                 "success": True,
                 "video_id": content_id,

@@ -23,7 +23,7 @@ The baseline does **not** prove arbitrary page-version compatibility or authenti
 
 ## Next: strengthen the Douyin foundation
 
-- [ ] Add sanitized selector and page-state fixtures for login, risk, search, detail, and publishing flows
+- [x] Add sanitized selector and page-state fixtures for login, risk, search, detail, and publishing flows
 - [x] Publish a repeatable manual validation checklist with Chrome and page-version notes
 - [x] Add a synthetic, privacy-safe demo of the end-to-end agent workflow
 - [x] Define a release and changelog cadence so users can distinguish stable behavior from ongoing work

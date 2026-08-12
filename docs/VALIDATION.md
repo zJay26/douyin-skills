@@ -22,6 +22,7 @@ These checks exercise behavior that does not need a Douyin account:
 - image-path validation and distinct confirmed/unconfirmed publish states;
 - one-at-a-time interaction semantics that do not invent a final state;
 - the Node.js CDP request/response bridge.
+- sanitized page-state fixtures for login, risk, search, detail, and publishing certainty, including schema and privacy rules.
 
 The repository also includes a deterministic, synthetic 40-second walkthrough. Its source is [`assets/demo/index.html`](../assets/demo/index.html), and maintainers can render [`assets/demo.gif`](../assets/demo.gif) with:
 
@@ -31,9 +32,11 @@ npm run render:demo
 
 The demo contains no real account, cookie, QR code, phone number, profile path, or user content. It makes no network requests. It validates the explanatory flow and presentation only; it is not a live Douyin test.
 
+The versioned [page-state fixtures](../fixtures/page_states/README.md) are also synthetic. They exercise the same classifiers used by production command paths, but model only the minimum state needed for a decision. They contain no stored HTML, screenshot, browser profile, cookie value, or real user content. Passing fixture tests protects result semantics; it does not prove that selectors still extract those signals from today's live pages.
+
 ## Supported release scope
 
-v1.0.0 implements the following Douyin web workflows through the local CLI:
+v1.0.x implements the following Douyin web workflows through the local CLI:
 
 - environment diagnosis and named local-account configuration;
 - login-state inspection, QR-code retrieval, and user-completed SMS verification;
@@ -57,9 +60,9 @@ Use this checklist when validating against a real account. Never attach the resu
 8. Treat `publish_clicked_unconfirmed` as unresolved: check Creator Center and never blind-retry.
 9. Record observed selectors or page-state changes without copying session data.
 
-## Validated for v1.0.0
+## Stable release gate
 
-The v1.0.0 release gate requires all of the following on the tagged commit:
+Every stable release requires all of the following on the tagged commit:
 
 - the Windows and Ubuntu CI matrix is green;
 - Ruff is green;
@@ -67,10 +70,11 @@ The v1.0.0 release gate requires all of the following on the tagged commit:
 - repository links, release documents, and English visual assets pass the repository integrity check;
 - the source archive is reproducible and its SHA-256 checksum is published;
 - the packaged CLI reports the expected project and result-contract versions.
+- the page-state fixtures pass schema, expected-result, canonical-URL, and privacy validation.
 
 ## Not validated or guaranteed
 
-v1.0.0 does **not** claim:
+v1.0.x does **not** claim:
 
 - successful login, search, interaction, or publishing for every account or current Douyin page version;
 - captcha, identity-check, or risk-control automation or bypass;

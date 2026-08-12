@@ -49,7 +49,8 @@ Agent 可以规划多步骤任务，但真正进入社交网站后，还要面�
 - **本地优先**：浏览器和账号 Profile 留在本机，调试端口只监听 `127.0.0.1`。
 - **安全地失败**：发布前强制校验和显式确认；验证码、风控与不确定结果都会停下来交给用户。
 - **可组合**：认证、环境、发现、发布、互动各自独立，也能串成完整流程。
-- **可维护**：统一 JSON CLI、单元测试、双平台 CI、原子化 Skill 文档。
+- **感知页面漂移**：用脱敏 fixtures 固定登录、风控、搜索、详情和发布状态的解释方式，不保存账号数据。
+- **可维护**：统一 JSON CLI、聚焦回归测试、双平台 CI、原子化 Skill 文档。
 
 ## 看一遍完整的安全流程
 
@@ -90,14 +91,14 @@ python scripts/cli.py doctor
 
 ### 下载稳定版本
 
-如需版本固定且可校验的安装包，请从 [v1.0.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.0.0) 下载 `douyin-skills-v1.0.0.zip` 与 `SHA256SUMS`，解压前先校验：
+如需版本固定且可校验的安装包，请从 [v1.0.1 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.0.1) 下载 `douyin-skills-v1.0.1.zip` 与 `SHA256SUMS`，解压前先校验：
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell：将结果与 SHA256SUMS 对应行比较
-Get-FileHash .\douyin-skills-v1.0.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.0.1.zip -Algorithm SHA256
 ```
 
 这个命名 ZIP 会把完整仓库放在一个版本目录中，并包含脱敏 Demo。GitHub 自动生成的源码压缩包是另一组文件，不适用这里发布的校验值。
@@ -297,6 +298,7 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 │   ├── cdp_client.mjs        # Node.js CDP bridge
 │   └── douyin/               # 认证、发现、发布、互动模块
 ├── tests/                    # Python 单元测试与 Node.js bridge 测试
+├── fixtures/page_states/     # 合成状态契约回归 fixtures
 ├── assets/                   # README 与社交预览视觉资产
 ├── docs/                     # Agent 生态与适配器设计说明
 ├── ROADMAP.md                # 以验证证据为门槛的路线图
@@ -309,6 +311,8 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 npm ci
 python -m compileall -q scripts tests/python
 python -m unittest discover -s tests/python -v
+python scripts/validate_fixtures.py
+python scripts/validate_repository.py
 npm run check
 npm test
 
@@ -317,7 +321,7 @@ ruff check scripts tests/python
 ruff format --check scripts tests/python
 ```
 
-CI 在 Windows（Python 3.13 / Node.js 24）与 Ubuntu（Python 3.9 / Node.js 18）运行测试，并单独检查 Ruff。真实账号登录、验证码和发布不会在 CI 中执行；这类端到端结果仍取决于当时的账号、页面和平台策略。完整的发布门槛与非承诺范围见[验证与支持边界](./docs/VALIDATION.md)，各版本变化见[更新日志](./CHANGELOG.md)，维护者步骤见[发布流程](./docs/RELEASING.md)。
+CI 在 Windows（Python 3.13 / Node.js 24）与 Ubuntu（Python 3.9 / Node.js 18）运行测试，并单独检查 Ruff；同时验证[合成页面状态 fixtures](./fixtures/page_states/README.md)的预期结果语义与隐私规则。真实账号登录、验证码和发布不会在 CI 中执行；这类端到端结果仍取决于当时的账号、页面和平台策略。完整的发布门槛与非承诺范围见[验证与支持边界](./docs/VALIDATION.md)，各版本变化见[更新日志](./CHANGELOG.md)，维护者步骤见[发布流程](./docs/RELEASING.md)。
 
 参与开发前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。开放式工作流和适配器想法可以放到 [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions)，可复现缺陷与范围明确的工作使用 Issues。安全问题请按 [SECURITY.md](./SECURITY.md) 私下报告，不要在公开 Issue 中粘贴账号或会话数据。
 

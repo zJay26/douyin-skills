@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "id": "login-signed-out",
+  "flow": "login",
+  "description": "A visible login panel must override weak page hints.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "snapshot": {
+      "title": "Douyin web",
+      "href": "https://www.douyin.com/",
+      "hasLoginKeyword": true,
+      "loggedInHintCount": 1,
+      "hasProfileUi": false,
+      "hasAuthCookie": false,
+      "hasRiskKeyword": false,
+      "hasLoginPanel": true,
+      "cookieLength": 0
+    }
+  },
+  "expected": {
+    "logged_in": false,
+    "risk_page": false,
+    "certainty": "not_authenticated"
+  }
+}

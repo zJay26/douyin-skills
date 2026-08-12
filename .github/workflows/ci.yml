@@ -42,6 +42,7 @@ jobs:
       - run: npm ci
       - run: python -m compileall -q scripts tests/python
       - run: python -m unittest discover -s tests/python -v
+      - run: python scripts/validate_fixtures.py
       - run: python scripts/validate_repository.py
       - run: npm run check
       - run: npm test

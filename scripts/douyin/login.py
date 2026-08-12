@@ -8,18 +8,12 @@ import tempfile
 import time
 from pathlib import Path
 
+from .page_states import (
+    RISK_PAGE_KEYWORDS,
+    RISK_STRONG_HINTS,
+    classify_login_snapshot,
+)
 from .selectors import LOGGED_IN_TEXT_HINTS, LOGIN_TEXT_KEYWORDS
-
-RISK_PAGE_KEYWORDS = ["验证码", "安全验证", "风险提示", "身份验证"]
-RISK_STRONG_HINTS = [
-    "验证码中间页",
-    "请完成验证",
-    "请进行验证",
-    "拖动滑块",
-    "点击按钮进行验证",
-    "发送短信验证",
-    "接收短信验证码",
-]
 
 
 def inspect_login_state(page) -> dict:
@@ -67,23 +61,11 @@ def inspect_login_state(page) -> dict:
 
 def check_login_state(page) -> dict:
     info = inspect_login_state(page) or {}
-    risk_page = bool(info.get("hasRiskKeyword"))
-    has_login_panel = bool(info.get("hasLoginPanel"))
-    high_confidence_marker = bool(info.get("hasProfileUi")) or bool(
-        info.get("hasAuthCookie")
-    )
-    corroborated_ui = int(info.get("loggedInHintCount", 0) or 0) >= 2 and not info.get(
-        "hasLoginKeyword"
-    )
-    logged_in = (
-        not risk_page
-        and not has_login_panel
-        and (high_confidence_marker or corroborated_ui)
-    )
+    classification = classify_login_snapshot(info)
     return {
         "success": True,
-        "logged_in": logged_in,
-        "risk_page": risk_page,
+        "logged_in": classification["logged_in"],
+        "risk_page": classification["risk_page"],
         "login_method": "qrcode_or_sms",
         "page": {
             k: info.get(k)

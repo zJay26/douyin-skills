@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "id": "publish-confirmed",
+  "flow": "publish",
+  "description": "Only an explicit synthetic confirmation signal produces publish_confirmed.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "mode": "outcome",
+    "clicked": true,
+    "confirmation": {
+      "confirmed": true,
+      "href": "https://creator.douyin.com/creator-micro/content/manage"
+    }
+  },
+  "expected": {
+    "status": "publish_confirmed",
+    "published": true,
+    "retry_safe": false
+  }
+}

@@ -49,7 +49,8 @@ What makes it different:
 - **Local-first**: Chrome and account profiles stay on your computer; the debug endpoint only listens on `127.0.0.1`.
 - **Fails safely**: publishing requires validation and explicit confirmation; risk pages and uncertain outcomes stop for human review.
 - **Composable**: authentication, environment, discovery, publishing, and interactions work independently or as a workflow.
-- **Maintainable**: one JSON CLI, unit tests, cross-platform CI, and Skills that document the real runtime contract.
+- **Drift-aware**: sanitized fixtures lock down how login, risk, search, detail, and publish states are interpreted without storing account data.
+- **Maintainable**: one JSON CLI, focused regression tests, cross-platform CI, and Skills that document the real runtime contract.
 
 ## See the guarded workflow
 
@@ -90,14 +91,14 @@ The environment is ready when the JSON from `doctor` contains `"success": true` 
 
 ### Stable release download
 
-For a versioned, checksum-verifiable install, download `douyin-skills-v1.0.0.zip` and `SHA256SUMS` from the [v1.0.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.0.0). Verify the ZIP before extracting it:
+For a versioned, checksum-verifiable install, download `douyin-skills-v1.0.1.zip` and `SHA256SUMS` from the [v1.0.1 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.0.1). Verify the ZIP before extracting it:
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell: compare this value with the matching SHA256SUMS line
-Get-FileHash .\douyin-skills-v1.0.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.0.1.zip -Algorithm SHA256
 ```
 
 The named ZIP contains the complete repository under one versioned directory, including the privacy-safe Demo. GitHub's automatic source archives are separate and are not covered by the published checksum.
@@ -306,6 +307,7 @@ The default data directory is `~/.douyin-skills/`; set `DOUYIN_SKILLS_HOME` to u
 │   ├── cdp_client.mjs        # Node.js CDP bridge
 │   └── douyin/               # Auth, discovery, publish, interaction modules
 ├── tests/                    # Python unit tests and Node.js bridge test
+├── fixtures/page_states/     # Synthetic state-contract regression fixtures
 ├── assets/                   # README and social-preview artwork
 ├── docs/                     # Agent ecosystem and adapter design notes
 ├── ROADMAP.md                # Evidence-led project direction
@@ -318,6 +320,8 @@ The default data directory is `~/.douyin-skills/`; set `DOUYIN_SKILLS_HOME` to u
 npm ci
 python -m compileall -q scripts tests/python
 python -m unittest discover -s tests/python -v
+python scripts/validate_fixtures.py
+python scripts/validate_repository.py
 npm run check
 npm test
 
@@ -326,7 +330,7 @@ ruff check scripts tests/python
 ruff format --check scripts tests/python
 ```
 
-CI tests Windows (Python 3.13 / Node.js 24) and Ubuntu (Python 3.9 / Node.js 18), with a separate Ruff check. CI does not perform real account login, captcha, or publishing; those end-to-end outcomes still depend on the account, page version, and platform policy at that moment. The exact release gate and non-goals are recorded in [Validation and support boundaries](./docs/VALIDATION.md); versioned changes are listed in the [changelog](./CHANGELOG.md), and maintainer steps live in the [release process](./docs/RELEASING.md).
+CI tests Windows (Python 3.13 / Node.js 24) and Ubuntu (Python 3.9 / Node.js 18), with a separate Ruff check. It also validates the [synthetic page-state fixtures](./fixtures/page_states/README.md), including their expected certainty semantics and privacy rules. CI does not perform real account login, captcha, or publishing; those end-to-end outcomes still depend on the account, page version, and platform policy at that moment. The exact release gate and non-goals are recorded in [Validation and support boundaries](./docs/VALIDATION.md); versioned changes are listed in the [changelog](./CHANGELOG.md), and maintainer steps live in the [release process](./docs/RELEASING.md).
 
 Read [CONTRIBUTING.md](./CONTRIBUTING.md) before sending changes. Use [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions) for open-ended workflow and adapter ideas, and Issues for reproducible defects or scoped work. Report security problems privately through [SECURITY.md](./SECURITY.md), and never paste account or session data into a public issue.
 
