@@ -46,7 +46,11 @@ class PageStateFixtureTests(unittest.TestCase):
         fixture = copy.deepcopy(self.by_id["search-results"])
         fixture["input"]["snapshot"]["phone_number"] = "13800138000"
         fixture["input"]["snapshot"]["profile_path"] = "C:\\Users\\demo"
+        fixture["input"]["snapshot"]["access_token"] = "synthetic-secret"
         fixture["input"]["snapshot"]["items"][0]["href"] = "https://example.com/private"
+        fixture["input"]["snapshot"]["items"][1]["href"] = (
+            "https://www.douyin.com/note/1000000000000000002?sessionid=synthetic"
+        )
 
         errors = validate_fixture(fixture)
 
@@ -54,6 +58,7 @@ class PageStateFixtureTests(unittest.TestCase):
         self.assertTrue(any("phone number" in error for error in errors))
         self.assertTrue(any("Windows path" in error for error in errors))
         self.assertTrue(any("allowed public Douyin URL" in error for error in errors))
+        self.assertTrue(any("sensitive query parameters" in error for error in errors))
 
     def test_login_runtime_uses_shared_fixture_classifier(self) -> None:
         snapshot = self.by_id["risk-verification"]["input"]["snapshot"]
@@ -94,6 +99,27 @@ class PageStateFixtureTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["content_type"], "video")
         self.assertEqual(result["video_info"]["url"], snapshot["url"])
+
+    def test_detail_runtime_keeps_seed_risk_evidence_when_extraction_is_empty(
+        self,
+    ) -> None:
+        page = mock.Mock()
+        page.evaluate.return_value = json.dumps(
+            {
+                "title": "",
+                "bodyText": "",
+                "url": "https://www.douyin.com/video/1000000000000000004",
+            }
+        )
+        with mock.patch.object(
+            search,
+            "wait_for_meaningful_text",
+            return_value={"title": "安全验证", "text": "请完成验证"},
+        ):
+            result = search.get_video_detail(page, "1000000000000000004")
+
+        self.assertFalse(result["success"])
+        self.assertTrue(result["risk_page"])
 
     def test_publish_runtime_uses_shared_fixture_classifier(self) -> None:
         fixture = self.by_id["publish-missing-music"]

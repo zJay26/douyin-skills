@@ -303,8 +303,8 @@ def get_video_detail(page, video_id: str) -> dict:
         """
         )
         detail = json.loads(detail_raw) if detail_raw else {}
-        detail.setdefault("title", seed.get("title", ""))
-        detail.setdefault("bodyText", seed.get("text", ""))
+        detail["title"] = detail.get("title", "") or seed.get("title", "")
+        detail["bodyText"] = detail.get("bodyText", "") or seed.get("text", "")
         classification = classify_detail_snapshot(detail, kind)
         if classification["state"] == "risk":
             return {

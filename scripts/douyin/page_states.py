@@ -22,6 +22,9 @@ RISK_STRONG_HINTS = [
 INACCESSIBLE_CONTENT_HINTS = ["作品不存在", "内容不可见", "已删除"]
 ALLOWED_PUBLIC_HOSTS = {"creator.douyin.com", "www.douyin.com"}
 FORBIDDEN_FIXTURE_KEYS = {
+    "access_token",
+    "auth_token",
+    "authorization",
     "cookie_header",
     "cookie_value",
     "cookies",
@@ -34,6 +37,19 @@ FORBIDDEN_FIXTURE_KEYS = {
     "session_token",
     "sessionid",
     "token",
+    "user_data_dir",
+}
+SENSITIVE_KEY_PARTS = {
+    "access_token",
+    "auth_token",
+    "authorization",
+    "cookie",
+    "phone",
+    "profile_path",
+    "qr_code",
+    "qrcode",
+    "session_id",
+    "session_token",
     "user_data_dir",
 }
 SENSITIVE_STRING_PATTERNS = {
@@ -163,7 +179,11 @@ def fixture_privacy_errors(fixture: dict) -> list[str]:
     errors: list[str] = []
     for path, value in _walk(fixture):
         key = path.rsplit(".", 1)[-1].lower()
-        if key in FORBIDDEN_FIXTURE_KEYS:
+        contains_sensitive_key_part = any(part in key for part in SENSITIVE_KEY_PARTS)
+        safe_derived_signal = isinstance(value, (bool, int, float)) or value is None
+        if key in FORBIDDEN_FIXTURE_KEYS or (
+            contains_sensitive_key_part and not safe_derived_signal
+        ):
             errors.append(f"{path}: sensitive key is not allowed")
         if not isinstance(value, str):
             continue
@@ -176,6 +196,12 @@ def fixture_privacy_errors(fixture: dict) -> list[str]:
                 errors.append(f"{path}: URL is not an allowed public Douyin URL")
             if parsed.username or parsed.password:
                 errors.append(f"{path}: URL credentials are not allowed")
+            if re.search(
+                r"(?:^|&)(?:access_token|auth_token|authorization|code|phone|session(?:id|_id|_token)?|token)=",
+                parsed.query,
+                re.I,
+            ):
+                errors.append(f"{path}: URL contains sensitive query parameters")
     return errors
 
 
