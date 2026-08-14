@@ -54,8 +54,19 @@ Captcha, identity checks, and uncertain publish states are modeled as reasons to
 
 The integration distinguishes confirmed success, failure before action, and an action whose final state could not be verified. This is a small design choice with large consequences for agent reliability.
 
+### 6. Explicit platform adapter
+
+The shared `PlatformAdapter` contract in `scripts/platform_adapter.py` separates
+platform identity, public URL parsing, navigation entry points, selectors, and
+visible page markers from the browser lifecycle and result-state policy.
+`scripts/douyin/adapter.py` is the first implementation. Login, discovery,
+interaction, and publishing workflows receive that contract, so a future
+adapter can replace platform details without copying Douyin selectors into the
+shared safety logic.
+
 ## What remains platform-specific
 
+The current boundary does not make another platform automatically supported.
 Any future adapter must own and test its own:
 
 - public URL and content-reference parsing;

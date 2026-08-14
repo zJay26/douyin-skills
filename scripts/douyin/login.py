@@ -8,15 +8,34 @@ import tempfile
 import time
 from pathlib import Path
 
+from platform_adapter import PlatformAdapter, resolve_adapter
+
 from .page_states import (
-    RISK_PAGE_KEYWORDS,
-    RISK_STRONG_HINTS,
     classify_login_snapshot,
 )
-from .selectors import LOGGED_IN_TEXT_HINTS, LOGIN_TEXT_KEYWORDS
 
 
-def inspect_login_state(page) -> dict:
+def inspect_login_state(page, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
+    selectors = adapter.selectors
+    login_keywords = json.dumps(list(selectors.login_text_keywords), ensure_ascii=False)
+    login_panel_markers = json.dumps(
+        list(selectors.login_panel_markers), ensure_ascii=False
+    )
+    logged_in_hints = json.dumps(
+        list(selectors.logged_in_text_hints), ensure_ascii=False
+    )
+    risk_keywords = json.dumps(list(adapter.risk_page_keywords), ensure_ascii=False)
+    risk_strong_hints = json.dumps(list(adapter.risk_strong_hints), ensure_ascii=False)
+    qrcode_selectors = json.dumps(
+        ", ".join(selectors.login_qrcode_selectors), ensure_ascii=False
+    )
+    profile_ui_selectors = json.dumps(
+        ", ".join(selectors.profile_ui_selectors), ensure_ascii=False
+    )
+    auth_cookie_names = json.dumps(
+        list(selectors.auth_cookie_names), ensure_ascii=False
+    )
     script = f"""
     (() => {{
       const bodyText = (document.body && document.body.innerText) || '';
@@ -25,19 +44,25 @@ def inspect_login_state(page) -> dict:
       const cookies = document.cookie || '';
       const isVisible = el => !!el && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
       const visibleTextNodes = Array.from(document.querySelectorAll('button, [role="button"], [role="dialog"], a, span, div')).filter(isVisible);
-      const hasLoginKeyword = visibleTextNodes.some(el => {LOGIN_TEXT_KEYWORDS!r}.includes((el.innerText || '').trim()));
-      const loggedInHintCount = {LOGGED_IN_TEXT_HINTS!r}.filter(x => bodyText.includes(x) || title.includes(x)).length;
-      const riskKeywordCount = {RISK_PAGE_KEYWORDS!r}.filter(x => bodyText.includes(x) || title.includes(x)).length;
-      const hasRiskStrongHint = {RISK_STRONG_HINTS!r}.some(x => bodyText.includes(x) || title.includes(x));
-      const hasRiskUi = visibleTextNodes.some(el => ['发送短信验证', '接收短信验证码', '重新获取验证码', '拖动滑块', '立即验证'].includes((el.innerText || '').trim()));
+      const loginKeywords = {login_keywords};
+      const loginPanelMarkers = {login_panel_markers};
+      const loggedInHints = {logged_in_hints};
+      const riskKeywords = {risk_keywords};
+      const riskStrongHints = {risk_strong_hints};
+      const hasLoginKeyword = visibleTextNodes.some(el => loginKeywords.includes((el.innerText || '').trim()));
+      const loggedInHintCount = loggedInHints.filter(x => bodyText.includes(x) || title.includes(x)).length;
+      const riskKeywordCount = riskKeywords.filter(x => bodyText.includes(x) || title.includes(x)).length;
+      const hasRiskStrongHint = riskStrongHints.some(x => bodyText.includes(x) || title.includes(x));
+      const hasRiskUi = visibleTextNodes.some(el => riskStrongHints.includes((el.innerText || '').trim()));
       const hasLoginPanel = visibleTextNodes.some(el => {{
         const text = (el.innerText || '').trim();
         const role = el.getAttribute?.('role') || '';
         return (role === 'dialog' || /login/i.test((el.className || '').toString()) || /login/i.test(el.getAttribute?.('data-e2e') || ''))
-          && (text.includes('扫码登录') || text.includes('手机号登录') || text.includes('立即登录'));
-      }}) || Array.from(document.querySelectorAll('img[alt*="二维码"]')).some(isVisible);
-      const hasProfileUi = Array.from(document.querySelectorAll('a[href*="/user/self"], [data-e2e*="user-avatar"], [data-e2e="user-info"]')).some(isVisible);
-      const hasAuthCookie = /(?:^|;[ \t]*)(sessionid|sessionid_ss|sid_guard|uid_tt|uid_tt_ss)=/.test(cookies);
+          && loginPanelMarkers.some(marker => text.includes(marker));
+      }}) || Array.from(document.querySelectorAll({qrcode_selectors})).some(isVisible);
+      const hasProfileUi = Array.from(document.querySelectorAll({profile_ui_selectors})).some(isVisible);
+      const authCookieNames = {auth_cookie_names};
+      const hasAuthCookie = cookies.split(';').some(cookie => authCookieNames.includes(cookie.trim().split('=', 1)[0]));
       const hasRiskKeyword = hasRiskStrongHint || hasRiskUi || riskKeywordCount >= 2;
       return {{
         title,
@@ -59,8 +84,9 @@ def inspect_login_state(page) -> dict:
     return page.evaluate(script) or {}
 
 
-def check_login_state(page) -> dict:
-    info = inspect_login_state(page) or {}
+def check_login_state(page, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
+    info = inspect_login_state(page, adapter=adapter) or {}
     classification = classify_login_snapshot(info)
     return {
         "success": True,
@@ -87,48 +113,51 @@ def check_login_state(page) -> dict:
     }
 
 
-def _find_qrcode_data_url(page) -> str | None:
-    script = """
-    (async () => {
+def _find_qrcode_data_url(page, adapter: PlatformAdapter | None = None) -> str | None:
+    adapter = resolve_adapter(adapter)
+    qrcode_selectors = ", ".join(adapter.selectors.login_qrcode_selectors)
+    script = f"""
+    (async () => {{
       const visible = el => !!el && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-      const nodes = Array.from(document.querySelectorAll('img[alt*="二维码"], canvas')).filter(visible);
+      const nodes = Array.from(document.querySelectorAll({json.dumps(qrcode_selectors, ensure_ascii=False)})).filter(visible);
       const node = nodes[0] || null;
       if (!node) return null;
       if (node.tagName === 'CANVAS') return node.toDataURL('image/png');
       if (node.src?.startsWith('data:image')) return node.src;
-      if (node.src) {
-        try {
-          const response = await fetch(node.src, { credentials: 'include' });
+      if (node.src) {{
+        try {{
+          const response = await fetch(node.src, {{ credentials: 'include' }});
           if (!response.ok) return null;
           const blob = await response.blob();
-          return await new Promise((resolve, reject) => {
+          return await new Promise((resolve, reject) => {{
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.onerror = reject;
             reader.readAsDataURL(blob);
-          });
-        } catch (_error) {
+          }});
+        }} catch (_error) {{
           return null;
-        }
-      }
+        }}
+      }}
       return null;
-    })()
+    }})()
     """
     return page.evaluate(script)
 
 
-def get_qrcode(page) -> dict:
-    page.navigate("https://www.douyin.com/")
+def get_qrcode(page, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
+    adapter.navigate_home(page)
     page.wait_for_load(20)
     deadline = time.time() + 20
     data_url = None
     while time.time() < deadline:
-        data_url = _find_qrcode_data_url(page)
+        data_url = _find_qrcode_data_url(page, adapter=adapter)
         if data_url:
             break
         time.sleep(1)
     if not data_url:
-        state = check_login_state(page)
+        state = check_login_state(page, adapter=adapter)
         if state.get("risk_page"):
             return {
                 "success": False,
@@ -153,11 +182,14 @@ def get_qrcode(page) -> dict:
     }
 
 
-def wait_login(page, timeout_seconds: int = 120) -> dict:
+def wait_login(
+    page, timeout_seconds: int = 120, adapter: PlatformAdapter | None = None
+) -> dict:
+    adapter = resolve_adapter(adapter)
     deadline = time.time() + timeout_seconds
     last_state = {}
     while time.time() < deadline:
-        state = check_login_state(page)
+        state = check_login_state(page, adapter=adapter)
         last_state = state
         if state.get("risk_page"):
             return {
@@ -183,7 +215,8 @@ def wait_login(page, timeout_seconds: int = 120) -> dict:
     }
 
 
-def send_code(page, phone: str = "") -> dict:
+def send_code(page, phone: str = "", adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
     if phone:
         phone = re.sub(r"[\s-]", "", phone)
         if not re.fullmatch(r"(?:\+?86)?1[3-9]\d{9}", phone):
@@ -196,13 +229,13 @@ def send_code(page, phone: str = "") -> dict:
             phone = phone[3:]
         elif phone.startswith("86") and len(phone) == 13:
             phone = phone[2:]
-    page.navigate("https://www.douyin.com/")
+    adapter.navigate_home(page)
     page.wait_for_load(20)
     if phone:
         page.evaluate(
             f"""
             (() => {{
-              const input = document.querySelector('input[placeholder*="手机号"], input[type="tel"]');
+              const input = document.querySelector(%s);
               if (!input) return false;
               input.focus();
               const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
@@ -210,26 +243,33 @@ def send_code(page, phone: str = "") -> dict:
               else input.value = {json.dumps(phone)};
               input.dispatchEvent(new Event('input', {{bubbles:true}}));
               input.dispatchEvent(new Event('change', {{bubbles:true}}));
-              const agreement = Array.from(document.querySelectorAll('label, div, span')).find(el => (el.innerText || '').includes('已阅读并同意'));
+              const agreement = Array.from(document.querySelectorAll('label, div, span')).find(el => (el.innerText || '').includes(%s));
               const checkbox = agreement?.querySelector?.('input[type="checkbox"]') || agreement?.closest?.('label')?.querySelector?.('input[type="checkbox"]');
               if (checkbox && !checkbox.checked) checkbox.click();
               return true;
             }})()
             """
+            % (
+                json.dumps(
+                    ", ".join(adapter.selectors.phone_input_selectors),
+                    ensure_ascii=False,
+                ),
+                json.dumps(adapter.selectors.agreement_text, ensure_ascii=False),
+            )
         )
     ok = page.evaluate(
-        """
-        (() => {
+        f"""
+        (() => {{
           const nodes = Array.from(document.querySelectorAll('button, [role="button"], span, div'));
-          const btn = nodes.find(el => ['获取验证码', '发送验证码', '接收短信验证码', '发送短信验证'].includes((el.innerText || '').trim()) && !el.disabled);
+          const btn = nodes.find(el => {json.dumps(list(adapter.selectors.send_code_texts), ensure_ascii=False)}.includes((el.innerText || '').trim()) && !el.disabled);
           if (!btn) return false;
           btn.click();
           return true;
-        })()
+        }})()
         """
     )
     if not ok:
-        state = check_login_state(page)
+        state = check_login_state(page, adapter=adapter)
         if state.get("risk_page"):
             return {
                 "success": False,
@@ -245,14 +285,15 @@ def send_code(page, phone: str = "") -> dict:
     }
 
 
-def verify_code(page, code: str) -> dict:
+def verify_code(page, code: str, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
     code = str(code or "").strip()
     if not re.fullmatch(r"\d{6}", code):
         return {"success": False, "logged_in": False, "error": "验证码必须是 6 位数字"}
     ok = page.evaluate(
         f"""
         (() => {{
-          const input = document.querySelector('input[placeholder*="验证码"], input[inputmode="numeric"], input[type="number"]');
+          const input = document.querySelector(%s);
           if (!input) return false;
           input.focus();
           const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
@@ -261,16 +302,23 @@ def verify_code(page, code: str) -> dict:
           input.dispatchEvent(new Event('input', {{bubbles:true}}));
           input.dispatchEvent(new Event('change', {{bubbles:true}}));
           const nodes = Array.from(document.querySelectorAll('button, [role="button"], span, div'));
-          const btn = nodes.find(el => ['登录', '确定', '验证', '提交'].includes((el.innerText || '').trim()) && !el.disabled);
+          const btn = nodes.find(el => %s.includes((el.innerText || '').trim()) && !el.disabled);
           if (btn) btn.click();
           return true;
         }})()
         """
+        % (
+            json.dumps(
+                ", ".join(adapter.selectors.verification_input_selectors),
+                ensure_ascii=False,
+            ),
+            json.dumps(list(adapter.selectors.submit_code_texts), ensure_ascii=False),
+        )
     )
     if not ok:
         return {"success": False, "logged_in": False, "error": "未找到验证码输入框"}
     time.sleep(3)
-    state = check_login_state(page)
+    state = check_login_state(page, adapter=adapter)
     if state.get("logged_in"):
         return {
             "success": True,

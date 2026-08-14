@@ -1,29 +1,11 @@
-LOGIN_TEXT_KEYWORDS = ["登录", "立即登录", "扫码登录", "手机号登录"]
-LOGGED_IN_TEXT_HINTS = ["创作者服务中心", "投稿", "私信", "消息"]
+from .adapter import DEFAULT_ADAPTER
 
-SEARCH_RESULT_SELECTORS = [
-    'a[href*="/video/"]',
-    'a[href*="/note/"]',
-    '[data-e2e="search-result-item"] a',
-]
+_SELECTORS = DEFAULT_ADAPTER.selectors
 
-DETAIL_DESC_SELECTORS = [
-    '[data-e2e="video-desc"]',
-    "h1 span span span span span",
-    'div[class*="title"] span',
-]
-
-COMMENT_ITEM_SELECTORS = [
-    '[data-e2e="comment-item"]',
-    '[class*="comment"] [class*="item"]',
-    'div[class*="comment"] li',
-]
-
-LIKE_BUTTON_SELECTORS = [
-    '[data-e2e="video-player-digg"]',
-    '[data-e2e="feed-digg-icon"]',
-    '[class*="video-player-digg"]',
-    'button[data-e2e*="like"]',
-    '[class*="like"] button',
-    'div[role="button"][aria-label*="赞"]',
-]
+# Compatibility exports for callers that used the old Douyin-only module.
+LOGIN_TEXT_KEYWORDS = list(_SELECTORS.login_text_keywords)
+LOGGED_IN_TEXT_HINTS = list(_SELECTORS.logged_in_text_hints)
+SEARCH_RESULT_SELECTORS = list(_SELECTORS.search_result_selectors)
+DETAIL_DESC_SELECTORS = list(_SELECTORS.detail_desc_selectors)
+COMMENT_ITEM_SELECTORS = list(_SELECTORS.comment_item_selectors)
+LIKE_BUTTON_SELECTORS = list(_SELECTORS.like_button_selectors)

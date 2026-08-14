@@ -3,9 +3,7 @@ from __future__ import annotations
 import json
 import time
 
-from .login import RISK_PAGE_KEYWORDS
-from .selectors import LIKE_BUTTON_SELECTORS
-from .urls import content_urls, parse_content_ref
+from platform_adapter import PlatformAdapter, resolve_adapter
 
 
 def _first_clickable(page, selectors: list[str]) -> str | None:
@@ -18,9 +16,10 @@ def _first_clickable(page, selectors: list[str]) -> str | None:
     return None
 
 
-def _open_detail(page, item_id: str) -> dict:
-    normalized_id, _requested_kind = parse_content_ref(item_id)
-    for kind, url in content_urls(item_id):
+def _open_detail(page, item_id: str, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
+    normalized_id, _requested_kind = adapter.parse_content_ref(item_id)
+    for kind, url in adapter.content_urls(item_id):
         page.navigate(url)
         page.wait_for_load(20)
         time.sleep(5)
@@ -32,7 +31,7 @@ def _open_detail(page, item_id: str) -> dict:
             or ""
         )
         href = page.evaluate("location.href || ''") or ""
-        if any(k in title or k in body for k in RISK_PAGE_KEYWORDS):
+        if adapter.is_risk_page(title, body):
             return {
                 "success": False,
                 "risk_page": True,
@@ -41,7 +40,7 @@ def _open_detail(page, item_id: str) -> dict:
                 "page_title": title,
                 "href": href,
             }
-        if "/note/" in href:
+        if adapter.content_kind(href) == "note":
             return {
                 "success": True,
                 "kind": "note",
@@ -50,9 +49,12 @@ def _open_detail(page, item_id: str) -> dict:
                 "body": body,
             }
         if kind == "video" and (
-            "不存在" in body
-            or "视频数据加载中" in body
-            or ("收藏" not in body and "分享" not in body and "评论" not in body)
+            any(marker in body for marker in adapter.inaccessible_content_markers)
+            or (
+                adapter.selectors.favorite_action_text not in body
+                and adapter.selectors.share_action_text not in body
+                and adapter.selectors.comment_action_text not in body
+            )
         ):
             continue
         return {
@@ -69,19 +71,28 @@ def _open_detail(page, item_id: str) -> dict:
     }
 
 
-def _click_note_action(page, action: str) -> dict:
+def _click_note_action(
+    page, action: str, adapter: PlatformAdapter | None = None
+) -> dict:
+    adapter = resolve_adapter(adapter)
+    action_texts = {
+        "like": adapter.selectors.like_action_text,
+        "favorite": adapter.selectors.favorite_action_text,
+        "share": adapter.selectors.share_action_text,
+    }
+    action_text = json.dumps(action_texts.get(action, ""), ensure_ascii=False)
+    marker = json.dumps(adapter.selectors.note_action_bar_marker, ensure_ascii=False)
     script = f"""
     (() => {{
       const bars = Array.from(document.querySelectorAll('div')).filter(el => {{
         const txt = (el.innerText || '').trim();
-        return txt.includes('分享') && el.children.length >= 4 && el.children.length <= 8;
+        return txt.includes({marker}) && el.children.length >= 4 && el.children.length <= 8;
       }});
-      const bar = bars.reverse().find(el => Array.from(el.children).some(c => (c.innerText || '').trim().includes('分享')));
+      const bar = bars.reverse().find(el => Array.from(el.children).some(c => (c.innerText || '').trim().includes({marker})));
       if (!bar) return {{ok:false, reason:'action-bar-not-found'}};
-      let target = null;
-      if ({json.dumps(action)} === 'like') target = bar.children[0] || null;
-      else if ({json.dumps(action)} === 'favorite') target = Array.from(bar.children).find(el => (el.innerText || '').trim().includes('收藏')) || null;
-      else if ({json.dumps(action)} === 'share') target = Array.from(bar.children).find(el => (el.innerText || '').trim().includes('分享')) || null;
+      const target = {json.dumps(action)} === 'like'
+        ? bar.children[0] || null
+        : Array.from(bar.children).find(el => (el.innerText || '').trim().includes({action_text})) || null;
       if (!target) return {{ok:false, reason:'target-not-found'}};
       target.scrollIntoView({{block:'center'}});
       target.click();
@@ -99,13 +110,14 @@ def _click_text(page, text: str) -> bool:
     )
 
 
-def like_video(page, video_id: str) -> dict:
-    opened = _open_detail(page, video_id)
+def like_video(page, video_id: str, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
+    opened = _open_detail(page, video_id, adapter=adapter)
     if not opened.get("success"):
         return opened
-    selector = _first_clickable(page, LIKE_BUTTON_SELECTORS)
+    selector = _first_clickable(page, adapter.selectors.like_button_selectors)
     clicked = page.click(selector) if selector else False
-    content_id, _kind = parse_content_ref(video_id)
+    content_id, _kind = adapter.parse_content_ref(video_id)
     meta = {
         "video_id": content_id,
         "action": "like",
@@ -121,7 +133,7 @@ def like_video(page, video_id: str) -> dict:
             "message": "已点击点赞按钮，但当前页面未提供可稳定读取的最终状态；不要自动重复点击。",
         }
     if opened.get("kind") == "note":
-        result = _click_note_action(page, "like")
+        result = _click_note_action(page, "like", adapter=adapter)
         return {
             "success": bool(result.get("ok")),
             **meta,
@@ -135,13 +147,14 @@ def like_video(page, video_id: str) -> dict:
     return {"success": False, **meta, "error": "未找到点赞按钮"}
 
 
-def favorite_video(page, video_id: str) -> dict:
-    opened = _open_detail(page, video_id)
+def favorite_video(page, video_id: str, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
+    opened = _open_detail(page, video_id, adapter=adapter)
     if not opened.get("success"):
         return opened
-    content_id, _kind = parse_content_ref(video_id)
+    content_id, _kind = adapter.parse_content_ref(video_id)
     if opened.get("kind") == "note":
-        result = _click_note_action(page, "favorite")
+        result = _click_note_action(page, "favorite", adapter=adapter)
         return {
             "success": bool(result.get("ok")),
             "video_id": content_id,
@@ -155,14 +168,14 @@ def favorite_video(page, video_id: str) -> dict:
             if result.get("ok")
             else "未找到可用的收藏区域。",
         }
-    clicked = _click_text(page, "收藏")
+    clicked = _click_text(page, adapter.selectors.favorite_action_text)
     return {
         "success": clicked,
         "video_id": content_id,
         "action": "favorite",
         "page_kind": opened.get("kind"),
         "url": opened.get("href"),
-        "selector": "text:收藏" if clicked else "",
+        "selector": f"text:{adapter.selectors.favorite_action_text}" if clicked else "",
         "state_verified": False,
         "message": "已点击收藏按钮，但当前页面未提供可稳定读取的最终状态；不要自动重复点击。"
         if clicked
@@ -171,16 +184,17 @@ def favorite_video(page, video_id: str) -> dict:
     }
 
 
-def share_video(page, video_id: str) -> dict:
-    opened = _open_detail(page, video_id)
+def share_video(page, video_id: str, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
+    opened = _open_detail(page, video_id, adapter=adapter)
     if not opened.get("success"):
         return opened
-    content_id, _kind = parse_content_ref(video_id)
+    content_id, _kind = adapter.parse_content_ref(video_id)
     share_url = opened.get("href") or ""
     result = (
-        _click_note_action(page, "share")
+        _click_note_action(page, "share", adapter=adapter)
         if opened.get("kind") == "note"
-        else {"ok": _click_text(page, "分享")}
+        else {"ok": _click_text(page, adapter.selectors.share_action_text)}
     )
     if not result.get("ok"):
         return {
@@ -195,7 +209,7 @@ def share_video(page, video_id: str) -> dict:
             "detail": result,
         }
     time.sleep(1)
-    copied = _click_text(page, "复制链接")
+    copied = _click_text(page, adapter.selectors.copy_link_text)
     return {
         "success": bool(share_url),
         "video_id": content_id,
@@ -204,7 +218,7 @@ def share_video(page, video_id: str) -> dict:
         "url": share_url,
         "share_url": share_url,
         "copied_to_clipboard": copied,
-        "selector": "text:复制链接" if copied else "",
+        "selector": f"text:{adapter.selectors.copy_link_text}" if copied else "",
         "detail": result,
         "message": "已复制并返回公开作品链接。"
         if copied

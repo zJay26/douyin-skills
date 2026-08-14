@@ -32,7 +32,7 @@ The baseline does **not** prove arbitrary page-version compatibility or authenti
 ## Then: extract the reusable contract
 
 - [x] Document a stable cross-command result envelope for confirmed, failed, blocked, and unconfirmed outcomes
-- [ ] Isolate platform URLs, selectors, and page flows behind an explicit adapter boundary
+- [x] Isolate platform URLs, selectors, and page flows behind an explicit adapter boundary
 - [ ] Keep browser lifecycle, profiles, timeouts, and human checkpoints platform-neutral
 - [ ] Add an integration smoke test for at least one Agent Skills client beyond the primary OpenClaw path
 - [ ] Evaluate additional tool surfaces only when they can reuse the same execution core
