@@ -4,16 +4,13 @@ import json
 import time
 from pathlib import Path
 
+from platform_adapter import PlatformAdapter, resolve_adapter
+
 from .page_states import (
-    RISK_PAGE_KEYWORDS,
-    RISK_STRONG_HINTS,
     classify_publish_outcome,
     classify_publish_snapshot,
 )
 
-IMAGE_UPLOAD_URL = (
-    "https://creator.douyin.com/creator-micro/content/upload?default-tab=3"
-)
 SUPPORTED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
@@ -70,12 +67,15 @@ def _page_snapshot(page) -> dict:
     )
 
 
-def _risk_result(page, message: str) -> dict | None:
+def _risk_result(
+    page, message: str, adapter: PlatformAdapter | None = None
+) -> dict | None:
+    adapter = resolve_adapter(adapter)
     state = _page_snapshot(page)
     title = state.get("title", "") or ""
     text = state.get("text", "") or ""
-    risk = any(
-        k in title or k in text for k in (RISK_PAGE_KEYWORDS + RISK_STRONG_HINTS)
+    risk = adapter.is_risk_page(title, text) or any(
+        k in title or k in text for k in adapter.risk_strong_hints
     )
     if not risk:
         return None
@@ -88,18 +88,27 @@ def _risk_result(page, message: str) -> dict | None:
     }
 
 
-def _fill_title_and_desc(page, title: str, desc: str) -> dict:
+def _fill_title_and_desc(
+    page,
+    title: str,
+    desc: str,
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
     title = (title or "").strip()
+    title_selector = json.dumps(
+        adapter.selectors.publish_title_input_selector, ensure_ascii=False
+    )
+    editor_selector = json.dumps(
+        ",".join(adapter.selectors.publish_editor_selectors), ensure_ascii=False
+    )
     return page.evaluate(
         f"""
         (() => {{
           const titleText = {_js_quote(title)};
           const bodyText = {_js_quote(desc)};
-          const titleInput = document.querySelector('input[placeholder="添加作品标题"]');
-          const editor = document.querySelector('[data-slate-editor="true"]')
-            || document.querySelector('.editor-kit-container')
-            || document.querySelector('[contenteditable="true"]')
-            || document.querySelector('div[role="textbox"]');
+          const titleInput = document.querySelector({title_selector});
+          const editor = document.querySelector({editor_selector});
           if (!titleInput) return {{ success: false, reason: 'no-title-input' }};
           if (!editor) return {{ success: false, reason: 'no-editor' }};
 
@@ -139,7 +148,14 @@ def _fill_title_and_desc(page, title: str, desc: str) -> dict:
     )
 
 
-def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> dict:
+def fill_publish_image(
+    page,
+    images: list[str],
+    desc: str,
+    title: str = "",
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
     title = (title or "").strip()
     desc = (desc or "").strip()
     if not title:
@@ -151,34 +167,47 @@ def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> d
     except ValueError as exc:
         return {"success": False, "message": str(exc)}
 
-    page.navigate(IMAGE_UPLOAD_URL)
+    adapter.navigate_publish_image(page)
     page.wait_for_load(30)
 
-    risk = _risk_result(page, "当前处于验证码/风控页，无法继续填写图文发布表单。")
+    risk = _risk_result(
+        page, "当前处于验证码/风控页，无法继续填写图文发布表单。", adapter
+    )
     if risk:
         return risk
 
     ok = _wait_until(
-        page, """(() => !!document.querySelector('input[type="file"]'))()""", timeout=20
+        page,
+        f"""(() => !!document.querySelector({json.dumps(adapter.selectors.publish_file_input_selector)}))()""",
+        timeout=20,
     )
     if not ok:
-        risk = _risk_result(page, "当前处于验证码/风控页，无法继续填写图文发布表单。")
+        risk = _risk_result(
+            page, "当前处于验证码/风控页，无法继续填写图文发布表单。", adapter
+        )
         if risk:
             return risk
         return {"success": False, "message": "未找到图文上传输入框。"}
 
-    if not page.set_files('input[type="file"]', image_paths):
+    if not page.set_files(adapter.selectors.publish_file_input_selector, image_paths):
         return {"success": False, "message": "图片上传失败。"}
 
     editor_ready = _wait_until(
         page,
         """
-        (() => {
-          const hasTitle = !!document.querySelector('input[placeholder="添加作品标题"]');
-          const hasEditor = !!document.querySelector('[data-slate-editor="true"], .editor-kit-container, [contenteditable="true"], div[role="textbox"]');
+        (() => {{
+          const hasTitle = !!document.querySelector({});
+          const hasEditor = !!document.querySelector({});
           return hasTitle && hasEditor;
-        })()
-        """,
+        }})()
+        """.format(
+            json.dumps(
+                adapter.selectors.publish_title_input_selector, ensure_ascii=False
+            ),
+            json.dumps(
+                ",".join(adapter.selectors.publish_editor_selectors), ensure_ascii=False
+            ),
+        ),
         timeout=60,
         interval=1,
     )
@@ -188,18 +217,26 @@ def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> d
             "message": "图片已上传，但未等到标题/正文输入区域出现。",
         }
 
-    fill_result = _fill_title_and_desc(page, title, desc)
+    fill_result = _fill_title_and_desc(page, title, desc, adapter=adapter)
     state = (
         page.evaluate(
             """
-        (() => ({
+        (() => ({{
           href: location.href,
           title: document.title,
           text: (document.body?.innerText || '').slice(0, 2500),
-          titleValue: document.querySelector('input[placeholder="添加作品标题"]')?.value || '',
-          editorText: (document.querySelector('[data-slate-editor="true"],.editor-kit-container,[contenteditable="true"],div[role="textbox"]')?.innerText || '').slice(0, 1200)
-        }))()
-        """
+          titleValue: document.querySelector({})?.value || '',
+          editorText: (document.querySelector({})?.innerText || '').slice(0, 1200)
+        }}))()
+        """.format(
+                json.dumps(
+                    adapter.selectors.publish_title_input_selector, ensure_ascii=False
+                ),
+                json.dumps(
+                    ",".join(adapter.selectors.publish_editor_selectors),
+                    ensure_ascii=False,
+                ),
+            )
         )
         or {}
     )
@@ -224,7 +261,12 @@ def fill_publish_image(page, images: list[str], desc: str, title: str = "") -> d
     }
 
 
-def select_music(page, preferred: list[str] | None = None) -> dict:
+def select_music(
+    page,
+    preferred: list[str] | None = None,
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
     preferred = [x.strip() for x in (preferred or []) if x and x.strip()]
     if not preferred:
         preferred = [
@@ -234,43 +276,44 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
             "Ambition (凌云志)",
         ]
 
-    opened = (
-        page.click("span.action-Q1y01k")
-        or page.click(".container-right-uW7Pj1")
-        or page.click(".container-JngpiB")
-        or bool(
+    opened = False
+    for selector in adapter.selectors.music_open_selectors:
+        if page.click(selector):
+            opened = True
+            break
+    if not opened:
+        opened = bool(
             page.evaluate(
-                """
-                (() => {
+                f"""
+                (() => {{
                   const candidates = Array.from(document.querySelectorAll('button, [role="button"], span, div'));
-                  const target = candidates.find(el => ['选择音乐', '添加音乐'].includes((el.innerText || '').trim()));
+                  const target = candidates.find(el => {json.dumps(list(adapter.selectors.music_open_texts), ensure_ascii=False)}.includes((el.innerText || '').trim()));
                   if (!target) return false;
                   target.click();
                   return true;
-                })()
+                }})()
                 """
             )
         )
-    )
     if not opened:
-        risk = _risk_result(page, "当前处于验证码/风控页，无法打开音乐面板。")
+        risk = _risk_result(page, "当前处于验证码/风控页，无法打开音乐面板。", adapter)
         if risk:
             return risk
         return {"success": False, "message": "未找到音乐选择入口。"}
 
     panel_ready = _wait_until(
         page,
-        """
-        (() => !!Array.from(document.querySelectorAll('.semi-portal')).find(el => {
+        f"""
+        (() => !!Array.from(document.querySelectorAll({json.dumps(adapter.selectors.music_panel_selector)})).find(el => {{
           const text = el.innerText || '';
-          return text.includes('选择音乐') && text.includes('热门榜');
-        }))()
+          return {json.dumps(list(adapter.selectors.music_panel_markers), ensure_ascii=False)}.every(marker => text.includes(marker));
+        }}))()
         """,
         timeout=15,
         interval=0.5,
     )
     if not panel_ready:
-        risk = _risk_result(page, "当前处于验证码/风控页，无法打开音乐面板。")
+        risk = _risk_result(page, "当前处于验证码/风控页，无法打开音乐面板。", adapter)
         if risk:
             return risk
         return {"success": False, "message": "音乐面板未成功打开。"}
@@ -280,21 +323,21 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
         result = page.evaluate(
             f"""
             (() => {{
-              const portal = Array.from(document.querySelectorAll('.semi-portal')).find(el => {{
+              const portal = Array.from(document.querySelectorAll({json.dumps(adapter.selectors.music_panel_selector)})).find(el => {{
                 const text = el.innerText || '';
-                return text.includes('选择音乐') && text.includes('热门榜');
+                return {json.dumps(list(adapter.selectors.music_panel_markers), ensure_ascii=False)}.every(marker => text.includes(marker));
               }});
               if (!portal) return {{ success: false, reason: 'no-portal' }};
-              const node = Array.from(portal.querySelectorAll('.song-name-oRge4d, [class*="song-name"], span, div')).find(el => (el.innerText || '').trim() === {_js_quote(name)});
+              const node = Array.from(portal.querySelectorAll({json.dumps(",".join(adapter.selectors.music_name_selectors))})).find(el => (el.innerText || '').trim() === {_js_quote(name)});
               if (!node) return {{ success: false, reason: 'no-song' }};
               let row = node;
               for (let i = 0; i < 8 && row; i++) {{
                 const buttons = row.querySelectorAll ? Array.from(row.querySelectorAll('button')) : [];
-                if ((row.querySelector && row.querySelector('button.apply-btn-LUPP0D')) || buttons.some(btn => (btn.innerText || '').trim() === '使用')) break;
+                if ((row.querySelector && row.querySelector({json.dumps(",".join(adapter.selectors.music_apply_selectors))})) || buttons.some(btn => (btn.innerText || '').trim() === {json.dumps(adapter.selectors.music_apply_text)})) break;
                 row = row.parentElement;
               }}
               const btn = row && row.querySelector
-                ? row.querySelector('button.apply-btn-LUPP0D') || Array.from(row.querySelectorAll('button')).find(el => (el.innerText || '').trim() === '使用')
+                ? row.querySelector({json.dumps(",".join(adapter.selectors.music_apply_selectors))}) || Array.from(row.querySelectorAll('button')).find(el => (el.innerText || '').trim() === {json.dumps(adapter.selectors.music_apply_text)})
                 : null;
               if (!btn) return {{ success: false, reason: 'no-use-button' }};
               btn.click();
@@ -309,20 +352,31 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
     if not picked:
         fallback = page.evaluate(
             """
-            (() => {
-              const portal = Array.from(document.querySelectorAll('.semi-portal')).find(el => {
+            (() => {{
+              const portal = Array.from(document.querySelectorAll({})).find(el => {{
                 const text = el.innerText || '';
-                return text.includes('选择音乐') && text.includes('热门榜');
-              });
-              if (!portal) return { success: false, reason: 'no-portal' };
-              const btn = portal.querySelector('button.apply-btn-LUPP0D') || Array.from(portal.querySelectorAll('button')).find(el => (el.innerText || '').trim() === '使用' && !el.disabled);
-              if (!btn) return { success: false, reason: 'no-apply-button' };
+                return {}.every(marker => text.includes(marker));
+              }});
+              if (!portal) return {{ success: false, reason: 'no-portal' }};
+              const btn = portal.querySelector({}) || Array.from(portal.querySelectorAll('button')).find(el => (el.innerText || '').trim() === {} && !el.disabled);
+              if (!btn) return {{ success: false, reason: 'no-apply-button' }};
               const rowText = (btn.parentElement?.innerText || btn.closest('[class]')?.innerText || '').trim();
               btn.click();
-              const lines = rowText.split('\n').map(x => x.trim()).filter(x => x && x !== '使用');
-              return { success: true, picked: lines[0] || '热门榜首个可用音乐' };
-            })()
-            """
+              const lines = rowText.split('\n').map(x => x.trim()).filter(x => x && x !== {});
+              return {{ success: true, picked: lines[0] || '热门榜首个可用音乐' }};
+            }})()
+            """.format(
+                json.dumps(adapter.selectors.music_panel_selector, ensure_ascii=False),
+                json.dumps(
+                    list(adapter.selectors.music_panel_markers), ensure_ascii=False
+                ),
+                json.dumps(
+                    ",".join(adapter.selectors.music_apply_selectors),
+                    ensure_ascii=False,
+                ),
+                json.dumps(adapter.selectors.music_apply_text, ensure_ascii=False),
+                json.dumps(adapter.selectors.music_apply_text, ensure_ascii=False),
+            )
         )
         if fallback and fallback.get("success"):
             picked = fallback.get("picked") or "热门榜首个可用音乐"
@@ -335,11 +389,11 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
 
     applied = _wait_until(
         page,
-        """
-        (() => {
+        f"""
+        (() => {{
           const body = document.body?.innerText || '';
-          return body.includes('修改音乐');
-        })()
+          return body.includes({json.dumps(adapter.selectors.selected_music_text, ensure_ascii=False)});
+        }})()
         """,
         timeout=15,
         interval=0.5,
@@ -353,16 +407,16 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
 
     state = (
         page.evaluate(
-            """
-        (() => ({
+            f"""
+        (() => ({{
           text: (document.body?.innerText || '').slice(0, 2500),
-          selectedMusic: (() => {
+          selectedMusic: (() => {{
             const body = document.body?.innerText || '';
-            const marker = body.indexOf('修改音乐');
+            const marker = body.indexOf({json.dumps(adapter.selectors.selected_music_text, ensure_ascii=False)});
             if (marker < 0) return '';
             return body.slice(Math.max(0, marker - 160), marker).split('\n').map(x => x.trim()).filter(Boolean).slice(-1)[0] || '';
-          })()
-        }))()
+          }})()
+        }}))()
         """
         )
         or {}
@@ -375,18 +429,41 @@ def select_music(page, preferred: list[str] | None = None) -> dict:
     }
 
 
-def validate_publish_state(page, require_topic: bool = False) -> dict:
+def validate_publish_state(
+    page,
+    require_topic: bool = False,
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
+    title_selector = json.dumps(
+        adapter.selectors.publish_title_input_selector, ensure_ascii=False
+    )
+    editor_selector = json.dumps(
+        ",".join(adapter.selectors.publish_editor_selectors), ensure_ascii=False
+    )
+    file_selector = json.dumps(
+        adapter.selectors.publish_file_input_selector, ensure_ascii=False
+    )
+    image_markers = json.dumps(
+        list(adapter.selectors.publish_image_markers), ensure_ascii=False
+    )
+    topic_markers = json.dumps(
+        list(adapter.selectors.topic_markers), ensure_ascii=False
+    )
+    selected_music_text = json.dumps(
+        adapter.selectors.selected_music_text, ensure_ascii=False
+    )
     script = f"""
     (() => {{
       const body = (document.body && document.body.innerText) || '';
-      const titleEl = document.querySelector('input[placeholder="添加作品标题"]');
-      const editorEl = document.querySelector('[data-slate-editor="true"], .editor-kit-container, [contenteditable="true"], div[role="textbox"]');
+      const titleEl = document.querySelector({title_selector});
+      const editorEl = document.querySelector({editor_selector});
       const title = titleEl ? ((titleEl.value || '').trim()) : '';
       const editorText = editorEl ? (((editorEl.innerText || editorEl.textContent || '')).trim()) : '';
-      const fileCount = Array.from(document.querySelectorAll('input[type="file"]')).reduce((count, input) => count + (input.files?.length || 0), 0);
-      const hasImage = fileCount > 0 || body.includes('继续添加') || body.includes('编辑图片') || /已添加\\s*\\d+\\s*张图片/.test(body) || body.includes('取消上传');
-      const hasMusic = body.includes('修改音乐');
-      const hasTopic = body.includes('已关联热点') || body.includes('修改热点') || body.includes('关联热点\n#') || body.includes('关联热点\n话题');
+      const fileCount = Array.from(document.querySelectorAll({file_selector})).reduce((count, input) => count + (input.files?.length || 0), 0);
+      const hasImage = fileCount > 0 || {image_markers}.some(marker => body.includes(marker));
+      const hasMusic = body.includes({selected_music_text});
+      const hasTopic = {topic_markers}.some(marker => body.includes(marker));
       const errors = [];
       if (!hasImage) errors.push('缺少图片');
       if (!title) errors.push('标题为空');
@@ -411,14 +488,19 @@ def validate_publish_state(page, require_topic: bool = False) -> dict:
     state = page.evaluate(script)
     if isinstance(state, dict) and state:
         return classify_publish_snapshot(state, require_topic=require_topic)
-    risk = _risk_result(page, "当前处于验证码/风控页，无法读取发布页状态。")
+    risk = _risk_result(page, "当前处于验证码/风控页，无法读取发布页状态。", adapter)
     if risk:
         return risk
     return {"success": False, "errors": ["无法读取发布页状态"]}
 
 
-def click_publish(page, require_topic: bool = False) -> dict:
-    check = validate_publish_state(page, require_topic=require_topic)
+def click_publish(
+    page,
+    require_topic: bool = False,
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
+    check = validate_publish_state(page, require_topic=require_topic, adapter=adapter)
     if check.get("risk_page"):
         return check
     if not check.get("success"):
@@ -430,24 +512,24 @@ def click_publish(page, require_topic: bool = False) -> dict:
 
     result = (
         page.evaluate(
-            """
-        (() => {
+            f"""
+        (() => {{
           const body = (document.body && document.body.innerText) || '';
           const buttons = Array.from(document.querySelectorAll('button'));
-          const btn = buttons.find(el => (el.innerText || '').trim() === '发布');
-          if (!btn) return { clicked: false, message: '未找到底部发布按钮', body: body.slice(0, 2500) };
-          if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') {
-            return { clicked: false, message: '发布按钮当前不可用', body: body.slice(0, 2500) };
-          }
-          btn.scrollIntoView({ block: 'center' });
+          const btn = buttons.find(el => (el.innerText || '').trim() === {json.dumps(adapter.selectors.publish_button_text, ensure_ascii=False)});
+          if (!btn) return {{ clicked: false, message: '未找到底部发布按钮', body: body.slice(0, 2500) }};
+          if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') {{
+            return {{ clicked: false, message: '发布按钮当前不可用', body: body.slice(0, 2500) }};
+          }}
+          btn.scrollIntoView({{ block: 'center' }});
           btn.click();
-          return {
+          return {{
             clicked: true,
             text: (btn.innerText || '').trim(),
             className: btn.className || '',
             hrefBefore: location.href || ''
-          };
-        })()
+          }};
+        }})()
         """
         )
         or {}
@@ -462,13 +544,13 @@ def click_publish(page, require_topic: bool = False) -> dict:
 
     confirmation = _wait_until(
         page,
-        """
-        (() => {
+        f"""
+        (() => {{
           const body = document.body?.innerText || '';
           const href = location.href || '';
-          const confirmed = body.includes('发布成功') || body.includes('作品发布成功') || href.includes('/content/manage');
-          return confirmed ? { confirmed: true, href, text: body.slice(0, 1200) } : null;
-        })()
+          const confirmed = {json.dumps(list(adapter.selectors.publish_success_texts), ensure_ascii=False)}.some(marker => body.includes(marker)) || href.includes({json.dumps(adapter.selectors.publish_success_path_fragment, ensure_ascii=False)});
+          return confirmed ? {{ confirmed: true, href, text: body.slice(0, 1200) }} : null;
+        }})()
         """,
         timeout=20,
         interval=1,

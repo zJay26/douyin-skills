@@ -37,6 +37,7 @@ from douyin.publish import (
     validate_publish_state,
 )
 from douyin.search import get_video_detail, search_videos
+from platform_adapter import get_default_adapter
 from project_metadata import version_payload
 
 
@@ -45,7 +46,7 @@ def _wslg_headed_env_exports() -> str:
 
 
 def _maybe_switch_to_headed_for_risk(
-    args: argparse.Namespace, result: dict, reason: str
+    args: argparse.Namespace, result: dict, reason: str, adapter
 ):
     if not isinstance(result, dict) or not result.get("risk_page"):
         return None
@@ -61,7 +62,7 @@ def _maybe_switch_to_headed_for_risk(
     headed_args = argparse.Namespace(**vars(args))
     headed_args.headed = True
     _browser, page = _connect(headed_args)
-    page.navigate("https://www.douyin.com/")
+    adapter.navigate_home(page)
     page.wait_for_load(20)
     body = _risk_or_verify_text(page)
     return {
@@ -189,24 +190,28 @@ def cmd_version(_args: argparse.Namespace) -> None:
 
 
 def cmd_check_login(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    page.navigate("https://www.douyin.com/")
+    adapter.navigate_home(page)
     page.wait_for_load(20)
-    state = check_login_state(page)
-    switched = _maybe_switch_to_headed_for_risk(args, state, "检测到验证码/风控页")
+    state = check_login_state(page, adapter=adapter)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, state, "检测到验证码/风控页", adapter
+    )
     if switched:
         _output(switched, exit_code=2)
     _output(state, exit_code=0 if state.get("logged_in") else 1)
 
 
 def cmd_get_qrcode(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    if "douyin.com" not in (page.evaluate("location.href") or ""):
-        page.navigate("https://www.douyin.com/")
+    if not adapter.is_platform_url(page.evaluate("location.href") or ""):
+        adapter.navigate_home(page)
         page.wait_for_load(20)
-    result = get_qrcode(page)
+    result = get_qrcode(page, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
-        args, result, "读取登录二维码时检测到验证码/风控"
+        args, result, "读取登录二维码时检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -214,10 +219,11 @@ def cmd_get_qrcode(args: argparse.Namespace) -> None:
 
 
 def cmd_wait_login(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = wait_login(page)
+    result = wait_login(page, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
-        args, result, "等待登录时检测到验证码/风控"
+        args, result, "等待登录时检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -225,10 +231,11 @@ def cmd_wait_login(args: argparse.Namespace) -> None:
 
 
 def cmd_send_code(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = send_code(page, getattr(args, "phone", "") or "")
+    result = send_code(page, getattr(args, "phone", "") or "", adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
-        args, result, "发送验证码时检测到验证码/风控"
+        args, result, "发送验证码时检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -236,10 +243,11 @@ def cmd_send_code(args: argparse.Namespace) -> None:
 
 
 def cmd_verify_code(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = verify_code(page, args.code)
+    result = verify_code(page, args.code, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
-        args, result, "提交验证码时检测到验证码/风控"
+        args, result, "提交验证码时检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -247,19 +255,23 @@ def cmd_verify_code(args: argparse.Namespace) -> None:
 
 
 def cmd_search_videos(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = search_videos(page, args.keyword, limit=args.limit)
-    switched = _maybe_switch_to_headed_for_risk(args, result, "搜索页检测到验证码/风控")
+    result = search_videos(page, args.keyword, limit=args.limit, adapter=adapter)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "搜索页检测到验证码/风控", adapter
+    )
     if switched:
         _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_get_video_detail(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = get_video_detail(page, args.video_id)
+    result = get_video_detail(page, args.video_id, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
-        args, result, "读取作品详情时检测到验证码/风控"
+        args, result, "读取作品详情时检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -267,28 +279,35 @@ def cmd_get_video_detail(args: argparse.Namespace) -> None:
 
 
 def cmd_like_video(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = like_video(page, args.video_id)
-    switched = _maybe_switch_to_headed_for_risk(args, result, "点赞时检测到验证码/风控")
+    result = like_video(page, args.video_id, adapter=adapter)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "点赞时检测到验证码/风控", adapter
+    )
     if switched:
         _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_favorite_video(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = favorite_video(page, args.video_id)
-    switched = _maybe_switch_to_headed_for_risk(args, result, "收藏时检测到验证码/风控")
+    result = favorite_video(page, args.video_id, adapter=adapter)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "收藏时检测到验证码/风控", adapter
+    )
     if switched:
         _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_share_video(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = share_video(page, args.video_id)
+    result = share_video(page, args.video_id, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
-        args, result, "获取分享链接时检测到验证码/风控"
+        args, result, "获取分享链接时检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -308,21 +327,29 @@ def cmd_fill_publish_image(args: argparse.Namespace) -> None:
     desc = desc_path.read_text(encoding="utf-8").strip()
     if not desc:
         raise ValueError("正文文件不能为空")
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
     result = fill_publish_image(
-        page, args.images, desc, getattr(args, "title", "") or ""
+        page,
+        args.images,
+        desc,
+        getattr(args, "title", "") or "",
+        adapter=adapter,
     )
-    switched = _maybe_switch_to_headed_for_risk(args, result, "发布页检测到验证码/风控")
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "发布页检测到验证码/风控", adapter
+    )
     if switched:
         _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
 def cmd_select_music(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = select_music(page, getattr(args, "names", None))
+    result = select_music(page, getattr(args, "names", None), adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
-        args, result, "选音乐时检测到验证码/风控"
+        args, result, "选音乐时检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -330,12 +357,15 @@ def cmd_select_music(args: argparse.Namespace) -> None:
 
 
 def cmd_validate_publish(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
     result = validate_publish_state(
-        page, require_topic=getattr(args, "require_topic", False)
+        page,
+        require_topic=getattr(args, "require_topic", False),
+        adapter=adapter,
     )
     switched = _maybe_switch_to_headed_for_risk(
-        args, result, "发布校验时检测到验证码/风控"
+        args, result, "发布校验时检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -351,9 +381,16 @@ def cmd_click_publish(args: argparse.Namespace) -> None:
             },
             exit_code=2,
         )
+    adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = click_publish(page, require_topic=getattr(args, "require_topic", False))
-    switched = _maybe_switch_to_headed_for_risk(args, result, "发布前检测到验证码/风控")
+    result = click_publish(
+        page,
+        require_topic=getattr(args, "require_topic", False),
+        adapter=adapter,
+    )
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "发布前检测到验证码/风控", adapter
+    )
     if switched:
         _output(switched, exit_code=2)
     _output(result, exit_code=0 if result.get("success") else 2)

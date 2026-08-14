@@ -1,59 +1,41 @@
 from __future__ import annotations
 
 import json
-import re
 import time
+
+from platform_adapter import PlatformAdapter, resolve_adapter
 
 from .page_states import (
     classify_detail_snapshot,
     classify_search_snapshot,
-    has_risk_evidence,
-)
-from .selectors import (
-    COMMENT_ITEM_SELECTORS,
-    DETAIL_DESC_SELECTORS,
-)
-from .urls import (
-    content_urls,
-    jingxuan_url,
-    parse_content_ref,
-    search_url,
-    trending_url,
 )
 from .waiters import wait_for_meaningful_text
 
 DEFAULT_SEARCH_LIMIT = 7
 
 
-def _extract_content_id(url: str) -> str:
-    m = re.search(r"/(?:video|note)/(\d+)", url)
-    return m.group(1) if m else ""
+def _extract_content_id(url: str, adapter: PlatformAdapter | None = None) -> str:
+    return resolve_adapter(adapter).extract_content_id(url)
 
 
-def _extract_author_id(url: str) -> str:
-    patterns = [
-        r"modal_id=(\d+)",
-        r"sec_uid=([^&#]+)",
-        r"/user/([^/?&#]+)",
-    ]
-    for pattern in patterns:
-        m = re.search(pattern, url)
-        if m:
-            return m.group(1)
-    return ""
+def _extract_author_id(url: str, adapter: PlatformAdapter | None = None) -> str:
+    return resolve_adapter(adapter).extract_author_id(url)
 
 
-def _is_risk_page(title: str, text: str) -> bool:
-    return has_risk_evidence(title, text)
+def _is_risk_page(
+    title: str, text: str, adapter: PlatformAdapter | None = None
+) -> bool:
+    return resolve_adapter(adapter).is_risk_page(title, text)
 
 
-def list_feeds(page) -> dict:
-    page.navigate(jingxuan_url())
+def list_feeds(page, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
+    adapter.navigate_featured(page)
     page.wait_for_load(20)
     seed = wait_for_meaningful_text(page, timeout=45, min_len=80)
     title = seed.get("title", "") or ""
     text = seed.get("text", "") or ""
-    if _is_risk_page(title, text):
+    if _is_risk_page(title, text, adapter):
         return {
             "success": False,
             "count": 0,
@@ -64,9 +46,43 @@ def list_feeds(page) -> dict:
         }
 
     page_info = {}
+    feed_selector = json.dumps(adapter.selectors.feed_card_selector)
+    feed_id_attribute = json.dumps(adapter.selectors.feed_content_id_attribute)
+    feed_url_template = json.dumps(
+        adapter.content_url_templates[adapter.default_content_kind],
+        ensure_ascii=False,
+    )
     for _ in range(20):
         raw = page.evaluate(
-            "(()=>JSON.stringify({title:document.title||'',text:(document.body?.innerText||'').trim().slice(0,4000),videos:Array.from(document.querySelectorAll('div[data-aweme-id]')).slice(0,20).map(card=>{const id=card.getAttribute('data-aweme-id')||'';const txt=(card.innerText||'').trim();const lines=txt.split(/\\n/).map(x=>x.trim()).filter(Boolean);const author=(lines.find(x=>x.startsWith('@'))||'').replace(/^@/,'');const t=lines.find(x=>/^(\\d{1,2}:\\d{2}|\\d{1,2}:\\d{2}:\\d{2})$/.test(x))||'';const s=lines.find(x=>/^(\\d+(\\.\\d+)?[万亿]?\\+?)$/.test(x.replace(/,/g,'')))||'';const title=lines.find(x=>x&&!x.startsWith('@')&&!x.startsWith('·')&&x!=='/'&&!/^共创$/.test(x)&&!/^(\\d{1,2}:\\d{2}|\\d{1,2}:\\d{2}:\\d{2})$/.test(x)&&!/^(\\d+(\\.\\d+)?[万亿]?\\+?)$/.test(x.replace(/,/g,'')))||'';const img=card.querySelector('img');const timeIdx=lines.findIndex(x=>x.startsWith('@'));return {id,author_id:'',title:title.slice(0,120),author,publish_time:timeIdx>=0?(lines[timeIdx+1]||'').replace(/^·\\s*/,''):'' ,duration:t,interaction_text:s,cover_url:img?(img.src||''):'',url:id?('https://www.douyin.com/video/'+id):'',summary:txt.slice(0,500)};})}))()"
+            f"""
+            (() => JSON.stringify({{
+              title: document.title || '',
+              text: (document.body?.innerText || '').trim().slice(0, 4000),
+              videos: Array.from(document.querySelectorAll({feed_selector})).slice(0, 20).map(card => {{
+                const id = card.getAttribute({feed_id_attribute}) || '';
+                const txt = (card.innerText || '').trim();
+                const lines = txt.split(/\\n/).map(x => x.trim()).filter(Boolean);
+                const author = (lines.find(x => x.startsWith('@')) || '').replace(/^@/, '');
+                const duration = lines.find(x => /^(\\d{{1,2}}:\\d{{2}}|\\d{{1,2}}:\\d{{2}}:\\d{{2}})$/.test(x)) || '';
+                const interactionText = lines.find(x => /^(\\d+(\\.\\d+)?[万亿]?\\+?)$/.test(x.replace(/,/g, ''))) || '';
+                const title = lines.find(x => x && !x.startsWith('@') && !x.startsWith('·') && x !== '/' && x !== '共创' && !/^(\\d{{1,2}}:\\d{{2}}|\\d{{1,2}}:\\d{{2}}:\\d{{2}})$/.test(x) && !/^(\\d+(\\.\\d+)?[万亿]?\\+?)$/.test(x.replace(/,/g, ''))) || '';
+                const authorIndex = lines.findIndex(x => x.startsWith('@'));
+                const img = card.querySelector('img');
+                return {{
+                  id,
+                  author_id: '',
+                  title: title.slice(0, 120),
+                  author,
+                  publish_time: authorIndex >= 0 ? (lines[authorIndex + 1] || '').replace(/^·\\s*/, '') : '',
+                  duration,
+                  interaction_text: interactionText,
+                  cover_url: img ? (img.src || '') : '',
+                  url: id ? {feed_url_template}.replace('{{id}}', id) : '',
+                  summary: txt.slice(0, 500)
+                }};
+              }})
+            }}))()
+            """
         )
         page_info = json.loads(raw) if raw else {}
         if page_info.get("videos"):
@@ -75,7 +91,7 @@ def list_feeds(page) -> dict:
 
     title = page_info.get("title", "") or title
     text = page_info.get("text", "") or text
-    if _is_risk_page(title, text):
+    if _is_risk_page(title, text, adapter):
         return {
             "success": False,
             "count": 0,
@@ -93,11 +109,17 @@ def list_feeds(page) -> dict:
     }
 
 
-def search_videos(page, keyword: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict:
-    page.navigate(search_url(keyword))
+def search_videos(
+    page,
+    keyword: str,
+    limit: int = DEFAULT_SEARCH_LIMIT,
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
+    adapter.navigate_search(page, keyword)
     page.wait_for_load(20)
     seed = wait_for_meaningful_text(page, timeout=45, min_len=80)
-    if has_risk_evidence(seed.get("title", ""), seed.get("text", "")):
+    if _is_risk_page(seed.get("title", ""), seed.get("text", ""), adapter):
         return {
             "success": False,
             "keyword": keyword,
@@ -112,35 +134,42 @@ def search_videos(page, keyword: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict
             break
         time.sleep(1)
     page_info = {}
+    result_selector = json.dumps(
+        ", ".join(adapter.selectors.search_result_selectors), ensure_ascii=False
+    )
+    content_path_fragments = json.dumps(
+        list(adapter.content_path_fragments), ensure_ascii=False
+    )
     for _ in range(15):
         page_info = (
             page.evaluate(
-                r"""
-            (() => {
+                rf"""
+            (() => {{
               const title = document.title || '';
               const text = document.body ? document.body.innerText : '';
-              const anchors = Array.from(document.querySelectorAll("a[href*='/video/'], a[href*='/note/']"));
+              const contentPathFragments = {content_path_fragments};
+              const anchors = Array.from(document.querySelectorAll({result_selector}));
               const seen = new Set();
               const items = [];
-              for (const a of anchors) {
+              for (const a of anchors) {{
                 const href = a.href || a.getAttribute('href') || '';
-                if (seen.has(href) || (!href.includes('/video/') && !href.includes('/note/'))) continue;
+                if (seen.has(href) || !contentPathFragments.some(fragment => href.includes(fragment))) continue;
                 seen.add(href);
                 const card = a ? (a.closest('li, article, section, div') || a) : null;
                 const cardText = ((card && card.innerText) || (a && a.innerText) || '').trim();
                 const lines = cardText.split(/\n/).map(x => x.trim()).filter(Boolean);
-                const cleaned = lines.filter(x => x && !x.startsWith('@') && !/^(\d{1,2}:\d{2}|\d{1,2}:\d{2}:\d{2})$/.test(x) && !/^(\d+(\.\d+)?[万亿]?\+?)$/.test(x.replace(/,/g, '')) && x !== '合集');
+                const cleaned = lines.filter(x => x && !x.startsWith('@') && !/^(\d{{1,2}}:\d{{2}}|\d{{1,2}}:\d{{2}}:\d{{2}})$/.test(x) && !/^(\d+(\.\d+)?[万亿]?\+?)$/.test(x.replace(/,/g, '')) && x !== '合集');
                 const authorLine = lines.find(x => x.startsWith('@')) || '';
-                items.push({
+                items.push({{
                   href,
                   text: cardText.slice(0, 300),
                   title: (cleaned[0] || lines.find(x => x.length >= 4) || '').trim(),
                   author: authorLine.replace(/^@/, '').trim(),
-                });
+                }});
                 if (items.length >= 20) break;
-              }
-              return { title, text: text.slice(0, 3000), items, hrefCount: anchors.length };
-            })()
+              }}
+              return {{ title, text: text.slice(0, 3000), items, hrefCount: anchors.length }};
+            }})()
             """
             )
             or {}
@@ -153,7 +182,7 @@ def search_videos(page, keyword: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict
     classification = classify_search_snapshot(
         {"title": title, "text": text, "items": page_info.get("items", [])}
     )
-    if classification["state"] == "risk":
+    if classification["state"] == "risk" or _is_risk_page(title, text, adapter):
         return {
             "success": False,
             "keyword": keyword,
@@ -178,12 +207,12 @@ def search_videos(page, keyword: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict
     requested_limit = min(20, max(1, int(limit or DEFAULT_SEARCH_LIMIT)))
     for item in items[:requested_limit]:
         href = item.get("href", "")
-        video_id = _extract_content_id(href)
+        video_id = _extract_content_id(href, adapter)
         videos.append(
             {
                 "id": video_id,
-                "kind": "note" if "/note/" in href else "video",
-                "author_id": _extract_author_id(href),
+                "kind": adapter.content_kind(href) or adapter.default_content_kind,
+                "author_id": _extract_author_id(href, adapter),
                 "title": item.get("title") or item.get("text", "")[:80],
                 "author": item.get("author", ""),
                 "url": href,
@@ -200,13 +229,14 @@ def search_videos(page, keyword: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict
     }
 
 
-def get_trending_topics(page) -> dict:
-    page.navigate(trending_url())
+def get_trending_topics(page, adapter: PlatformAdapter | None = None) -> dict:
+    adapter = resolve_adapter(adapter)
+    adapter.navigate_trending(page)
     page.wait_for_load(20)
     seed = wait_for_meaningful_text(page, timeout=45, min_len=60)
     title = seed.get("title", "") or ""
     text = seed.get("text", "") or ""
-    if _is_risk_page(title, text):
+    if _is_risk_page(title, text, adapter):
         return {
             "success": False,
             "count": 0,
@@ -216,34 +246,41 @@ def get_trending_topics(page) -> dict:
             "page_title": title,
         }
 
+    trending_selector = json.dumps(
+        ", ".join(adapter.selectors.trending_node_selectors), ensure_ascii=False
+    )
+    topic_keywords = json.dumps(
+        list(adapter.selectors.trending_topic_keywords), ensure_ascii=False
+    )
     data = (
         page.evaluate(
-            """
-        (() => {
+            f"""
+        (() => {{
           const title = document.title || '';
           const bodyText = (document.body?.innerText || '').trim().slice(0, 4000);
-          const nodes = Array.from(document.querySelectorAll('a, div, li')).slice(0, 800);
+          const topicKeywords = {topic_keywords};
+          const nodes = Array.from(document.querySelectorAll({trending_selector})).slice(0, 800);
           const topics = [];
           const seen = new Set();
-          for (const node of nodes) {
+          for (const node of nodes) {{
             const txt = (node.innerText || '').trim();
             if (!txt) continue;
             const lines = txt.split(/\n/).map(x => x.trim()).filter(Boolean);
-            const name = lines.find(x => /^#?\\S{2,40}$/.test(x) && /热|榜|话题|挑战|同城|推荐|音乐|剧情|搞笑|美食|穿搭|旅行|开箱|测评/.test(txt)) || lines[0] || '';
+            const name = lines.find(x => /^#?\\S{{2,40}}$/.test(x) && topicKeywords.some(keyword => txt.includes(keyword))) || lines[0] || '';
             if (!name || seen.has(name)) continue;
             seen.add(name);
-            topics.push({ name, summary: lines.slice(0, 4).join(' | ').slice(0, 200) });
+            topics.push({{ name, summary: lines.slice(0, 4).join(' | ').slice(0, 200) }});
             if (topics.length >= 20) break;
-          }
-          return { title, text: bodyText, topics };
-        })()
+          }}
+          return {{ title, text: bodyText, topics }};
+        }})()
         """
         )
         or {}
     )
     title = data.get("title", "") or title
     text = data.get("text", "") or text
-    if _is_risk_page(title, text):
+    if _is_risk_page(title, text, adapter):
         return {
             "success": False,
             "count": 0,
@@ -261,18 +298,27 @@ def get_trending_topics(page) -> dict:
     }
 
 
-def get_video_detail(page, video_id: str) -> dict:
-    content_id, requested_kind = parse_content_ref(video_id)
+def get_video_detail(
+    page, video_id: str, adapter: PlatformAdapter | None = None
+) -> dict:
+    adapter = resolve_adapter(adapter)
+    content_id, requested_kind = adapter.parse_content_ref(video_id)
     last_detail: dict = {}
     last_seed: dict = {}
-    for kind, url in content_urls(video_id):
+    detail_desc_selectors = json.dumps(
+        list(adapter.selectors.detail_desc_selectors), ensure_ascii=False
+    )
+    comment_item_selectors = json.dumps(
+        list(adapter.selectors.comment_item_selectors), ensure_ascii=False
+    )
+    for kind, url in adapter.content_urls(video_id):
         page.navigate(url)
         page.wait_for_load(20)
         seed = wait_for_meaningful_text(page, timeout=45, min_len=40)
         detail_raw = page.evaluate(
             f"""
         (() => {{
-          const descSelectors = {json.dumps(DETAIL_DESC_SELECTORS)};
+          const descSelectors = {detail_desc_selectors};
           let description = '';
           for (const sel of descSelectors) {{
             const el = document.querySelector(sel);
@@ -283,7 +329,7 @@ def get_video_detail(page, video_id: str) -> dict:
           }}
           const title = document.title || '';
           const comments = [];
-          const commentSelectors = {json.dumps(COMMENT_ITEM_SELECTORS)};
+          const commentSelectors = {comment_item_selectors};
           for (const sel of commentSelectors) {{
             for (const node of document.querySelectorAll(sel)) {{
               const txt = (node.innerText || '').trim();
