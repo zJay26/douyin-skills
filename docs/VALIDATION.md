@@ -36,7 +36,7 @@ The versioned [page-state fixtures](../fixtures/page_states/README.md) are also 
 
 ## Supported release scope
 
-v1.0.x implements the following Douyin web workflows through the local CLI:
+v1.1.x implements the following Douyin web workflows through the local CLI:
 
 - environment diagnosis and named local-account configuration;
 - login-state inspection, QR-code retrieval, and user-completed SMS verification;
@@ -74,7 +74,7 @@ Every stable release requires all of the following on the tagged commit:
 
 ## Not validated or guaranteed
 
-v1.0.x does **not** claim:
+v1.1.x does **not** claim:
 
 - successful login, search, interaction, or publishing for every account or current Douyin page version;
 - captcha, identity-check, or risk-control automation or bypass;

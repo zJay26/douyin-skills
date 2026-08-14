@@ -91,14 +91,14 @@ The environment is ready when the JSON from `doctor` contains `"success": true` 
 
 ### Stable release download
 
-For a versioned, checksum-verifiable install, download `douyin-skills-v1.0.1.zip` and `SHA256SUMS` from the [v1.0.1 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.0.1). Verify the ZIP before extracting it:
+For a versioned, checksum-verifiable install, download `douyin-skills-v1.1.0.zip` and `SHA256SUMS` from the [v1.1.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.1.0). Verify the ZIP before extracting it:
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell: compare this value with the matching SHA256SUMS line
-Get-FileHash .\douyin-skills-v1.0.1.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.1.0.zip -Algorithm SHA256
 ```
 
 The named ZIP contains the complete repository under one versioned directory, including the privacy-safe Demo. GitHub's automatic source archives are separate and are not covered by the published checksum.

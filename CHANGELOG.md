@@ -2,6 +2,22 @@
 
 All notable changes are documented here. Releases follow semantic versioning, and each stable tag has detailed notes under [`docs/releases/`](./docs/releases/).
 
+## [1.1.0] - 2026-08-14
+
+### Added
+
+- An explicit `PlatformAdapter` contract for platform identity, public URLs, content-reference parsing, navigation entry points, selectors, and text markers.
+- The first `DouyinAdapter` implementation with focused injection tests for shared workflows.
+
+### Changed
+
+- Routed platform-specific browser details through the adapter while keeping the shared browser lifecycle, safety policy, result certainty, and JSON CLI contract unchanged.
+- Preserved the legacy `douyin.urls` and `douyin.selectors` exports as compatibility wrappers.
+
+### Documentation
+
+- Documented the reusable adapter boundary and marked the corresponding roadmap item complete without adding or claiming a second platform.
+
 ## [1.0.1] - 2026-08-12
 
 ### Added
@@ -32,5 +48,6 @@ All notable changes are documented here. Releases follow semantic versioning, an
 - Captcha, identity checks, and platform risk controls are never bypassed.
 - Unconfirmed irreversible actions are never reported as confirmed or retried automatically.
 
+[1.1.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.0
 [1.0.1]: https://github.com/zJay26/douyin-skills/releases/tag/v1.0.1
 [1.0.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.0.0

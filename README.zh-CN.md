@@ -91,14 +91,14 @@ python scripts/cli.py doctor
 
 ### 下载稳定版本
 
-如需版本固定且可校验的安装包，请从 [v1.0.1 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.0.1) 下载 `douyin-skills-v1.0.1.zip` 与 `SHA256SUMS`，解压前先校验：
+如需版本固定且可校验的安装包，请从 [v1.1.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.1.0) 下载 `douyin-skills-v1.1.0.zip` 与 `SHA256SUMS`，解压前先校验：
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell：将结果与 SHA256SUMS 对应行比较
-Get-FileHash .\douyin-skills-v1.0.1.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.1.0.zip -Algorithm SHA256
 ```
 
 这个命名 ZIP 会把完整仓库放在一个版本目录中，并包含脱敏 Demo。GitHub 自动生成的源码压缩包是另一组文件，不适用这里发布的校验值。

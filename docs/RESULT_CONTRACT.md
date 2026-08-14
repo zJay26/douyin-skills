@@ -10,7 +10,7 @@ python scripts/cli.py version
 {
   "success": true,
   "project": "douyin-skills",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "result_contract_version": "1.0"
 }
 ```
