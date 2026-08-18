@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "id": "detail-risk-verification",
+  "flow": "detail",
+  "description": "A detail request that reaches a verification page is reported as risk instead of available.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "expected_kind": "video",
+    "snapshot": {
+      "title": "安全验证",
+      "description": "",
+      "comments": [],
+      "url": "https://www.douyin.com/video/1000000000000000006",
+      "bodyText": "请完成验证后继续"
+    }
+  },
+  "expected": {
+    "state": "risk",
+    "risk_page": true,
+    "available": false
+  }
+}

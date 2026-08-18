@@ -330,6 +330,8 @@ ruff check scripts tests/python
 ruff format --check scripts tests/python
 ```
 
+When investigating a page-drift report, rerun only the relevant synthetic states with `python scripts/validate_fixtures.py --flow detail` or `python scripts/validate_fixtures.py --fixture-id detail-page-drift`.
+
 CI tests Windows (Python 3.13 / Node.js 24) and Ubuntu (Python 3.9 / Node.js 18), with a separate Ruff check. It also validates the [synthetic page-state fixtures](./fixtures/page_states/README.md), including their expected certainty semantics and privacy rules. CI does not perform real account login, captcha, or publishing; those end-to-end outcomes still depend on the account, page version, and platform policy at that moment. The exact release gate and non-goals are recorded in [Validation and support boundaries](./docs/VALIDATION.md); versioned changes are listed in the [changelog](./CHANGELOG.md), and maintainer steps live in the [release process](./docs/RELEASING.md).
 
 Read [CONTRIBUTING.md](./CONTRIBUTING.md) before sending changes. Use [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions) for open-ended workflow and adapter ideas, and Issues for reproducible defects or scoped work. Report security problems privately through [SECURITY.md](./SECURITY.md), and never paste account or session data into a public issue.
