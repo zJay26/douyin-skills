@@ -91,14 +91,14 @@ The environment is ready when the JSON from `doctor` contains `"success": true` 
 
 ### Stable release download
 
-For a versioned, checksum-verifiable install, download `douyin-skills-v1.1.0.zip` and `SHA256SUMS` from the [v1.1.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.1.0). Verify the ZIP before extracting it:
+For a versioned, checksum-verifiable install, download `douyin-skills-v1.1.1.zip` and `SHA256SUMS` from the [v1.1.1 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.1.1). Verify the ZIP before extracting it:
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell: compare this value with the matching SHA256SUMS line
-Get-FileHash .\douyin-skills-v1.1.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.1.1.zip -Algorithm SHA256
 ```
 
 The named ZIP contains the complete repository under one versioned directory, including the privacy-safe Demo. GitHub's automatic source archives are separate and are not covered by the published checksum.
@@ -166,7 +166,7 @@ flowchart LR
 
 A future adapter for another social or creator platform could reuse the Skill-to-CLI boundary, browser lifecycle, local profiles, timeouts, validation states, and human-review policy. It would still need its own authorized login flow, URLs, selectors, domain rules, tests, and platform-policy review.
 
-No other platform adapter ships in this repository today. See the [Agent ecosystem design note](./docs/AGENT_ECOSYSTEM.md) for the portability boundary and [ROADMAP.md](./ROADMAP.md) for the staged plan.
+No other platform adapter ships in this repository today. See the [Agent ecosystem design note](./docs/AGENT_ECOSYSTEM.md) for the portability boundary, the [Adapter authoring guide](./docs/ADAPTER_AUTHORING.md) for the maintainer checklist, and [ROADMAP.md](./ROADMAP.md) for the staged plan.
 
 ## Five composable Skills
 
@@ -218,7 +218,7 @@ flowchart LR
 - The Chrome launcher handles cross-platform browser discovery, port checks, profile isolation, and headless/headed transitions.
 - The CDP bridge drives pages through timeout-bounded HTTP/WebSocket calls without exposing the debug port to LAN or public networks.
 - Page logic is split into authentication, discovery, publishing, and interaction modules, with shared URL, wait, and error handling.
-- The platform-facing code is not generic yet; the [ecosystem design note](./docs/AGENT_ECOSYSTEM.md) identifies the boundary that should be extracted before another adapter is attempted.
+- Platform-facing behavior is kept behind an explicit adapter; the [ecosystem design note](./docs/AGENT_ECOSYSTEM.md) describes the reusable boundary, and the [Adapter authoring guide](./docs/ADAPTER_AUTHORING.md) describes the evidence needed before another adapter can be claimed as supported.
 
 ## Requirements
 
@@ -309,7 +309,7 @@ The default data directory is `~/.douyin-skills/`; set `DOUYIN_SKILLS_HOME` to u
 ├── tests/                    # Python unit tests and Node.js bridge test
 ├── fixtures/page_states/     # Synthetic state-contract regression fixtures
 ├── assets/                   # README and social-preview artwork
-├── docs/                     # Agent ecosystem and adapter design notes
+├── docs/                     # Agent ecosystem, adapter design, and authoring notes
 ├── ROADMAP.md                # Evidence-led project direction
 └── .github/                  # CI, dependency updates, collaboration templates
 ```

@@ -2,6 +2,21 @@
 
 All notable changes are documented here. Releases follow semantic versioning, and each stable tag has detailed notes under [`docs/releases/`](./docs/releases/).
 
+## [1.1.1] - 2026-08-18
+
+### Added
+
+- A maintainer-facing [Adapter authoring guide](./docs/ADAPTER_AUTHORING.md)
+  covering the `PlatformAdapter` contract, selector ownership, safety gates,
+  privacy-safe evidence, and automated/manual validation.
+- A documentation contract test that keeps the guide connected to the
+  authoritative adapter, result, validation, and contribution references.
+
+### Documentation
+
+- Marked the adapter-authoring roadmap item complete without adding another
+  platform or changing the runtime/result contract.
+
 ## [1.1.0] - 2026-08-14
 
 ### Added
@@ -48,6 +63,7 @@ All notable changes are documented here. Releases follow semantic versioning, an
 - Captcha, identity checks, and platform risk controls are never bypassed.
 - Unconfirmed irreversible actions are never reported as confirmed or retried automatically.
 
+[1.1.1]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.1
 [1.1.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.0
 [1.0.1]: https://github.com/zJay26/douyin-skills/releases/tag/v1.0.1
 [1.0.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.0.0

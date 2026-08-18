@@ -64,6 +64,10 @@ interaction, and publishing workflows receive that contract, so a future
 adapter can replace platform details without copying Douyin selectors into the
 shared safety logic.
 
+Maintainers proposing an adapter should follow the [Adapter authoring guide](./ADAPTER_AUTHORING.md).
+It is a contract, safety, and validation checklist; it does not by itself make
+another platform supported.
+
 ## What remains platform-specific
 
 The current boundary does not make another platform automatically supported.
