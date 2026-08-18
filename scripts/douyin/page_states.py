@@ -165,6 +165,22 @@ def load_fixtures(root: Path = FIXTURE_ROOT) -> list[dict]:
     ]
 
 
+def select_fixtures(
+    fixtures: list[dict],
+    *,
+    flow: str | None = None,
+    fixture_id: str | None = None,
+) -> list[dict]:
+    """Return fixtures matching the requested focused-regression filters."""
+
+    return [
+        fixture
+        for fixture in fixtures
+        if (flow is None or fixture.get("flow") == flow)
+        and (fixture_id is None or fixture.get("id") == fixture_id)
+    ]
+
+
 def _walk(value, path: str = "$"):
     yield path, value
     if isinstance(value, dict):
@@ -260,7 +276,9 @@ def classify_fixture(fixture: dict) -> dict:
     raise ValueError(f"unsupported fixture input for flow {flow!r}")
 
 
-def validate_fixture_set(fixtures: list[dict]) -> list[str]:
+def validate_fixture_set(
+    fixtures: list[dict], *, require_all_flows: bool = True
+) -> list[str]:
     errors: list[str] = []
     ids: list[str] = []
     flows: Counter[str] = Counter()
@@ -282,7 +300,8 @@ def validate_fixture_set(fixtures: list[dict]) -> list[str]:
     duplicates = sorted(item for item, count in Counter(ids).items() if count > 1)
     if duplicates:
         errors.append(f"duplicate fixture ids: {', '.join(duplicates)}")
-    missing_flows = sorted(SUPPORTED_FIXTURE_FLOWS - flows.keys())
-    if missing_flows:
-        errors.append(f"missing fixture flows: {', '.join(missing_flows)}")
+    if require_all_flows:
+        missing_flows = sorted(SUPPORTED_FIXTURE_FLOWS - flows.keys())
+        if missing_flows:
+            errors.append(f"missing fixture flows: {', '.join(missing_flows)}")
     return errors

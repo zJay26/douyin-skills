@@ -22,7 +22,14 @@ Run the validation directly:
 python scripts/validate_fixtures.py
 ```
 
-The validator checks the schema, IDs, required flow coverage, expected classifier results, canonical HTTPS Douyin URLs, and privacy rules.
+The validator checks the schema, IDs, required flow coverage, expected classifier results, canonical HTTPS Douyin URLs, and privacy rules. For a focused page-drift regression, filter by workflow or stable fixture ID:
+
+```bash
+python scripts/validate_fixtures.py --flow detail
+python scripts/validate_fixtures.py --fixture-id detail-page-drift
+```
+
+Filtered runs keep the schema, expected-result, URL, and privacy checks but intentionally do not require every workflow to be present. An unknown filter exits with status `2`.
 
 ## Privacy rules
 

@@ -321,6 +321,8 @@ ruff check scripts tests/python
 ruff format --check scripts tests/python
 ```
 
+排查页面漂移报告时，可以只重跑相关的合成状态，例如 `python scripts/validate_fixtures.py --flow detail`，或精确指定 `python scripts/validate_fixtures.py --fixture-id detail-page-drift`。
+
 CI 在 Windows（Python 3.13 / Node.js 24）与 Ubuntu（Python 3.9 / Node.js 18）运行测试，并单独检查 Ruff；同时验证[合成页面状态 fixtures](./fixtures/page_states/README.md)的预期结果语义与隐私规则。真实账号登录、验证码和发布不会在 CI 中执行；这类端到端结果仍取决于当时的账号、页面和平台策略。完整的发布门槛与非承诺范围见[验证与支持边界](./docs/VALIDATION.md)，各版本变化见[更新日志](./CHANGELOG.md)，维护者步骤见[发布流程](./docs/RELEASING.md)。
 
 参与开发前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。开放式工作流和适配器想法可以放到 [GitHub Discussions](https://github.com/zJay26/douyin-skills/discussions)，可复现缺陷与范围明确的工作使用 Issues。安全问题请按 [SECURITY.md](./SECURITY.md) 私下报告，不要在公开 Issue 中粘贴账号或会话数据。

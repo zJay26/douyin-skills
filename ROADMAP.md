@@ -27,7 +27,7 @@ The baseline does **not** prove arbitrary page-version compatibility or authenti
 - [x] Publish a repeatable manual validation checklist with Chrome and page-version notes
 - [x] Add a synthetic, privacy-safe demo of the end-to-end agent workflow
 - [x] Define a release and changelog cadence so users can distinguish stable behavior from ongoing work
-- [ ] Turn common page-drift reports into focused regression tests
+- [x] Turn common page-drift reports into focused regression tests
 
 ## Then: extract the reusable contract
 

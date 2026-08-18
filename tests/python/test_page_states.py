@@ -17,6 +17,7 @@ from douyin.page_states import (  # noqa: E402
     FIXTURE_ROOT,
     classify_fixture,
     load_fixtures,
+    select_fixtures,
     validate_fixture,
     validate_fixture_set,
 )
@@ -29,9 +30,23 @@ class PageStateFixtureTests(unittest.TestCase):
         cls.by_id = {fixture["id"]: fixture for fixture in cls.fixtures}
 
     def test_versioned_fixture_set_is_complete_and_consistent(self) -> None:
-        self.assertEqual(len(self.fixtures), 11)
+        self.assertEqual(len(self.fixtures), 13)
         self.assertEqual(validate_fixture_set(self.fixtures), [])
         self.assertTrue((FIXTURE_ROOT.parent / "README.md").is_file())
+
+    def test_focused_detail_selection_can_skip_global_flow_coverage(self) -> None:
+        selected = select_fixtures(self.fixtures, flow="detail")
+
+        self.assertEqual(
+            [fixture["id"] for fixture in selected],
+            [
+                "detail-content-unavailable",
+                "detail-page-drift",
+                "detail-risk-verification",
+                "detail-video-ready",
+            ],
+        )
+        self.assertEqual(validate_fixture_set(selected, require_all_flows=False), [])
 
     def test_every_fixture_matches_its_expected_certainty_fields(self) -> None:
         for fixture in self.fixtures:
