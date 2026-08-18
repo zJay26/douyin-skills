@@ -22,7 +22,7 @@ These checks exercise behavior that does not need a Douyin account:
 - image-path validation and distinct confirmed/unconfirmed publish states;
 - one-at-a-time interaction semantics that do not invent a final state;
 - the Node.js CDP request/response bridge.
-- sanitized page-state fixtures for login, risk, search, detail, and publishing certainty, including schema and privacy rules.
+- sanitized page-state fixtures for login, risk, search, detail, and publishing certainty, including schema and privacy rules plus focused flow/id reruns for page-drift reports.
 
 The repository also includes a deterministic, synthetic 40-second walkthrough. Its source is [`assets/demo/index.html`](../assets/demo/index.html), and maintainers can render [`assets/demo.gif`](../assets/demo.gif) with:
 

@@ -35,7 +35,7 @@ class CliTests(unittest.TestCase):
             {
                 "success": True,
                 "project": "douyin-skills",
-                "version": "1.1.1",
+                "version": "1.1.2",
                 "result_contract_version": "1.0",
             },
         )

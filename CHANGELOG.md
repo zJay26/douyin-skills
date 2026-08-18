@@ -2,6 +2,22 @@
 
 All notable changes are documented here. Releases follow semantic versioning, and each stable tag has detailed notes under [`docs/releases/`](./docs/releases/).
 
+## [1.1.2] - 2026-08-18
+
+### Added
+
+- Focused page-state regression validation with `--flow` and `--fixture-id`
+  filters for reproducing a reported page-drift boundary.
+- Synthetic detail fixtures for verification-risk and unavailable-content states,
+  alongside the existing route-drift fixture.
+
+### Changed
+
+- Marked the roadmap item for turning common page-drift reports into focused
+  regression tests complete.
+- Documented focused fixture validation in the English and Chinese development
+  guides.
+
 ## [1.1.1] - 2026-08-18
 
 ### Added
@@ -63,6 +79,7 @@ All notable changes are documented here. Releases follow semantic versioning, an
 - Captcha, identity checks, and platform risk controls are never bypassed.
 - Unconfirmed irreversible actions are never reported as confirmed or retried automatically.
 
+[1.1.2]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.2
 [1.1.1]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.1
 [1.1.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.0
 [1.0.1]: https://github.com/zJay26/douyin-skills/releases/tag/v1.0.1
