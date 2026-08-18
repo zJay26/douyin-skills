@@ -39,7 +39,7 @@ The baseline does **not** prove arbitrary page-version compatibility or authenti
 
 ## Later: evidence-led ecosystem expansion
 
-- [ ] Publish a small adapter-authoring guide with safety and validation requirements
+- [x] Publish a small [adapter-authoring guide](./docs/ADAPTER_AUTHORING.md) with safety and validation requirements
 - [ ] Evaluate one additional social or creator platform with an authorized manual test environment
 - [ ] Add that adapter only if it can preserve local execution, explicit authority, and honest result states
 - [ ] Compare client and platform integrations using the same fixtures and reporting vocabulary

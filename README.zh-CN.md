@@ -91,14 +91,14 @@ python scripts/cli.py doctor
 
 ### 下载稳定版本
 
-如需版本固定且可校验的安装包，请从 [v1.1.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.1.0) 下载 `douyin-skills-v1.1.0.zip` 与 `SHA256SUMS`，解压前先校验：
+如需版本固定且可校验的安装包，请从 [v1.1.1 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.1.1) 下载 `douyin-skills-v1.1.1.zip` 与 `SHA256SUMS`，解压前先校验：
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell：将结果与 SHA256SUMS 对应行比较
-Get-FileHash .\douyin-skills-v1.1.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.1.1.zip -Algorithm SHA256
 ```
 
 这个命名 ZIP 会把完整仓库放在一个版本目录中，并包含脱敏 Demo。GitHub 自动生成的源码压缩包是另一组文件，不适用这里发布的校验值。
@@ -157,7 +157,7 @@ flowchart LR
 
 未来如果为其他社交或创作者平台增加适配器，可以复用 Skill 到 CLI 的边界、浏览器生命周期、本地 Profile、超时、结果状态与人工复核策略；但仍必须重新实现并验证登录、URL、选择器、业务规则和平台合规边界。
 
-当前仓库没有交付其他平台适配器。更完整的边界说明见 [Agent 生态设计说明](./docs/AGENT_ECOSYSTEM.md)，阶段计划见 [ROADMAP.md](./ROADMAP.md)。
+当前仓库没有交付其他平台适配器。更完整的边界说明见 [Agent 生态设计说明](./docs/AGENT_ECOSYSTEM.md)，维护者实现适配器时请参考 [适配器编写指南](./docs/ADAPTER_AUTHORING.md)，阶段计划见 [ROADMAP.md](./ROADMAP.md)。
 
 ## 5 个可组合 Skills
 
@@ -209,7 +209,7 @@ flowchart LR
 - Chrome launcher 负责跨平台查找浏览器、端口检查、Profile 隔离和 headless/headed 切换。
 - CDP bridge 通过超时受控的 HTTP/WebSocket 调用驱动页面，不向局域网或公网暴露调试端口。
 - 页面模块按认证、搜索、发布和互动拆分，公共 URL、等待与错误处理单独复用。
-- 当前平台代码还不是通用适配器；[Agent 生态设计说明](./docs/AGENT_ECOSYSTEM.md)列出了在尝试第二个平台前应当抽离的边界。
+- 平台相关行为已通过显式适配器隔离；[Agent 生态设计说明](./docs/AGENT_ECOSYSTEM.md)说明可复用边界，[适配器编写指南](./docs/ADAPTER_AUTHORING.md)说明在声称支持其他平台前需要具备的证据。
 
 ## 环境要求
 
@@ -300,7 +300,7 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 ├── tests/                    # Python 单元测试与 Node.js bridge 测试
 ├── fixtures/page_states/     # 合成状态契约回归 fixtures
 ├── assets/                   # README 与社交预览视觉资产
-├── docs/                     # Agent 生态与适配器设计说明
+├── docs/                     # Agent 生态、适配器设计与编写指南
 ├── ROADMAP.md                # 以验证证据为门槛的路线图
 └── .github/                  # CI、依赖更新与协作模板
 ```
