@@ -1,6 +1,6 @@
 ---
 name: douyin-skills
-description: 抖音网页版与创作者中心的本地自动化技能包入口。用于组合登录、搜索、图文发布、点赞、收藏、分享链接，或解释整体能力、安全边界与多步骤流程；单一任务优先使用对应的 douyin-* 子技能。
+description: 抖音网页版与创作者中心的本地自动化技能包入口。用于组合登录、搜索、热门话题、图文发布、点赞、收藏、分享链接，或解释整体能力、安全边界与多步骤流程；单一任务优先使用对应的 douyin-* 子技能。
 ---
 
 # 抖音自动化技能包
@@ -34,7 +34,7 @@ python "{baseDir}/scripts/cli.py" version
 | --- | --- |
 | 检查登录、扫码、短信验证、多账号 | `douyin-auth` |
 | 安装、迁移、依赖检查 | `douyin-env` |
-| 搜索、读取公开作品详情 | `douyin-explore` |
+| 搜索、读取公开作品详情、查看热门话题 | `douyin-explore` |
 | 图文表单、音乐、发布 | `douyin-publish` |
 | 点赞、收藏、获取分享链接 | `douyin-interact` |
 
@@ -44,7 +44,7 @@ python "{baseDir}/scripts/cli.py" version
 
 1. 将实际抖音页面操作限制在本项目 CLI；可以使用普通文件或图片工具准备、检查素材，但不要换用另一套抖音自动化实现。
 2. 只连接 loopback Chrome 调试地址，不向局域网或公网暴露 CDP。
-3. 默认使用 headless。检测到验证码、身份验证或风控页后，让 CLI 切换到 headed，停下并请用户人工处理；不要尝试绕过验证。
+3. 优先复用同一端口上已有的可用 loopback Chrome 调试实例，不因 headless/headed 偏好差异重启用户的登录会话；没有可用实例时才按默认模式启动 Chrome。检测到验证码、身份验证或风控页后，仅在必要时切换到 headed，停下并请用户人工处理；不要尝试绕过验证。
 4. 在任何会改变账号状态的操作前确认目标账号与目标作品。用户明确提出“点赞/收藏/发布该内容”可视为本次操作授权。
 5. 发布前必须检查标题、正文、图片和音乐，并执行 `validate-publish`。最终点击必须显式传 `--confirm`。
 6. 发布返回 `status: publish_clicked_unconfirmed` 时，不要重试；先去作品管理确认，避免重复发布。
@@ -64,7 +64,7 @@ python "{baseDir}/scripts/cli.py" version
 - 环境：`doctor`
 - 认证：`check-login`、`get-qrcode`、`wait-login`、`send-code`、`verify-code`
 - 账号：`list-accounts`、`add-account`、`remove-account`、`set-default-account`
-- 发现：`search-videos`、`get-video-detail`
+- 发现：`search-videos`、`get-trending-topics`、`get-video-detail`
 - 发布：`fill-publish-image`、`select-music`、`validate-publish`、`click-publish`
 - 互动：`like-video`、`favorite-video`、`share-video`
 

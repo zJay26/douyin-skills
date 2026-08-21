@@ -38,6 +38,7 @@ Everyday Douyin web tasks are not inherently complicated, but browser startup, l
 | --- | --- | --- |
 | “Check login and show me the QR code if needed” | QR, SMS verification, multiple accounts | The user completes verification |
 | “Find five weekend camping posts” | Keyword search, video/photo details | Up to 20 public posts per search |
+| “Show me the current Douyin hot topics” | Read public trending topics | Up to 20; page drift is reported explicitly |
 | “Fill in these photos and caption, but do not publish” | Uploads, copy, music, page validation | Photo posts only; review first |
 | “Everything looks right—publish it” | Explicit publish confirmation | Never retry an unknown result |
 | “Favorite this post and send me its link” | Like, favorite, share URL | No bulk actions or inflated claims |
@@ -49,7 +50,7 @@ What makes it different:
 - **Local-first**: Chrome and account profiles stay on your computer; the debug endpoint only listens on `127.0.0.1`.
 - **Fails safely**: publishing requires validation and explicit confirmation; risk pages and uncertain outcomes stop for human review.
 - **Composable**: authentication, environment, discovery, publishing, and interactions work independently or as a workflow.
-- **Drift-aware**: sanitized fixtures lock down how login, risk, search, detail, and publish states are interpreted without storing account data.
+- **Drift-aware**: sanitized fixtures lock down how login, risk, search, trending-topic, detail, and publish states are interpreted without storing account data.
 - **Maintainable**: one JSON CLI, focused regression tests, cross-platform CI, and Skills that document the real runtime contract.
 
 ## See the guarded workflow
@@ -91,14 +92,14 @@ The environment is ready when the JSON from `doctor` contains `"success": true` 
 
 ### Stable release download
 
-For a versioned, checksum-verifiable install, download `douyin-skills-v1.1.2.zip` and `SHA256SUMS` from the [v1.1.2 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.1.2). Verify the ZIP before extracting it:
+For a versioned, checksum-verifiable install, download `douyin-skills-v1.2.0.zip` and `SHA256SUMS` from the [v1.2.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.2.0). Verify the ZIP before extracting it:
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell: compare this value with the matching SHA256SUMS line
-Get-FileHash .\douyin-skills-v1.1.2.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.2.0.zip -Algorithm SHA256
 ```
 
 The named ZIP contains the complete repository under one versioned directory, including the privacy-safe Demo. GitHub's automatic source archives are separate and are not covered by the published checksum.
@@ -123,7 +124,7 @@ The named ZIP contains the complete repository under one versioned directory, in
 
    > I reviewed the page. Publish once, and do not retry if the result is not explicitly confirmed.
 
-The first login creates an isolated local Chrome profile. If Douyin later presents a captcha, identity check, or risk page, the CLI switches to a visible browser and waits for you to complete it manually.
+The first login creates an isolated local Chrome profile. Later commands reuse an available local Chrome debugging instance instead of restarting an already signed-in headed browser just to satisfy the default headless preference. If Douyin presents a captcha, identity check, or risk page, the CLI switches to a visible browser when a safe, tracked mode transition is needed and waits for you to complete it manually.
 
 ## Why this matters to the Agent ecosystem
 
@@ -173,7 +174,7 @@ No other platform adapter ships in this repository today. See the [Agent ecosyst
 | Skill | Responsibility | Example intent |
 | --- | --- | --- |
 | [`douyin-auth`](./skills/douyin-auth/SKILL.md) | Login state, QR, SMS verification, multiple accounts | “Switch to my work account and check login” |
-| [`douyin-explore`](./skills/douyin-explore/SKILL.md) | Search public posts and read video/note details | “Find seven camping posts” |
+| [`douyin-explore`](./skills/douyin-explore/SKILL.md) | Search public posts, read video/note details, and inspect trending topics | “Find seven camping posts” |
 | [`douyin-publish`](./skills/douyin-publish/SKILL.md) | Fill photo posts, select music, validate, confirm | “Prepare this post for my review” |
 | [`douyin-interact`](./skills/douyin-interact/SKILL.md) | One like/favorite click or a public share URL | “Favorite this and return the link” |
 | [`douyin-env`](./skills/douyin-env/SKILL.md) | Installation, diagnostics, migration | “Check Chrome and dependencies” |
@@ -215,7 +216,7 @@ flowchart LR
 
 - `scripts/cli.py` is the only public command entry point and always produces JSON.
 - Python uses only the standard library; the Node.js side only depends on the lockfile-pinned `ws` package.
-- The Chrome launcher handles cross-platform browser discovery, port checks, profile isolation, and headless/headed transitions.
+- The Chrome launcher handles cross-platform browser discovery, port checks, profile isolation, reuse of existing debugging instances, and necessary headless/headed transitions.
 - The CDP bridge drives pages through timeout-bounded HTTP/WebSocket calls without exposing the debug port to LAN or public networks.
 - Page logic is split into authentication, discovery, publishing, and interaction modules, with shared URL, wait, and error handling.
 - Platform-facing behavior is kept behind an explicit adapter; the [ecosystem design note](./docs/AGENT_ECOSYSTEM.md) describes the reusable boundary, and the [Adapter authoring guide](./docs/ADAPTER_AUTHORING.md) describes the evidence needed before another adapter can be claimed as supported.
@@ -265,6 +266,7 @@ Agent integrations should follow the stable minimum fields and certainty rules i
 | Accounts | `add-account` / `remove-account` | Register or remove a named account |
 | Accounts | `set-default-account` | Select the default named account |
 | Discovery | `search-videos` | Keyword search; seven by default, twenty maximum |
+| Discovery | `get-trending-topics` | Read public trending topics; twenty maximum |
 | Discovery | `get-video-detail` | Read a numeric ID or public video/note URL |
 | Publishing | `fill-publish-image` | Validate absolute image paths and fill the photo form |
 | Publishing | `select-music` | Select the first available candidate by name |
@@ -347,7 +349,7 @@ The project has no remote-control service. It talks to Chrome on `127.0.0.1`, an
 <details>
 <summary><strong>Why did a visible browser window appear?</strong></summary>
 
-The CLI detected a captcha, identity check, or risk page and switched to headed mode for manual completion. It does not attempt to bypass the check.
+The CLI reuses an available local Chrome debugging instance. If it detects a captcha, identity check, or risk page, it switches to headed mode only when a safe tracked transition is needed for manual completion. It does not attempt to bypass the check.
 </details>
 
 <details>

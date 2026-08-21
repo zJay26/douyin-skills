@@ -51,6 +51,7 @@ DOUYIN_SELECTORS = PlatformSelectors(
     feed_card_selector="div[data-aweme-id]",
     feed_content_id_attribute="data-aweme-id",
     trending_node_selectors=("a", "div", "li"),
+    trending_tab_texts=("抖音热榜",),
     trending_topic_keywords=(
         "热",
         "榜",
@@ -152,6 +153,7 @@ class DouyinAdapter:
     inaccessible_content_markers: tuple[str, ...] = tuple(
         (*INACCESSIBLE_CONTENT_HINTS, "视频数据加载中")
     )
+    detail_loading_markers: tuple[str, ...] = ("视频数据加载中",)
 
     def _is_platform_host(self, hostname: str) -> bool:
         hostname = (hostname or "").lower()
@@ -164,6 +166,15 @@ class DouyinAdapter:
         parsed = urlparse(str(value or ""))
         return parsed.scheme == "https" and self._is_platform_host(
             parsed.hostname or ""
+        )
+
+    def is_publish_url(self, value: str) -> bool:
+        current = urlparse(str(value or ""))
+        expected = urlparse(self.creator_upload_url)
+        return (
+            current.scheme == expected.scheme
+            and current.hostname == expected.hostname
+            and current.path == expected.path
         )
 
     def parse_content_ref(self, value: str) -> tuple[str, str | None]:

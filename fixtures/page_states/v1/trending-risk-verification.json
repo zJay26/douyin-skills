@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "id": "trending-risk-verification",
+  "flow": "trending",
+  "description": "A synthetic verification page blocks trending-topic extraction.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "snapshot": {
+      "title": "验证码中间页",
+      "text": "请完成验证后继续。",
+      "topics": []
+    }
+  },
+  "expected": {
+    "state": "risk",
+    "risk_page": true,
+    "count": 0
+  }
+}

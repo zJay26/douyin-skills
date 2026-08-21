@@ -8,6 +8,7 @@ from platform_adapter import PlatformAdapter, resolve_adapter
 from .page_states import (
     classify_detail_snapshot,
     classify_search_snapshot,
+    classify_trending_snapshot,
 )
 from .waiters import wait_for_meaningful_text
 
@@ -249,12 +250,30 @@ def get_trending_topics(page, adapter: PlatformAdapter | None = None) -> dict:
     trending_selector = json.dumps(
         ", ".join(adapter.selectors.trending_node_selectors), ensure_ascii=False
     )
+    trending_tab_texts = json.dumps(
+        list(adapter.selectors.trending_tab_texts), ensure_ascii=False
+    )
     topic_keywords = json.dumps(
         list(adapter.selectors.trending_topic_keywords), ensure_ascii=False
     )
-    data = (
-        page.evaluate(
-            f"""
+    page.evaluate(
+        f"""
+        (() => {{
+          const labels = {trending_tab_texts};
+          const visible = el => !!el && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+          const target = Array.from(document.querySelectorAll('button, [role="button"], a, span, div'))
+            .find(el => visible(el) && labels.includes((el.innerText || '').trim()));
+          if (!target) return false;
+          target.click();
+          return true;
+        }})()
+        """
+    )
+    data = {}
+    for _ in range(30):
+        data = (
+            page.evaluate(
+                f"""
         (() => {{
           const title = document.title || '';
           const bodyText = (document.body?.innerText || '').trim().slice(0, 4000);
@@ -275,25 +294,54 @@ def get_trending_topics(page, adapter: PlatformAdapter | None = None) -> dict:
           return {{ title, text: bodyText, topics }};
         }})()
         """
+            )
+            or {}
         )
-        or {}
-    )
+        if data.get("topics"):
+            break
+        time.sleep(1)
     title = data.get("title", "") or title
     text = data.get("text", "") or text
-    if _is_risk_page(title, text, adapter):
+    topics = data.get("topics", []) or []
+    classification = classify_trending_snapshot(
+        {"title": title, "text": text, "topics": topics}
+    )
+    if classification["state"] == "risk" or _is_risk_page(title, text, adapter):
         return {
             "success": False,
             "count": 0,
             "topics": [],
             "risk_page": True,
+            "state": "risk",
             "message": "当前处于验证码/风控页，无法抓取热门话题。",
             "page_title": title,
         }
-    topics = data.get("topics", [])
+    if classification["state"] == "empty_or_blocked":
+        return {
+            "success": False,
+            "count": 0,
+            "topics": [],
+            "risk_page": True,
+            "state": "empty_or_blocked",
+            "message": "热门话题页面内容为空，疑似被验证码/风控页拦截。",
+            "page_title": title,
+        }
+    if classification["state"] == "page_drift":
+        return {
+            "success": False,
+            "count": 0,
+            "topics": [],
+            "risk_page": False,
+            "state": "page_drift",
+            "message": "未识别到热门话题，页面结构可能已变化。",
+            "page_title": title,
+            "page_excerpt": text[:1500],
+        }
     return {
         "success": True,
         "count": len(topics),
         "topics": topics,
+        "state": "ready",
         "page_title": title,
     }
 
@@ -305,18 +353,14 @@ def get_video_detail(
     content_id, requested_kind = adapter.parse_content_ref(video_id)
     last_detail: dict = {}
     last_seed: dict = {}
+    last_state = "page_drift"
     detail_desc_selectors = json.dumps(
         list(adapter.selectors.detail_desc_selectors), ensure_ascii=False
     )
     comment_item_selectors = json.dumps(
         list(adapter.selectors.comment_item_selectors), ensure_ascii=False
     )
-    for kind, url in adapter.content_urls(video_id):
-        page.navigate(url)
-        page.wait_for_load(20)
-        seed = wait_for_meaningful_text(page, timeout=45, min_len=40)
-        detail_raw = page.evaluate(
-            f"""
+    detail_script = f"""
         (() => {{
           const descSelectors = {detail_desc_selectors};
           let description = '';
@@ -347,11 +391,23 @@ def get_video_detail(
           }});
         }})()
         """
+    for kind, url in adapter.content_urls(video_id):
+        page.navigate(url)
+        page.wait_for_load(20)
+        seed = wait_for_meaningful_text(page, timeout=45, min_len=40)
+        detail: dict = {}
+        for _ in range(8):
+            detail_raw = page.evaluate(detail_script)
+            detail = json.loads(detail_raw) if detail_raw else {}
+            detail["title"] = detail.get("title", "") or seed.get("title", "")
+            detail["bodyText"] = detail.get("bodyText", "") or seed.get("text", "")
+            body = detail.get("bodyText", "") or ""
+            if not any(marker in body for marker in adapter.detail_loading_markers):
+                break
+            time.sleep(1)
+        classification = classify_detail_snapshot(
+            detail, kind, adapter.inaccessible_content_markers
         )
-        detail = json.loads(detail_raw) if detail_raw else {}
-        detail["title"] = detail.get("title", "") or seed.get("title", "")
-        detail["bodyText"] = detail.get("bodyText", "") or seed.get("text", "")
-        classification = classify_detail_snapshot(detail, kind)
         if classification["state"] == "risk":
             return {
                 "success": False,
@@ -368,16 +424,27 @@ def get_video_detail(
                 "video_id": content_id,
                 "content_type": kind,
                 "video_info": {
-                    "title": detail.get("title", ""),
+                    "title": detail.get("description", "") or detail.get("title", ""),
                     "description": detail.get("description", ""),
                     "url": href,
                 },
                 "comments": [{"text": x} for x in detail.get("comments", [])],
                 "raw_excerpt": body,
             }
+        last_state = classification["state"]
         last_detail = detail
         last_seed = seed
 
+    if last_state == "unavailable":
+        return {
+            "success": False,
+            "video_id": content_id,
+            "requested_type": requested_kind,
+            "state": "unavailable",
+            "message": "作品内容不可见或仍在加载，未返回可确认的详情。",
+            "page_title": last_detail.get("title", "") or last_seed.get("title", ""),
+            "raw_excerpt": last_detail.get("bodyText", "") or last_seed.get("text", ""),
+        }
     return {
         "success": False,
         "video_id": content_id,

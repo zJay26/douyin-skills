@@ -73,6 +73,6 @@ package-lock.json
 
 - `ws` 缺失：在项目根目录重新运行 `npm install`，再执行 `doctor`。
 - Chrome 未找到：安装 Chrome/Chromium，或设置绝对路径 `CHROME_BIN`。
-- 端口被占用：关闭冲突的调试实例，或显式使用空闲 `--port`；不要终止来源不明的进程。
+- 端口被占用：如果是可用的 loopback Chrome 调试实例，CLI 会直接复用它及其登录会话；只有需要模式切换且该实例由本项目跟踪时才会重启。若端口来源不明或不可识别，关闭冲突实例或显式使用空闲 `--port`；不要终止来源不明的进程。
 - 无法切换 headed：确认 Windows/macOS 桌面可用；Linux/WSLg 检查 `DISPLAY`、`WAYLAND_DISPLAY` 与 `XDG_RUNTIME_DIR`。
 - 配置损坏：保留原文件并报告 `~/.douyin-skills/accounts.json` 错误，不要擅自删除账号配置。

@@ -78,6 +78,9 @@ The URL methods must have deterministic behavior:
   value does not contain that information; they must not invent an ID.
 - `is_platform_url(value)` accepts only the platform's supported HTTPS hosts
   and rejects lookalike domains.
+- `is_publish_url(value)` accepts only the platform's creator-upload entry
+  page, so publish validation can distinguish an incomplete form from a
+  browser that is currently on an unrelated page.
 
 The navigation methods—`navigate_home`, `navigate_featured`,
 `navigate_search`, `navigate_trending`, and `navigate_publish_image`—should

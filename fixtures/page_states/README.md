@@ -10,7 +10,7 @@ Each fixture contains:
 | --- | --- |
 | `schema_version` | Fixture schema version, currently `1.0`. |
 | `id` | Stable lowercase kebab-case identifier. |
-| `flow` | One of `login`, `search`, `detail`, or `publish`. |
+| `flow` | One of `login`, `search`, `trending`, `detail`, or `publish`. |
 | `description` | The regression boundary being protected. |
 | `source` | Must be exactly `{"kind":"synthetic","contains_real_account_data":false}`. |
 | `input` | Minimal state consumed by the production classifier. |

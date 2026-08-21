@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "id": "trending-topics-ready",
+  "flow": "trending",
+  "description": "Synthetic public hot-topic cards are extracted as a ready topic state.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "snapshot": {
+      "title": "Synthetic trending page",
+      "text": "Synthetic public topics are visible.",
+      "topics": [
+        {
+          "name": "AI创作",
+          "summary": "AI创作 | 合成话题"
+        },
+        {
+          "name": "办公效率",
+          "summary": "办公效率 | 合成话题"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "state": "ready",
+    "risk_page": false,
+    "count": 2
+  }
+}

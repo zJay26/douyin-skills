@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "id": "trending-page-drift",
+  "flow": "trending",
+  "description": "Readable synthetic trending text with no extracted topics is reported as page drift.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "snapshot": {
+      "title": "Synthetic trending shell",
+      "text": "The page has readable content but no recognizable topic cards.",
+      "topics": []
+    }
+  },
+  "expected": {
+    "state": "page_drift",
+    "risk_page": false,
+    "count": 0
+  }
+}

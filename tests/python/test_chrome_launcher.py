@@ -39,6 +39,40 @@ class ChromeLauncherTests(unittest.TestCase):
             with mock.patch.dict(os.environ, {"CHROME_BIN": str(executable)}):
                 self.assertEqual(chrome_launcher.find_chrome(), str(executable))
 
+    def test_reuses_existing_browser_even_when_mode_differs(self) -> None:
+        with (
+            mock.patch.object(chrome_launcher, "is_port_open", return_value=True),
+            mock.patch.object(
+                chrome_launcher, "_browser_headless_state", return_value=False
+            ),
+            mock.patch.object(chrome_launcher, "_stop_tracked_browser") as stop,
+            mock.patch.object(chrome_launcher, "launch_chrome") as launch,
+        ):
+            self.assertTrue(chrome_launcher.ensure_chrome(port=9222, headless=True))
+
+        stop.assert_not_called()
+        launch.assert_not_called()
+
+    def test_force_mode_switches_only_a_tracked_browser(self) -> None:
+        with (
+            mock.patch.object(chrome_launcher, "is_port_open", return_value=True),
+            mock.patch.object(
+                chrome_launcher, "_browser_headless_state", return_value=True
+            ),
+            mock.patch.object(
+                chrome_launcher, "_stop_tracked_browser", return_value=True
+            ) as stop,
+            mock.patch.object(chrome_launcher, "launch_chrome") as launch,
+        ):
+            self.assertTrue(
+                chrome_launcher.ensure_chrome(
+                    port=9222, headless=False, force_mode=True
+                )
+            )
+
+        stop.assert_called_once_with(9222)
+        launch.assert_called_once_with(port=9222, headless=False, user_data_dir=None)
+
 
 if __name__ == "__main__":
     unittest.main()

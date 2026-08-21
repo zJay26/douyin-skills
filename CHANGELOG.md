@@ -2,6 +2,25 @@
 
 All notable changes are documented here. Releases follow semantic versioning, and each stable tag has detailed notes under [`docs/releases/`](./docs/releases/).
 
+## [1.2.0] - 2026-08-21
+
+### Added
+
+- Exposed `get-trending-topics` for bounded public topic discovery with
+  explicit `page_drift` reporting.
+- Added synthetic trending-topic fixtures for ready, risk, and page-drift
+  states.
+
+### Fixed
+
+- Reused an existing local Chrome debugging session instead of restarting it
+  solely to match the default headless preference.
+- Fell back to a public content description when a detail page has no usable
+  document title, and waited for transient detail loading markers before
+  classifying the result.
+- Reported a clear `wrong_page` state when publish validation runs outside the
+  creator upload page.
+
 ## [1.1.2] - 2026-08-18
 
 ### Added
@@ -79,6 +98,7 @@ All notable changes are documented here. Releases follow semantic versioning, an
 - Captcha, identity checks, and platform risk controls are never bypassed.
 - Unconfirmed irreversible actions are never reported as confirmed or retried automatically.
 
+[1.2.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.2.0
 [1.1.2]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.2
 [1.1.1]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.1
 [1.1.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.0

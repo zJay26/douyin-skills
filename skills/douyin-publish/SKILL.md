@@ -74,6 +74,6 @@ python "{baseDir}/../../scripts/cli.py" click-publish --confirm
 
 ## 风控与边界
 
-- 默认 headless；只有 CLI 检测到验证码、身份验证或风控时才切 headed。
+- 优先复用已有的本地 Chrome 调试实例；没有实例时默认 headless，只有 CLI 检测到验证码、身份验证或风控且需要人工处理时才切 headed。
 - headed 验证需要用户人工完成，不尝试绕过。
 - 不支持视频发布、一键跳过复核、草稿、定时发布、自动素材下载或远程 Chrome 发布承诺。
