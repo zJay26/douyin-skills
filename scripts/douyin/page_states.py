@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
 from urllib.parse import urlsplit
 
 FIXTURE_SCHEMA_VERSION = "1.0"
 FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "fixtures" / "page_states" / "v1"
-SUPPORTED_FIXTURE_FLOWS = {"detail", "login", "publish", "search"}
+SUPPORTED_FIXTURE_FLOWS = {"detail", "login", "publish", "search", "trending"}
 RISK_PAGE_KEYWORDS = ["验证码", "安全验证", "风险提示", "身份验证"]
 RISK_STRONG_HINTS = [
     "验证码中间页",
@@ -101,13 +102,35 @@ def classify_search_snapshot(snapshot: dict) -> dict:
     return {"state": "ready", "risk_page": False, "count": len(items)}
 
 
-def classify_detail_snapshot(snapshot: dict, expected_kind: str) -> dict:
+def classify_trending_snapshot(snapshot: dict) -> dict:
+    title = str(snapshot.get("title") or "")
+    text = str(snapshot.get("text") or "")
+    topics = snapshot.get("topics") or []
+    if has_risk_evidence(title, text):
+        return {"state": "risk", "risk_page": True, "count": 0}
+    if not text.strip():
+        return {"state": "empty_or_blocked", "risk_page": True, "count": 0}
+    if not topics:
+        return {"state": "page_drift", "risk_page": False, "count": 0}
+    return {"state": "ready", "risk_page": False, "count": len(topics)}
+
+
+def classify_detail_snapshot(
+    snapshot: dict,
+    expected_kind: str,
+    inaccessible_markers: Sequence[str] | None = None,
+) -> dict:
     title = str(snapshot.get("title") or "")
     text = str(snapshot.get("bodyText") or "")
     href = str(snapshot.get("url") or "")
+    markers = (
+        tuple(inaccessible_markers)
+        if inaccessible_markers is not None
+        else tuple(INACCESSIBLE_CONTENT_HINTS)
+    )
     if has_risk_evidence(title, text):
         return {"state": "risk", "risk_page": True, "available": False}
-    if any(hint in text for hint in INACCESSIBLE_CONTENT_HINTS):
+    if any(hint in text for hint in markers):
         return {"state": "unavailable", "risk_page": False, "available": False}
     if expected_kind in {"note", "video"} and f"/{expected_kind}/" in href:
         return {"state": "ready", "risk_page": False, "available": True}
@@ -260,6 +283,8 @@ def classify_fixture(fixture: dict) -> dict:
         return classify_login_snapshot(fixture_input["snapshot"])
     if flow == "search":
         return classify_search_snapshot(fixture_input["snapshot"])
+    if flow == "trending":
+        return classify_trending_snapshot(fixture_input["snapshot"])
     if flow == "detail":
         return classify_detail_snapshot(
             fixture_input["snapshot"], fixture_input["expected_kind"]

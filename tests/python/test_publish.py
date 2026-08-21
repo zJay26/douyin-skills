@@ -56,6 +56,20 @@ class PublishTests(unittest.TestCase):
         self.assertFalse(result["success"])
         page.evaluate.assert_not_called()
 
+    def test_publish_validation_reports_wrong_page(self) -> None:
+        page = mock.Mock()
+        page.evaluate.return_value = {
+            "href": "https://www.douyin.com/video/123",
+            "title": "抖音精选电脑版",
+            "text": "A public video page.",
+        }
+
+        result = publish.validate_publish_state(page)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["state"], "wrong_page")
+        self.assertIn("当前页面不是图文发布页", result["errors"])
+
     def test_unconfirmed_click_is_not_safe_to_retry(self) -> None:
         page = mock.Mock()
         page.evaluate.return_value = {

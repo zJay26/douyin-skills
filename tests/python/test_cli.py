@@ -35,7 +35,7 @@ class CliTests(unittest.TestCase):
             {
                 "success": True,
                 "project": "douyin-skills",
-                "version": "1.1.2",
+                "version": "1.2.0",
                 "result_contract_version": "1.0",
             },
         )
@@ -43,6 +43,10 @@ class CliTests(unittest.TestCase):
     def test_doctor_command_is_exposed(self) -> None:
         args = cli.build_parser().parse_args(["doctor"])
         self.assertEqual(args.command, "doctor")
+
+    def test_trending_topics_command_is_exposed(self) -> None:
+        args = cli.build_parser().parse_args(["get-trending-topics"])
+        self.assertEqual(args.command, "get-trending-topics")
 
     def test_publish_validation_and_confirmation_are_explicit(self) -> None:
         validate_args = cli.build_parser().parse_args(["validate-publish"])
@@ -72,6 +76,22 @@ class CliTests(unittest.TestCase):
                 self.assertRaises(argparse.ArgumentTypeError),
             ):
                 cli._valid_search_limit(value)
+
+    def test_connect_reuses_existing_browser_unless_headed_is_explicit(self) -> None:
+        page = mock.Mock(target_id="target")
+        browser = mock.Mock()
+        browser.get_page_by_target_id.return_value = page
+        with (
+            mock.patch.object(cli, "ensure_chrome", return_value=True) as ensure,
+            mock.patch.object(cli, "Browser", return_value=browser),
+            mock.patch.object(cli, "_load_session_tab", return_value="target"),
+            mock.patch.object(cli, "_save_session_tab"),
+        ):
+            cli._connect(cli.build_parser().parse_args(["check-login"]))
+            self.assertFalse(ensure.call_args.kwargs["force_mode"])
+
+            cli._connect(cli.build_parser().parse_args(["--headed", "check-login"]))
+            self.assertTrue(ensure.call_args.kwargs["force_mode"])
 
 
 if __name__ == "__main__":

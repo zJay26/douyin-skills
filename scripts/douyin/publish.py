@@ -67,6 +67,26 @@ def _page_snapshot(page) -> dict:
     )
 
 
+def _wrong_publish_page_result(
+    page,
+    adapter: PlatformAdapter,
+    require_topic: bool = False,
+    state: dict | None = None,
+) -> dict | None:
+    state = state or _page_snapshot(page)
+    if adapter.is_publish_url(state.get("href", "") or ""):
+        return None
+    return {
+        "success": False,
+        "requireTopic": bool(require_topic),
+        "state": "wrong_page",
+        "risk_page": False,
+        "errors": ["当前页面不是图文发布页"],
+        "message": "当前页面不是图文发布页，请先执行 fill-publish-image。",
+        "page": state,
+    }
+
+
 def _risk_result(
     page, message: str, adapter: PlatformAdapter | None = None
 ) -> dict | None:
@@ -267,6 +287,9 @@ def select_music(
     adapter: PlatformAdapter | None = None,
 ) -> dict:
     adapter = resolve_adapter(adapter)
+    wrong_page = _wrong_publish_page_result(page, adapter)
+    if wrong_page:
+        return wrong_page
     preferred = [x.strip() for x in (preferred or []) if x and x.strip()]
     if not preferred:
         preferred = [
@@ -476,6 +499,7 @@ def validate_publish_state(
         title: title,
         editorText: editorText.slice(0, 1000),
         href: location.href || '',
+        page_title: document.title || '',
         fileCount: fileCount,
         hasImage: hasImage,
         hasMusic: hasMusic,
@@ -487,10 +511,35 @@ def validate_publish_state(
     """
     state = page.evaluate(script)
     if isinstance(state, dict) and state:
+        page_title = state.get("page_title", "") or ""
+        page_text = state.get("text", "") or ""
+        is_risk = adapter.is_risk_page(page_title, page_text) or any(
+            hint in page_title or hint in page_text
+            for hint in adapter.risk_strong_hints
+        )
+        if is_risk:
+            return {
+                "success": False,
+                "risk_page": True,
+                "message": "当前处于验证码/风控页，无法读取发布页状态。",
+                "page_title": page_title,
+                "page": {
+                    "href": state.get("href", ""),
+                    "title": page_title,
+                    "text": page_text,
+                },
+            }
+        wrong_page = _wrong_publish_page_result(
+            page, adapter, require_topic, state=state
+        )
+        if wrong_page:
+            wrong_page["page"] = {
+                "href": state.get("href", ""),
+                "page_title": state.get("page_title", ""),
+                "text": state.get("text", ""),
+            }
+            return wrong_page
         return classify_publish_snapshot(state, require_topic=require_topic)
-    risk = _risk_result(page, "当前处于验证码/风控页，无法读取发布页状态。", adapter)
-    if risk:
-        return risk
     return {"success": False, "errors": ["无法读取发布页状态"]}
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 PROJECT_NAME = "douyin-skills"
-PROJECT_VERSION = "1.1.2"
+PROJECT_VERSION = "1.2.0"
 RESULT_CONTRACT_VERSION = "1.0"
 
 

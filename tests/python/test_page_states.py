@@ -30,7 +30,7 @@ class PageStateFixtureTests(unittest.TestCase):
         cls.by_id = {fixture["id"]: fixture for fixture in cls.fixtures}
 
     def test_versioned_fixture_set_is_complete_and_consistent(self) -> None:
-        self.assertEqual(len(self.fixtures), 13)
+        self.assertEqual(len(self.fixtures), 16)
         self.assertEqual(validate_fixture_set(self.fixtures), [])
         self.assertTrue((FIXTURE_ROOT.parent / "README.md").is_file())
 
@@ -99,6 +99,41 @@ class PageStateFixtureTests(unittest.TestCase):
         self.assertEqual(result["videos"][0]["kind"], "video")
         self.assertEqual(result["videos"][1]["kind"], "note")
 
+    def test_trending_runtime_uses_shared_fixture_classifier(self) -> None:
+        fixture = self.by_id["trending-topics-ready"]
+        snapshot = fixture["input"]["snapshot"]
+        page = mock.Mock()
+        page.evaluate.return_value = snapshot
+        with (
+            mock.patch.object(
+                search,
+                "wait_for_meaningful_text",
+                return_value={"title": snapshot["title"], "text": snapshot["text"]},
+            ),
+            mock.patch.object(search.time, "sleep"),
+        ):
+            result = search.get_trending_topics(page)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["state"], "ready")
+        self.assertEqual(result["count"], 2)
+
+    def test_trending_runtime_reports_page_drift_without_topics(self) -> None:
+        fixture = self.by_id["trending-page-drift"]
+        snapshot = fixture["input"]["snapshot"]
+        page = mock.Mock()
+        page.evaluate.return_value = snapshot
+        with mock.patch.object(
+            search,
+            "wait_for_meaningful_text",
+            return_value={"title": snapshot["title"], "text": snapshot["text"]},
+        ):
+            result = search.get_trending_topics(page)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["state"], "page_drift")
+        self.assertFalse(result["risk_page"])
+
     def test_detail_runtime_uses_shared_fixture_classifier(self) -> None:
         fixture = self.by_id["detail-video-ready"]
         snapshot = fixture["input"]["snapshot"]
@@ -114,6 +149,51 @@ class PageStateFixtureTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["content_type"], "video")
         self.assertEqual(result["video_info"]["url"], snapshot["url"])
+
+    def test_detail_title_falls_back_to_content_description(self) -> None:
+        page = mock.Mock()
+        page.evaluate.return_value = json.dumps(
+            {
+                "title": "",
+                "description": "Synthetic content caption",
+                "comments": [],
+                "url": "https://www.douyin.com/video/1000000000000000005",
+                "bodyText": "Synthetic public content is visible.",
+            }
+        )
+        with mock.patch.object(
+            search,
+            "wait_for_meaningful_text",
+            return_value={"title": "", "text": "Synthetic public content is visible."},
+        ):
+            result = search.get_video_detail(page, "1000000000000000005")
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["video_info"]["title"], "Synthetic content caption")
+
+    def test_detail_runtime_marks_adapter_loading_as_unavailable(self) -> None:
+        page = mock.Mock()
+        page.evaluate.return_value = json.dumps(
+            {
+                "title": "",
+                "description": "",
+                "comments": [],
+                "url": "https://www.douyin.com/video/1000000000000000006",
+                "bodyText": "视频数据加载中",
+            }
+        )
+        with (
+            mock.patch.object(
+                search,
+                "wait_for_meaningful_text",
+                return_value={"title": "", "text": "视频数据加载中"},
+            ),
+            mock.patch.object(search.time, "sleep"),
+        ):
+            result = search.get_video_detail(page, "1000000000000000006")
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["state"], "unavailable")
 
     def test_detail_runtime_keeps_seed_risk_evidence_when_extraction_is_empty(
         self,

@@ -41,6 +41,14 @@ class PlatformAdapterTests(unittest.TestCase):
             DEFAULT_ADAPTER.content_urls("https://www.douyin.com/note/987"),
             [("note", "https://www.douyin.com/note/987")],
         )
+        self.assertTrue(
+            DEFAULT_ADAPTER.is_publish_url(
+                "https://creator.douyin.com/creator-micro/content/upload?default-tab=3"
+            )
+        )
+        self.assertFalse(
+            DEFAULT_ADAPTER.is_publish_url("https://www.douyin.com/video/987")
+        )
 
     def test_login_uses_injected_platform_markers(self) -> None:
         selectors = replace(
@@ -107,6 +115,33 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assert_javascript_parses(page.evaluate.call_args_list[1].args[0])
         self.assertTrue(result["success"])
 
+    def test_trending_uses_injected_tab_texts(self) -> None:
+        selectors = replace(
+            DEFAULT_ADAPTER.selectors,
+            trending_tab_texts=("adapter-hot-tab",),
+        )
+        adapter = replace(DEFAULT_ADAPTER, selectors=selectors)
+        page = mock.Mock()
+        page.evaluate.return_value = {
+            "title": "ready",
+            "text": "topic",
+            "topics": [{"name": "topic", "summary": "synthetic"}],
+        }
+        with mock.patch.object(
+            search,
+            "wait_for_meaningful_text",
+            return_value={"title": "ready", "text": "topic"},
+        ):
+            result = search.get_trending_topics(page, adapter=adapter)
+
+        self.assertTrue(result["success"])
+        self.assertTrue(
+            any(
+                "adapter-hot-tab" in call.args[0]
+                for call in page.evaluate.call_args_list
+            )
+        )
+
     def test_interaction_detail_urls_are_owned_by_injected_adapter(self) -> None:
         adapter = replace(
             DEFAULT_ADAPTER,
@@ -140,6 +175,7 @@ class PlatformAdapterTests(unittest.TestCase):
         page.evaluate.return_value = {
             "title": "title",
             "editorText": "body",
+            "href": "https://creator.douyin.com/creator-micro/content/upload?default-tab=3",
             "hasImage": True,
             "hasMusic": True,
             "hasTopic": False,

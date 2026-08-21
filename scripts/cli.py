@@ -36,7 +36,7 @@ from douyin.publish import (
     select_music,
     validate_publish_state,
 )
-from douyin.search import get_video_detail, search_videos
+from douyin.search import get_trending_topics, get_video_detail, search_videos
 from platform_adapter import get_default_adapter
 from project_metadata import version_payload
 
@@ -138,7 +138,10 @@ def _connect(args: argparse.Namespace):
     user_data_dir = _resolve_account(args)
     desired_headless = not getattr(args, "headed", False)
     if not ensure_chrome(
-        port=args.port, headless=desired_headless, user_data_dir=user_data_dir
+        port=args.port,
+        headless=desired_headless,
+        user_data_dir=user_data_dir,
+        force_mode=bool(getattr(args, "headed", False)),
     ):
         raise RuntimeError("无法启动 Chrome")
     browser = Browser(host=args.host, port=args.port)
@@ -260,6 +263,18 @@ def cmd_search_videos(args: argparse.Namespace) -> None:
     result = search_videos(page, args.keyword, limit=args.limit, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
         args, result, "搜索页检测到验证码/风控", adapter
+    )
+    if switched:
+        _output(switched, exit_code=2)
+    _output(result, exit_code=0 if result.get("success") else 2)
+
+
+def cmd_get_trending_topics(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
+    _browser, page = _connect(args)
+    result = get_trending_topics(page, adapter=adapter)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "热门话题页检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -431,7 +446,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--account", default="", help="命名账号；省略时使用已设置的默认账号"
     )
     parser.add_argument(
-        "--headed", action="store_true", help="强制使用有头模式；默认无头运行"
+        "--headed",
+        action="store_true",
+        help="需要时强制切换到有头模式；已有可用 Chrome 默认复用",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -464,6 +481,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("search-videos")
     p.add_argument("--keyword", required=True)
     p.add_argument("--limit", type=_valid_search_limit, default=7)
+
+    sub.add_parser("get-trending-topics")
 
     p = sub.add_parser("get-video-detail")
     p.add_argument("--video-id", required=True)
@@ -517,6 +536,7 @@ def main(argv: list[str] | None = None) -> None:
         "send-code": cmd_send_code,
         "verify-code": cmd_verify_code,
         "search-videos": cmd_search_videos,
+        "get-trending-topics": cmd_get_trending_topics,
         "get-video-detail": cmd_get_video_detail,
         "fill-publish-image": cmd_fill_publish_image,
         "select-music": cmd_select_music,

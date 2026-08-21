@@ -31,6 +31,7 @@ class PlatformSelectors:
     feed_card_selector: str
     feed_content_id_attribute: str
     trending_node_selectors: tuple[str, ...]
+    trending_tab_texts: tuple[str, ...]
     trending_topic_keywords: tuple[str, ...]
     detail_desc_selectors: tuple[str, ...]
     comment_item_selectors: tuple[str, ...]
@@ -75,6 +76,7 @@ class PlatformAdapter(Protocol):
     risk_page_keywords: Sequence[str]
     risk_strong_hints: Sequence[str]
     inaccessible_content_markers: Sequence[str]
+    detail_loading_markers: Sequence[str]
 
     def parse_content_ref(self, value: str) -> tuple[str, str | None]: ...
 
@@ -89,6 +91,8 @@ class PlatformAdapter(Protocol):
     def extract_author_id(self, value: str) -> str: ...
 
     def is_platform_url(self, value: str) -> bool: ...
+
+    def is_publish_url(self, value: str) -> bool: ...
 
     def is_risk_page(self, title: str, text: str) -> bool: ...
 

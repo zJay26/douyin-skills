@@ -38,6 +38,7 @@ Agent 可以规划多步骤任务，但真正进入社交网站后，还要面�
 | --- | --- | --- |
 | “检查登录，没登录就把二维码给我” | 二维码、短信验证、多账号 | 验证由用户亲自完成 |
 | “搜索周末露营，给我 5 条结果” | 关键词搜索、视频/图文详情 | 单次最多 20 条公开作品 |
+| “看看抖音现在有哪些热门话题” | 公开热门话题读取 | 最多 20 条；页面结构变化会明确报告 |
 | “把这些图片和文案填好，先别发布” | 图片上传、文案、音乐、页面校验 | 只支持图文，发布前复核 |
 | “确认无误后发布” | 显式发布确认 | 状态未知时绝不自动重试 |
 | “收藏这条，并把链接发给我” | 点赞、收藏、分享链接 | 不批量操作，不夸大最终状态 |
@@ -49,7 +50,7 @@ Agent 可以规划多步骤任务，但真正进入社交网站后，还要面�
 - **本地优先**：浏览器和账号 Profile 留在本机，调试端口只监听 `127.0.0.1`。
 - **安全地失败**：发布前强制校验和显式确认；验证码、风控与不确定结果都会停下来交给用户。
 - **可组合**：认证、环境、发现、发布、互动各自独立，也能串成完整流程。
-- **感知页面漂移**：用脱敏 fixtures 固定登录、风控、搜索、详情和发布状态的解释方式，不保存账号数据。
+- **感知页面漂移**：用脱敏 fixtures 固定登录、风控、搜索、热门话题、详情和发布状态的解释方式，不保存账号数据。
 - **可维护**：统一 JSON CLI、聚焦回归测试、双平台 CI、原子化 Skill 文档。
 
 ## 看一遍完整的安全流程
@@ -91,14 +92,14 @@ python scripts/cli.py doctor
 
 ### 下载稳定版本
 
-如需版本固定且可校验的安装包，请从 [v1.1.2 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.1.2) 下载 `douyin-skills-v1.1.2.zip` 与 `SHA256SUMS`，解压前先校验：
+如需版本固定且可校验的安装包，请从 [v1.2.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.2.0) 下载 `douyin-skills-v1.2.0.zip` 与 `SHA256SUMS`，解压前先校验：
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell：将结果与 SHA256SUMS 对应行比较
-Get-FileHash .\douyin-skills-v1.1.2.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.2.0.zip -Algorithm SHA256
 ```
 
 这个命名 ZIP 会把完整仓库放在一个版本目录中，并包含脱敏 Demo。GitHub 自动生成的源码压缩包是另一组文件，不适用这里发布的校验值。
@@ -123,7 +124,7 @@ Get-FileHash .\douyin-skills-v1.1.2.zip -Algorithm SHA256
 
    > 我已经检查页面，确认发布。如果发布结果没有明确确认，不要重试。
 
-首次登录会保存独立的本地 Chrome Profile。偶尔出现验证码、身份验证或风控页时，CLI 会切换为可见浏览器，等你手动处理后再继续。
+首次登录会保存独立的本地 Chrome Profile。后续 CLI 会优先复用已有的本地 Chrome 调试实例，不会因为默认 headless 偏好重启已经登录的 headed Chrome；没有可用实例时才启动 Chrome。偶尔出现验证码、身份验证或风控页时，CLI 会在必要时切换为可见浏览器，等你手动处理后再继续。
 
 ## 它对 Agent 生态的意义
 
@@ -164,7 +165,7 @@ flowchart LR
 | Skill | 负责什么 | 典型意图 |
 | --- | --- | --- |
 | [`douyin-auth`](./skills/douyin-auth/SKILL.md) | 登录状态、二维码、短信验证、多账号 | “切到工作号并检查登录” |
-| [`douyin-explore`](./skills/douyin-explore/SKILL.md) | 搜索公开作品、读取 video/note 详情 | “查找 7 条露营内容” |
+| [`douyin-explore`](./skills/douyin-explore/SKILL.md) | 搜索公开作品、读取 video/note 详情、查看热门话题 | “查找 7 条露营内容” |
 | [`douyin-publish`](./skills/douyin-publish/SKILL.md) | 填写图文、选音乐、校验、确认发布 | “填好内容，先让我复核” |
 | [`douyin-interact`](./skills/douyin-interact/SKILL.md) | 单次点赞、收藏、获取分享链接 | “收藏这条并返回链接” |
 | [`douyin-env`](./skills/douyin-env/SKILL.md) | 安装、自检、迁移、环境排障 | “检查 Chrome 和依赖” |
@@ -206,7 +207,7 @@ flowchart LR
 
 - `scripts/cli.py` 是唯一公开命令入口，成功与失败都输出 JSON。
 - Python 只使用标准库；Node.js 端仅依赖 `ws`，版本由 `package-lock.json` 锁定。
-- Chrome launcher 负责跨平台查找浏览器、端口检查、Profile 隔离和 headless/headed 切换。
+- Chrome launcher 负责跨平台查找浏览器、端口检查、Profile 隔离、已有调试实例复用和必要的 headless/headed 切换。
 - CDP bridge 通过超时受控的 HTTP/WebSocket 调用驱动页面，不向局域网或公网暴露调试端口。
 - 页面模块按认证、搜索、发布和互动拆分，公共 URL、等待与错误处理单独复用。
 - 平台相关行为已通过显式适配器隔离；[Agent 生态设计说明](./docs/AGENT_ECOSYSTEM.md)说明可复用边界，[适配器编写指南](./docs/ADAPTER_AUTHORING.md)说明在声称支持其他平台前需要具备的证据。
@@ -256,6 +257,7 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 | 账号 | `add-account` / `remove-account` | 登记或移除命名账号 |
 | 账号 | `set-default-account` | 设置默认命名账号 |
 | 发现 | `search-videos` | 按关键词搜索，默认 7 条、最多 20 条 |
+| 发现 | `get-trending-topics` | 读取公开热门话题，最多 20 条 |
 | 发现 | `get-video-detail` | 读取数字 ID 或公开 video/note 链接 |
 | 发布 | `fill-publish-image` | 校验绝对图片路径并填写图文表单 |
 | 发布 | `select-music` | 按候选名称选择可用音乐 |
@@ -338,7 +340,7 @@ CI 在 Windows（Python 3.13 / Node.js 24）与 Ubuntu（Python 3.9 / Node.js 18
 <details>
 <summary><strong>为什么浏览器突然变成可见窗口？</strong></summary>
 
-CLI 检测到验证码、身份验证或风控页后会切到 headed 模式，让用户手动处理。它不会尝试自动绕过。
+CLI 会优先复用已有的本地 Chrome；检测到验证码、身份验证或风控页时，仅在需要人工处理且由本项目跟踪的实例可安全切换时切到 headed 模式。它不会尝试自动绕过。
 </details>
 
 <details>

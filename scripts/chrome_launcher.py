@@ -327,15 +327,28 @@ def launch_chrome(
 
 
 def ensure_chrome(
-    port: int = DEFAULT_PORT, headless: bool = False, user_data_dir: str | None = None
+    port: int = DEFAULT_PORT,
+    headless: bool = False,
+    user_data_dir: str | None = None,
+    *,
+    force_mode: bool = False,
 ) -> bool:
+    """Ensure a usable loopback Chrome debugging instance is available.
+
+    An existing local debugging browser owns the user's live session, so it is
+    reused even when its headed/headless mode differs from the caller's
+    preference.  Callers that explicitly need a mode transition (for example,
+    switching to a visible browser for human verification) can set
+    ``force_mode``.  Such a transition is allowed only for a browser tracked by
+    this launcher.
+    """
     if is_port_open(port):
         running_headless = _browser_headless_state(port)
         if running_headless is None:
             raise RuntimeError(
                 f"端口 {port} 已被占用，但无法确认是可用的本地 Chrome 调试端口"
             )
-        if headless == running_headless:
+        if headless == running_headless or not force_mode:
             return True
         if not _stop_tracked_browser(port):
             raise RuntimeError(
