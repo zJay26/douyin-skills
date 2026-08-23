@@ -16,6 +16,41 @@ import cli
 
 
 class CliTests(unittest.TestCase):
+    def test_all_documented_commands_are_exposed(self) -> None:
+        expected = {
+            "version",
+            "doctor",
+            "check-login",
+            "get-qrcode",
+            "wait-login",
+            "list-accounts",
+            "send-code",
+            "verify-code",
+            "add-account",
+            "remove-account",
+            "set-default-account",
+            "search-videos",
+            "get-trending-topics",
+            "get-video-detail",
+            "fill-publish-image",
+            "select-music",
+            "validate-publish",
+            "click-publish",
+            "like-video",
+            "favorite-video",
+            "comment-video",
+            "get-interaction-state",
+            "share-video",
+        }
+        parser = cli.build_parser()
+        subparsers = next(
+            action
+            for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)
+        )
+
+        self.assertEqual(set(subparsers.choices), expected)
+
     def test_version_command_returns_contract_metadata_without_chrome(self) -> None:
         stdout = io.StringIO()
         with (
@@ -35,7 +70,7 @@ class CliTests(unittest.TestCase):
             {
                 "success": True,
                 "project": "douyin-skills",
-                "version": "1.2.0",
+                "version": "1.3.0",
                 "result_contract_version": "1.0",
             },
         )
@@ -47,6 +82,19 @@ class CliTests(unittest.TestCase):
     def test_trending_topics_command_is_exposed(self) -> None:
         args = cli.build_parser().parse_args(["get-trending-topics"])
         self.assertEqual(args.command, "get-trending-topics")
+
+    def test_comment_command_requires_target_and_text(self) -> None:
+        args = cli.build_parser().parse_args(
+            ["comment-video", "--video-id", "123456789", "--comment", "学到了！！"]
+        )
+        self.assertEqual(args.command, "comment-video")
+        self.assertEqual(args.comment, "学到了！！")
+
+    def test_interaction_state_command_is_exposed(self) -> None:
+        args = cli.build_parser().parse_args(
+            ["get-interaction-state", "--video-id", "123456789"]
+        )
+        self.assertEqual(args.command, "get-interaction-state")
 
     def test_publish_validation_and_confirmation_are_explicit(self) -> None:
         validate_args = cli.build_parser().parse_args(["validate-publish"])

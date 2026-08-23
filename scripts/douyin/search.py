@@ -247,8 +247,8 @@ def get_trending_topics(page, adapter: PlatformAdapter | None = None) -> dict:
             "page_title": title,
         }
 
-    trending_selector = json.dumps(
-        ", ".join(adapter.selectors.trending_node_selectors), ensure_ascii=False
+    trending_selectors = json.dumps(
+        list(adapter.selectors.trending_node_selectors), ensure_ascii=False
     )
     trending_tab_texts = json.dumps(
         list(adapter.selectors.trending_tab_texts), ensure_ascii=False
@@ -278,18 +278,34 @@ def get_trending_topics(page, adapter: PlatformAdapter | None = None) -> dict:
           const title = document.title || '';
           const bodyText = (document.body?.innerText || '').trim().slice(0, 4000);
           const topicKeywords = {topic_keywords};
-          const nodes = Array.from(document.querySelectorAll({trending_selector})).slice(0, 800);
+          const selectors = {trending_selectors};
           const topics = [];
           const seen = new Set();
-          for (const node of nodes) {{
-            const txt = (node.innerText || '').trim();
-            if (!txt) continue;
-            const lines = txt.split(/\n/).map(x => x.trim()).filter(Boolean);
-            const name = lines.find(x => /^#?\\S{{2,40}}$/.test(x) && topicKeywords.some(keyword => txt.includes(keyword))) || lines[0] || '';
-            if (!name || seen.has(name)) continue;
-            seen.add(name);
-            topics.push({{ name, summary: lines.slice(0, 4).join(' | ').slice(0, 200) }});
-            if (topics.length >= 20) break;
+          outer:
+          for (const selector of selectors) {{
+            const nodes = Array.from(document.querySelectorAll(selector)).slice(0, 1200);
+            for (const node of nodes) {{
+              const txt = (node.innerText || '').trim();
+              if (!txt) continue;
+              const lines = txt.split(/\\n/).map(x => x.trim()).filter(Boolean);
+              const heat = lines.find(line => /^(?:\\d+(?:\\.\\d+)?)(?:万|亿)?热度$/.test(line)) || '';
+              const keywordEvidence = topicKeywords.some(keyword => txt.includes(keyword));
+              if (!heat && !keywordEvidence) continue;
+              const name = lines.find(line =>
+                line !== '抖音热榜'
+                  && !/^\\d{{1,3}}$/.test(line)
+                  && !/^(?:\\d+(?:\\.\\d+)?)(?:万|亿)?热度$/.test(line)
+                  && line.length >= 2
+                  && line.length <= 80
+              ) || '';
+              if (!name || seen.has(name)) continue;
+              seen.add(name);
+              topics.push({{
+                name,
+                summary: [name, heat].filter(Boolean).join(' | ').slice(0, 200)
+              }});
+              if (topics.length >= 20) break outer;
+            }}
           }}
           return {{ title, text: bodyText, topics }};
         }})()

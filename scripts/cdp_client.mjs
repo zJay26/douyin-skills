@@ -173,6 +173,10 @@ async function main() {
         });
         return { success: true, targetId };
       }
+      if (mode === 'insert-text') {
+        await send('Input.insertText', { text: String(input.text || '') });
+        return { success: true, targetId };
+      }
       if (mode === 'set-file-input-files') {
         const { root } = await send('DOM.getDocument');
         const { nodeId } = await send('DOM.querySelector', { nodeId: root.nodeId, selector: input.selector });

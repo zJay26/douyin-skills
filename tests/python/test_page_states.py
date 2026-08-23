@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -117,6 +118,22 @@ class PageStateFixtureTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["state"], "ready")
         self.assertEqual(result["count"], 2)
+        extraction_script = page.evaluate.call_args_list[-1].args[0]
+        self.assertIn("feed-right-list-container", extraction_script)
+        parsed = subprocess.run(
+            [
+                "node",
+                "--input-type=module",
+                "-e",
+                "new Function(process.argv[1])",
+                extraction_script,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        self.assertEqual(parsed.returncode, 0, parsed.stderr)
 
     def test_trending_runtime_reports_page_drift_without_topics(self) -> None:
         fixture = self.by_id["trending-page-drift"]
@@ -226,6 +243,23 @@ class PageStateFixtureTests(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["state"], "incomplete")
         self.assertEqual(result["errors"], ["未选择音乐"])
+
+    def test_publish_classifier_distinguishes_uploading_from_missing_image(
+        self,
+    ) -> None:
+        snapshot = {
+            "hasImage": False,
+            "uploadInProgress": True,
+            "title": "Synthetic title",
+            "editorText": "Synthetic body",
+            "hasMusic": True,
+            "hasTopic": False,
+        }
+
+        result = publish.classify_publish_snapshot(snapshot)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["errors"], ["图片上传未完成"])
 
 
 if __name__ == "__main__":

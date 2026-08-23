@@ -2,6 +2,38 @@
 
 All notable changes are documented here. Releases follow semantic versioning, and each stable tag has detailed notes under [`docs/releases/`](./docs/releases/).
 
+## [Unreleased]
+
+## [1.3.0] - 2026-08-23
+
+### Added
+
+- Added a bounded `comment-video` workflow that fills and sends one public
+  comment only when the page exposes recognizable controls, with explicit
+  confirmed, unconfirmed, and unavailable states.
+- Added platform-owned favorite and comment control selectors for current
+  Douyin video pages.
+- Added native CDP text insertion for controlled editors such as the current
+  DraftJS comment composer.
+
+### Fixed
+
+- Rechecked transient verification interstitials after navigation so an
+  already-authenticated Chrome session is not paused before its page settles;
+  persistent risk pages still require manual verification.
+- Added DOM state confirmation and a read-only `get-interaction-state` command
+  for like/favorite controls; active toggles are not clicked again.
+- Preserved existing comment drafts, required a newly observed matching comment
+  for confirmation, and avoided treating arbitrary editable elements as the
+  comment composer.
+- Repaired current hot-list extraction by prioritizing the semantic right-list
+  container and validating the generated JavaScript syntax.
+- Accepted the current Creator Center photo-post route, waited for a positive
+  upload-ready marker, and rejected title/body values that the page truncated
+  or rewrote.
+- Restricted music selection to semantic song-name and enabled “使用” controls,
+  avoiding generic panel buttons and returning the applied song name.
+
 ## [1.2.0] - 2026-08-21
 
 ### Added
@@ -98,6 +130,7 @@ All notable changes are documented here. Releases follow semantic versioning, an
 - Captcha, identity checks, and platform risk controls are never bypassed.
 - Unconfirmed irreversible actions are never reported as confirmed or retried automatically.
 
+[1.3.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.3.0
 [1.2.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.2.0
 [1.1.2]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.2
 [1.1.1]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.1

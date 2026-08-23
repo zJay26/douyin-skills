@@ -22,11 +22,17 @@ from account_manager import (
 from chrome_launcher import DEFAULT_PORT, ensure_chrome
 from doctor import run_doctor
 from douyin.cdp import Browser
-from douyin.interact import favorite_video, like_video, share_video
+from douyin.interact import (
+    comment_video,
+    favorite_video,
+    get_interaction_state,
+    like_video,
+    share_video,
+)
 from douyin.login import (
-    check_login_state,
     get_qrcode,
     send_code,
+    settle_login_state,
     verify_code,
     wait_login,
 )
@@ -197,7 +203,7 @@ def cmd_check_login(args: argparse.Namespace) -> None:
     _browser, page = _connect(args)
     adapter.navigate_home(page)
     page.wait_for_load(20)
-    state = check_login_state(page, adapter=adapter)
+    state = settle_login_state(page, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
         args, state, "检测到验证码/风控页", adapter
     )
@@ -311,6 +317,30 @@ def cmd_favorite_video(args: argparse.Namespace) -> None:
     result = favorite_video(page, args.video_id, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
         args, result, "收藏时检测到验证码/风控", adapter
+    )
+    if switched:
+        _output(switched, exit_code=2)
+    _output(result, exit_code=0 if result.get("success") else 2)
+
+
+def cmd_comment_video(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
+    _browser, page = _connect(args)
+    result = comment_video(page, args.video_id, args.comment, adapter=adapter)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "评论时检测到验证码/风控", adapter
+    )
+    if switched:
+        _output(switched, exit_code=2)
+    _output(result, exit_code=0 if result.get("success") else 2)
+
+
+def cmd_get_interaction_state(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
+    _browser, page = _connect(args)
+    result = get_interaction_state(page, args.video_id, adapter=adapter)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "读取互动状态时检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -512,6 +542,13 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("favorite-video")
     p.add_argument("--video-id", required=True)
 
+    p = sub.add_parser("comment-video")
+    p.add_argument("--video-id", required=True)
+    p.add_argument("--comment", required=True)
+
+    p = sub.add_parser("get-interaction-state")
+    p.add_argument("--video-id", required=True)
+
     p = sub.add_parser("share-video")
     p.add_argument("--video-id", required=True)
 
@@ -544,6 +581,8 @@ def main(argv: list[str] | None = None) -> None:
         "click-publish": cmd_click_publish,
         "like-video": cmd_like_video,
         "favorite-video": cmd_favorite_video,
+        "comment-video": cmd_comment_video,
+        "get-interaction-state": cmd_get_interaction_state,
         "share-video": cmd_share_video,
     }
     try:

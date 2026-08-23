@@ -158,10 +158,18 @@ def _fill_title_and_desc(
 
           const titleValue = titleInput.value || '';
           const editorText = (editor.innerText || editor.textContent || '').trim();
+          const normalize = value => String(value || '')
+            .replace(/\u200b/g, '')
+            .replace(/\\r\\n/g, '\\n')
+            .trim();
+          const titleMatches = normalize(titleValue) === normalize(titleText);
+          const editorMatches = normalize(editorText) === normalize(bodyText);
           return {{
-            success: !!titleValue && !!editorText,
+            success: titleMatches && editorMatches,
             titleValue,
             editorText: editorText.slice(0, 1000),
+            titleMatches,
+            editorMatches,
           }};
         }})()
         """
@@ -238,6 +246,22 @@ def fill_publish_image(
         }
 
     fill_result = _fill_title_and_desc(page, title, desc, adapter=adapter)
+    image_markers_json = json.dumps(
+        list(adapter.selectors.publish_image_markers), ensure_ascii=False
+    )
+    upload_ready = _wait_until(
+        page,
+        f"""
+        (() => {{
+          const body = document.body?.innerText || '';
+          const markers = {image_markers_json};
+          const marker = markers.find(value => body.includes(value)) || '';
+          return marker ? {{ ready: true, marker }} : null;
+        }})()
+        """,
+        timeout=60,
+        interval=1,
+    )
     state = (
         page.evaluate(
             """
@@ -264,7 +288,9 @@ def fill_publish_image(
     success = bool(
         fill_result
         and fill_result.get("success")
+        and upload_ready
         and state.get("titleValue")
+        and state.get("titleValue") == title
         and first_line in state.get("editorText", "")
     )
     return {
@@ -274,10 +300,12 @@ def fill_publish_image(
         "title": title,
         "desc": desc,
         "fill": fill_result,
+        "upload": upload_ready
+        or {"ready": False, "reason": "image-upload-not-confirmed"},
         "page": state,
         "message": "图文发布表单已填写，请在浏览器中确认后再执行 click-publish。"
         if success
-        else "图片已上传，但标题或正文填写失败。",
+        else "图文表单未完整确认：请检查图片上传状态，以及标题/正文是否被页面截断或改写。",
     }
 
 
@@ -329,7 +357,11 @@ def select_music(
         f"""
         (() => !!Array.from(document.querySelectorAll({json.dumps(adapter.selectors.music_panel_selector)})).find(el => {{
           const text = el.innerText || '';
-          return {json.dumps(list(adapter.selectors.music_panel_markers), ensure_ascii=False)}.every(marker => text.includes(marker));
+          const hasMarkers = {json.dumps(list(adapter.selectors.music_panel_markers), ensure_ascii=False)}.every(marker => text.includes(marker));
+          const hasApply = Array.from(el.querySelectorAll('button')).some(button =>
+            (button.innerText || '').trim() === {json.dumps(adapter.selectors.music_apply_text, ensure_ascii=False)} && !button.disabled
+          );
+          return hasMarkers && hasApply;
         }}))()
         """,
         timeout=15,
@@ -381,12 +413,30 @@ def select_music(
                 return {}.every(marker => text.includes(marker));
               }});
               if (!portal) return {{ success: false, reason: 'no-portal' }};
-              const btn = portal.querySelector({}) || Array.from(portal.querySelectorAll('button')).find(el => (el.innerText || '').trim() === {} && !el.disabled);
-              if (!btn) return {{ success: false, reason: 'no-apply-button' }};
-              const rowText = (btn.parentElement?.innerText || btn.closest('[class]')?.innerText || '').trim();
+              const nameSelectors = {};
+              const applySelectors = {};
+              const buttons = Array.from(portal.querySelectorAll(applySelectors)).filter(el =>
+                (el.innerText || '').trim() === {} && !el.disabled
+              );
+              let btn = null;
+              let nameNode = null;
+              for (const candidate of buttons) {{
+                let row = candidate.parentElement;
+                for (let depth = 0; row && depth < 8; depth += 1, row = row.parentElement) {{
+                  const name = nameSelectors
+                    .map(selector => row.querySelector?.(selector))
+                    .find(node => (node?.innerText || '').trim());
+                  if (!name) continue;
+                  btn = candidate;
+                  nameNode = name;
+                  break;
+                }}
+                if (nameNode) break;
+              }}
+              if (!btn || !nameNode) return {{ success: false, reason: 'no-apply-button' }};
+              const picked = (nameNode.innerText || '').trim();
               btn.click();
-              const lines = rowText.split('\n').map(x => x.trim()).filter(x => x && x !== {});
-              return {{ success: true, picked: lines[0] || '热门榜首个可用音乐' }};
+              return {{ success: true, picked: picked || '推荐列表首个可用音乐' }};
             }})()
             """.format(
                 json.dumps(adapter.selectors.music_panel_selector, ensure_ascii=False),
@@ -394,10 +444,13 @@ def select_music(
                     list(adapter.selectors.music_panel_markers), ensure_ascii=False
                 ),
                 json.dumps(
+                    list(adapter.selectors.music_name_selectors),
+                    ensure_ascii=False,
+                ),
+                json.dumps(
                     ",".join(adapter.selectors.music_apply_selectors),
                     ensure_ascii=False,
                 ),
-                json.dumps(adapter.selectors.music_apply_text, ensure_ascii=False),
                 json.dumps(adapter.selectors.music_apply_text, ensure_ascii=False),
             )
         )
@@ -437,7 +490,12 @@ def select_music(
             const body = document.body?.innerText || '';
             const marker = body.indexOf({json.dumps(adapter.selectors.selected_music_text, ensure_ascii=False)});
             if (marker < 0) return '';
-            return body.slice(Math.max(0, marker - 160), marker).split('\n').map(x => x.trim()).filter(Boolean).slice(-1)[0] || '';
+            const lines = body.slice(Math.max(0, marker - 160), marker)
+              .split('\\n').map(x => x.trim()).filter(Boolean);
+            const last = lines.at(-1) || '';
+            return /^\\d{{1,2}}:\\d{{2}}$/.test(last)
+              ? (lines.at(-2) || '')
+              : last;
           }})()
         }}))()
         """
@@ -484,7 +542,8 @@ def validate_publish_state(
       const title = titleEl ? ((titleEl.value || '').trim()) : '';
       const editorText = editorEl ? (((editorEl.innerText || editorEl.textContent || '')).trim()) : '';
       const fileCount = Array.from(document.querySelectorAll({file_selector})).reduce((count, input) => count + (input.files?.length || 0), 0);
-      const hasImage = fileCount > 0 || {image_markers}.some(marker => body.includes(marker));
+      const hasImage = {image_markers}.some(marker => body.includes(marker));
+      const uploadInProgress = fileCount > 0 && !hasImage;
       const hasMusic = body.includes({selected_music_text});
       const hasTopic = {topic_markers}.some(marker => body.includes(marker));
       const errors = [];
@@ -502,6 +561,7 @@ def validate_publish_state(
         page_title: document.title || '',
         fileCount: fileCount,
         hasImage: hasImage,
+        uploadInProgress: uploadInProgress,
         hasMusic: hasMusic,
         hasTopic: hasTopic,
         errors: errors,

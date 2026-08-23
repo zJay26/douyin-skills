@@ -41,6 +41,7 @@ Agent 可以规划多步骤任务，但真正进入社交网站后，还要面�
 | “看看抖音现在有哪些热门话题” | 公开热门话题读取 | 最多 20 条；页面结构变化会明确报告 |
 | “把这些图片和文案填好，先别发布” | 图片上传、文案、音乐、页面校验 | 只支持图文，发布前复核 |
 | “确认无误后发布” | 显式发布确认 | 状态未知时绝不自动重试 |
+| “在这条下面评论‘学到了！！’” | 单次公开评论尝试 | 区分已确认、未确认和控件不可用 |
 | “收藏这条，并把链接发给我” | 点赞、收藏、分享链接 | 不批量操作，不夸大最终状态 |
 
 核心特点：
@@ -92,14 +93,14 @@ python scripts/cli.py doctor
 
 ### 下载稳定版本
 
-如需版本固定且可校验的安装包，请从 [v1.2.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.2.0) 下载 `douyin-skills-v1.2.0.zip` 与 `SHA256SUMS`，解压前先校验：
+如需版本固定且可校验的安装包，请从 [v1.3.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.3.0) 下载 `douyin-skills-v1.3.0.zip` 与 `SHA256SUMS`，解压前先校验：
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell：将结果与 SHA256SUMS 对应行比较
-Get-FileHash .\douyin-skills-v1.2.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.3.0.zip -Algorithm SHA256
 ```
 
 这个命名 ZIP 会把完整仓库放在一个版本目录中，并包含脱敏 Demo。GitHub 自动生成的源码压缩包是另一组文件，不适用这里发布的校验值。
@@ -167,7 +168,7 @@ flowchart LR
 | [`douyin-auth`](./skills/douyin-auth/SKILL.md) | 登录状态、二维码、短信验证、多账号 | “切到工作号并检查登录” |
 | [`douyin-explore`](./skills/douyin-explore/SKILL.md) | 搜索公开作品、读取 video/note 详情、查看热门话题 | “查找 7 条露营内容” |
 | [`douyin-publish`](./skills/douyin-publish/SKILL.md) | 填写图文、选音乐、校验、确认发布 | “填好内容，先让我复核” |
-| [`douyin-interact`](./skills/douyin-interact/SKILL.md) | 单次点赞、收藏、获取分享链接 | “收藏这条并返回链接” |
+| [`douyin-interact`](./skills/douyin-interact/SKILL.md) | 单次点赞、收藏、评论、获取分享链接 | “评论这条并返回结果” |
 | [`douyin-env`](./skills/douyin-env/SKILL.md) | 安装、自检、迁移、环境排障 | “检查 Chrome 和依赖” |
 
 主入口 [`SKILL.md`](./SKILL.md) 负责多步骤路由。子 Skill 内的脚本路径使用 OpenClaw 推荐的 [`{baseDir}` 规则](https://docs.openclaw.ai/tools/creating-skills)，因此不依赖 Agent 当前所在目录。
@@ -185,7 +186,7 @@ flowchart LR
 ### 不会做
 
 - 绕过验证码、身份验证、风控或平台频率限制。
-- 评论、回复评论、私信、视频发布、草稿或定时发布。
+- 回复评论、私信、视频发布、草稿或定时发布。
 - 批量养号、刷量、批量互动、用户主页全量抓取或完整运营流水线。
 - 在发布结果未知时自动重试，或在点赞/收藏状态未知时再次点击。
 
@@ -263,7 +264,9 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 | 发布 | `select-music` | 按候选名称选择可用音乐 |
 | 发布 | `validate-publish` | 读取发布页字段和按钮状态，不点击发布 |
 | 发布 | `click-publish --confirm` | 显式确认后执行一次发布点击 |
-| 互动 | `like-video` / `favorite-video` | 对明确作品执行一次按钮点击 |
+| 互动 | `like-video` / `favorite-video` | 确保明确作品已点赞/收藏，并尽量确认状态 |
+| 互动 | `comment-video` | 仅在输入框和发送控件明确可见时尝试一次评论 |
+| 互动 | `get-interaction-state` | 只读查看当前点赞/收藏状态，不点击 |
 | 互动 | `share-video` | 返回作品公开链接，并尽力写入剪贴板 |
 
 运行 `python scripts/cli.py --help` 或对应子命令的 `--help` 查看完整参数。
@@ -276,7 +279,7 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 | `publish_clicked_unconfirmed` | 已点击，但页面没有给出可靠结果 | 去作品管理核对，**不要重试** |
 | `success: false` | 没有点击，或发布前校验失败 | 根据 `validation.errors` 修复 |
 
-点赞与收藏也可能返回 `state_verified: false`。这只证明按钮已点击，不能证明最终状态；Agent 应如实说明并停止重复操作。
+点赞与收藏现在会在页面提供状态证据时读取点击前后状态。`state: already_active` 表示没有再次点击；`state_verified: false` 仍表示最终状态不可靠，Agent 应如实说明并停止重复操作。需要只读核对时使用 `get-interaction-state`。
 
 ## 本地数据
 
@@ -350,9 +353,9 @@ CLI 会优先复用已有的本地 Chrome；检测到验证码、身份验证或
 </details>
 
 <details>
-<summary><strong>支持视频、评论或批量运营吗？</strong></summary>
+<summary><strong>支持视频、回复或批量运营吗？</strong></summary>
 
-目前不支持。项目专注小而清晰的本地工作流：登录、搜索、图文发布和单次基础互动。
+支持在页面明确提供输入框和发送控件时尝试一次公开评论；不支持回复、私信、视频发布或批量操作。
 </details>
 
 ## 贡献、许可与声明

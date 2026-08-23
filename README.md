@@ -41,6 +41,7 @@ Everyday Douyin web tasks are not inherently complicated, but browser startup, l
 | “Show me the current Douyin hot topics” | Read public trending topics | Up to 20; page drift is reported explicitly |
 | “Fill in these photos and caption, but do not publish” | Uploads, copy, music, page validation | Photo posts only; review first |
 | “Everything looks right—publish it” | Explicit publish confirmation | Never retry an unknown result |
+| “Comment ‘学到了！！’ on this post” | One bounded public comment attempt | Confirmed, unconfirmed, and unavailable states are distinct |
 | “Favorite this post and send me its link” | Like, favorite, share URL | No bulk actions or inflated claims |
 
 What makes it different:
@@ -92,14 +93,14 @@ The environment is ready when the JSON from `doctor` contains `"success": true` 
 
 ### Stable release download
 
-For a versioned, checksum-verifiable install, download `douyin-skills-v1.2.0.zip` and `SHA256SUMS` from the [v1.2.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.2.0). Verify the ZIP before extracting it:
+For a versioned, checksum-verifiable install, download `douyin-skills-v1.3.0.zip` and `SHA256SUMS` from the [v1.3.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.3.0). Verify the ZIP before extracting it:
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell: compare this value with the matching SHA256SUMS line
-Get-FileHash .\douyin-skills-v1.2.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.3.0.zip -Algorithm SHA256
 ```
 
 The named ZIP contains the complete repository under one versioned directory, including the privacy-safe Demo. GitHub's automatic source archives are separate and are not covered by the published checksum.
@@ -176,7 +177,7 @@ No other platform adapter ships in this repository today. See the [Agent ecosyst
 | [`douyin-auth`](./skills/douyin-auth/SKILL.md) | Login state, QR, SMS verification, multiple accounts | “Switch to my work account and check login” |
 | [`douyin-explore`](./skills/douyin-explore/SKILL.md) | Search public posts, read video/note details, and inspect trending topics | “Find seven camping posts” |
 | [`douyin-publish`](./skills/douyin-publish/SKILL.md) | Fill photo posts, select music, validate, confirm | “Prepare this post for my review” |
-| [`douyin-interact`](./skills/douyin-interact/SKILL.md) | One like/favorite click or a public share URL | “Favorite this and return the link” |
+| [`douyin-interact`](./skills/douyin-interact/SKILL.md) | One like/favorite/comment attempt or a public share URL | “Comment this and return the result” |
 | [`douyin-env`](./skills/douyin-env/SKILL.md) | Installation, diagnostics, migration | “Check Chrome and dependencies” |
 
 The root [`SKILL.md`](./SKILL.md) routes multi-step requests. Child Skills address scripts with OpenClaw's recommended [`{baseDir}` convention](https://docs.openclaw.ai/tools/creating-skills), so execution does not depend on the agent's current working directory.
@@ -194,7 +195,7 @@ The root [`SKILL.md`](./SKILL.md) routes multi-step requests. Child Skills addre
 ### What it deliberately does not do
 
 - Bypass captchas, identity checks, risk controls, or platform rate limits.
-- Comment, reply, send direct messages, publish videos, save drafts, or schedule posts.
+- Reply to comments, send direct messages, publish videos, save drafts, or schedule posts.
 - Farm accounts, inflate engagement, scrape entire profiles, or run bulk operating pipelines.
 - Retry when publishing is uncertain, or click like/favorite again when the final state is unknown.
 
@@ -272,7 +273,9 @@ Agent integrations should follow the stable minimum fields and certainty rules i
 | Publishing | `select-music` | Select the first available candidate by name |
 | Publishing | `validate-publish` | Inspect fields and button state without publishing |
 | Publishing | `click-publish --confirm` | Explicitly confirm one publish click |
-| Interaction | `like-video` / `favorite-video` | Perform one button click for one explicit post |
+| Interaction | `like-video` / `favorite-video` | Ensure one explicit post is liked/favorited, confirming state when the page exposes it |
+| Interaction | `comment-video` | Attempt one public comment when input and send controls are visible |
+| Interaction | `get-interaction-state` | Read current like/favorite state without clicking |
 | Interaction | `share-video` | Return a public URL and attempt to copy it |
 
 Run `python scripts/cli.py --help` or a subcommand's `--help` for every option.
@@ -285,7 +288,7 @@ Run `python scripts/cli.py --help` or a subcommand's `--help` for every option.
 | `publish_clicked_unconfirmed` | The button was clicked, but the result is not reliable | Check Creator Center and **do not retry** |
 | `success: false` | No click occurred, or preflight validation failed | Fix `validation.errors` |
 
-Likes and favorites may similarly return `state_verified: false`. That proves a click occurred, not the final state; the agent should say so and avoid repeating the action.
+Likes and favorites now inspect the control before and after an action when the page exposes state evidence. `state: already_active` means no second click was issued; `state_verified: false` still means the final state was not reliable, so the agent should say so and avoid repeating the action. Use `get-interaction-state` for a read-only check.
 
 ## Local data
 
@@ -359,9 +362,9 @@ If the state is `publish_clicked_unconfirmed`, check Creator Center first. Do no
 </details>
 
 <details>
-<summary><strong>Does it support videos, comments, or bulk operations?</strong></summary>
+<summary><strong>Does it support videos, replies, or bulk operations?</strong></summary>
 
-No. The project intentionally focuses on small, clear local workflows: login, discovery, photo publishing, and one-at-a-time basic interactions.
+It can attempt one public comment when the page exposes a clear input and send control. It does not support replies, direct messages, video publishing, or bulk operations.
 </details>
 
 ## Contributing, license, and trademarks

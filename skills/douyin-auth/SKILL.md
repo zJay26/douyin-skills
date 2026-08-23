@@ -24,6 +24,7 @@ python "{baseDir}/../../scripts/cli.py" check-login
 ```
 
 - CLI 会优先复用已有的本地 Chrome 调试实例和其中的登录会话；已有 headed Chrome 不会因为默认模式偏好被重启。
+- 导航后的短暂验证码/风控中间页会由 CLI 做有限稳定重检；若随后恢复到已登录页，可继续使用，不需要用户重复验证。
 - `logged_in: true`：可以继续。
 - `logged_in: false`：进入登录流程；退出码 `1` 不是程序崩溃。
 - `needs_user_verification: true`：浏览器已切为 headed 或已停在验证页，请用户人工处理，不要绕过或连续重试。

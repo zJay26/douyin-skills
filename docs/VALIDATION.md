@@ -19,9 +19,11 @@ These checks exercise behavior that does not need a Douyin account:
 - CLI argument validation, including explicit publish confirmation and search limits;
 - Douyin URL normalization and rejection of off-domain content links;
 - login-state classification with synthetic browser responses;
-- image-path validation and distinct confirmed/unconfirmed publish states;
-- one-at-a-time interaction semantics that do not invent a final state;
-- the Node.js CDP request/response bridge.
+- image-path validation, exact title/body application, upload-ready evidence,
+  semantic music controls, and distinct confirmed/unconfirmed publish states;
+- one-at-a-time interaction semantics that do not invent a final state,
+  including existing-draft preservation and confirmed/unconfirmed comments;
+- the Node.js CDP request/response bridge, including native text insertion;
 - sanitized page-state fixtures for login, risk, search, detail, and publishing certainty, including schema and privacy rules plus focused flow/id reruns for page-drift reports.
 
 The repository also includes a deterministic, synthetic 40-second walkthrough. Its source is [`assets/demo/index.html`](../assets/demo/index.html), and maintainers can render [`assets/demo.gif`](../assets/demo.gif) with:
@@ -34,15 +36,17 @@ The demo contains no real account, cookie, QR code, phone number, profile path, 
 
 The versioned [page-state fixtures](../fixtures/page_states/README.md) are also synthetic. They exercise the same classifiers used by production command paths, but model only the minimum state needed for a decision. They contain no stored HTML, screenshot, browser profile, cookie value, or real user content. Passing fixture tests protects result semantics; it does not prove that selectors still extract those signals from today's live pages.
 
-## Supported release scope
+## Supported source scope
 
-v1.1.x implements the following Douyin web workflows through the local CLI:
+The current source tree implements the following Douyin web workflows through
+the local CLI. The `v1.3.0` tag is the first stable release that includes the
+bounded public-comment workflow:
 
 - environment diagnosis and named local-account configuration;
 - login-state inspection, QR-code retrieval, and user-completed SMS verification;
 - public video/note search and detail lookup;
 - photo-post form filling, music selection, pre-publish validation, and a separately confirmed publish click;
-- one-at-a-time like, favorite, and public-link sharing actions.
+- one-at-a-time like, favorite, public-comment, and public-link sharing actions.
 
 Support here means the command and its safety/result contract are implemented and tested with synthetic inputs. Live success still depends on the current page, account state, and platform controls.
 
@@ -58,7 +62,9 @@ Use this checklist when validating against a real account. Never attach the resu
 6. For photo publishing, fill synthetic test content first and stop at `validate-publish`.
 7. If a real publish is necessary, inspect the visible page and provide `--confirm` separately.
 8. Treat `publish_clicked_unconfirmed` as unresolved: check Creator Center and never blind-retry.
-9. Record observed selectors or page-state changes without copying session data.
+9. For comments, preserve any existing draft, submit once, and never retry
+   `comment_clicked_unconfirmed`.
+10. Record observed selectors or page-state changes without copying session data.
 
 ## Stable release gate
 
@@ -74,11 +80,12 @@ Every stable release requires all of the following on the tagged commit:
 
 ## Not validated or guaranteed
 
-v1.1.x does **not** claim:
+The current source tree does **not** claim:
 
 - successful login, search, interaction, or publishing for every account or current Douyin page version;
 - captcha, identity-check, or risk-control automation or bypass;
-- support for video publishing, comments, direct messages, drafts, scheduling, or bulk operations;
+- support for video publishing, comment replies, direct messages, draft
+  management, scheduling, or bulk operations;
 - unattended or idempotent retry after an irreversible click;
 - macOS runtime coverage in CI;
 - plug-and-play execution on every Agent Skills client;

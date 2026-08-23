@@ -46,6 +46,11 @@ class PlatformAdapterTests(unittest.TestCase):
                 "https://creator.douyin.com/creator-micro/content/upload?default-tab=3"
             )
         )
+        self.assertTrue(
+            DEFAULT_ADAPTER.is_publish_url(
+                "https://creator.douyin.com/creator-micro/content/post/image?media_type=image&type=new"
+            )
+        )
         self.assertFalse(
             DEFAULT_ADAPTER.is_publish_url("https://www.douyin.com/video/987")
         )
@@ -163,6 +168,28 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertTrue(result["success"])
         page.navigate.assert_called_once_with("https://adapter.example/post/123")
 
+    def test_comment_uses_injected_controls(self) -> None:
+        selectors = replace(
+            DEFAULT_ADAPTER.selectors,
+            comment_input_selectors=("[data-adapter-comment]",),
+            comment_submit_selectors=("[data-adapter-submit]",),
+            comment_submit_texts=("adapter-send",),
+        )
+        adapter = replace(DEFAULT_ADAPTER, selectors=selectors)
+        page = mock.Mock()
+        page.evaluate.return_value = {"ok": False, "reason": "synthetic"}
+
+        interact._prepare_comment(page, "adapter text", adapter=adapter)
+        interact._submit_comment(page, "adapter text", adapter=adapter)
+
+        prepare_expression = page.evaluate.call_args_list[0].args[0]
+        submit_expression = page.evaluate.call_args_list[1].args[0]
+        self.assertIn("data-adapter-comment", prepare_expression)
+        self.assertIn("data-adapter-submit", submit_expression)
+        self.assertIn("adapter-send", submit_expression)
+        self.assert_javascript_parses(prepare_expression)
+        self.assert_javascript_parses(submit_expression)
+
     def test_publish_validation_uses_injected_form_selectors(self) -> None:
         selectors = replace(
             DEFAULT_ADAPTER.selectors,
@@ -189,6 +216,33 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("data-adapter-file", expression)
         self.assert_javascript_parses(expression)
         self.assertTrue(result["success"])
+
+    def test_music_fallback_only_uses_semantic_apply_buttons(self) -> None:
+        page = mock.Mock()
+        page.click.return_value = True
+        page.evaluate.side_effect = [
+            {"success": False, "reason": "no-song"},
+            {"success": False, "reason": "no-song"},
+            {"success": False, "reason": "no-song"},
+            {"success": False, "reason": "no-song"},
+            {"success": True, "picked": "adapter song"},
+            {"text": "修改音乐", "selectedMusic": "adapter song"},
+        ]
+
+        with (
+            mock.patch.object(publish, "_wrong_publish_page_result", return_value=None),
+            mock.patch.object(publish, "_wait_until", side_effect=[True, True]),
+        ):
+            result = publish.select_music(page)
+
+        fallback_expression = page.evaluate.call_args_list[4].args[0]
+        state_expression = page.evaluate.call_args_list[5].args[0]
+        self.assertIn("apply-btn", fallback_expression)
+        self.assertNotIn('querySelector("button")', fallback_expression)
+        self.assert_javascript_parses(fallback_expression)
+        self.assert_javascript_parses(state_expression)
+        self.assertTrue(result["success"])
+        self.assertEqual(result["picked"], "adapter song")
 
 
 if __name__ == "__main__":

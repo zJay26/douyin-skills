@@ -141,7 +141,9 @@ def classify_publish_snapshot(snapshot: dict, require_topic: bool = False) -> di
     state = dict(snapshot)
     errors: list[str] = []
     if not bool(state.get("hasImage")):
-        errors.append("缺少图片")
+        errors.append(
+            "图片上传未完成" if bool(state.get("uploadInProgress")) else "缺少图片"
+        )
     if not str(state.get("title") or "").strip():
         errors.append("标题为空")
     if not str(state.get("editorText") or "").strip():

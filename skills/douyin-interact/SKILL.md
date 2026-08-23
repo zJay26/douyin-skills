@@ -1,6 +1,6 @@
 ---
 name: douyin-interact
-description: 对明确指定的抖音公开 video 或 note 作品执行一次点赞、收藏按钮点击，或返回分享链接。用户要求点赞、收藏、取消相应状态或获取抖音作品链接时使用。
+description: 对明确指定的抖音公开 video 或 note 作品执行一次点赞、收藏或评论，或返回分享链接。用户要求点赞、收藏、评论、取消相应状态或获取抖音作品链接时使用。
 ---
 
 # 执行基础互动
@@ -30,6 +30,31 @@ python "{baseDir}/../../scripts/cli.py" favorite-video --video-id <作品ID或�
 
 同样按 `state_verified` 解释结果。按钮已点击但状态未确认时，交给用户在页面核对。
 
+- `state: already_active` 表示目标状态本来就已激活，CLI 没有再次点击。
+- `state_verified: true` 表示页面暴露了明确的激活/未激活证据；不要把一次普通点击自动等同于最终状态。
+
+## 只读核对点赞与收藏状态
+
+```bash
+python "{baseDir}/../../scripts/cli.py" get-interaction-state --video-id <作品ID或公开链接>
+```
+
+- 该命令只读取当前按钮状态，不点击切换控件。
+- `state_verified: true` 且 `state: active` / `inactive` 表示页面提供了明确状态证据。
+- `state: unknown` 或 `state_verified: false` 仍需用户在页面核对，不要改用点赞/收藏命令试探。
+
+## 评论
+
+```bash
+python "{baseDir}/../../scripts/cli.py" comment-video --video-id <作品ID或公开链接> --comment "评论内容"
+```
+
+- 只在页面明确提供评论输入框和发送控件时尝试一次。
+- `state: comment_confirmed` 表示评论文本已在评论区出现。
+- `state: comment_clicked_unconfirmed` 表示发送控件已点击但未确认评论出现；不要自动重试。
+- `comment_input_not_found`、`comment_text_not_applied` 或 `comment_submit_not_found` 表示没有发送评论，不要把填写输入框报告为已评论。
+- `comment_input_not_empty` 表示评论框中已有其他草稿；保留草稿且不要覆盖。
+
 ## 分享链接
 
 ```bash
@@ -43,4 +68,4 @@ python "{baseDir}/../../scripts/cli.py" share-video --video-id <作品ID或公�
 - `risk_page: true`：停在 headed 浏览器，等待人工验证。
 - 作品不可访问：说明可能私密、已删除或链接错误。
 - 按钮未找到：报告页面结构可能变化，不要用坐标盲点或其他自动化工具兜底。
-- 不支持评论、回复评论、私信分享或批量互动。
+- 不支持回复评论、私信分享或批量互动。

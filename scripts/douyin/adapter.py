@@ -50,7 +50,12 @@ DOUYIN_SELECTORS = PlatformSelectors(
     ),
     feed_card_selector="div[data-aweme-id]",
     feed_content_id_attribute="data-aweme-id",
-    trending_node_selectors=("a", "div", "li"),
+    trending_node_selectors=(
+        '[data-e2e="feed-right-list-container"] li',
+        "li",
+        "a",
+        "div",
+    ),
     trending_tab_texts=("抖音热榜",),
     trending_topic_keywords=(
         "热",
@@ -86,6 +91,58 @@ DOUYIN_SELECTORS = PlatformSelectors(
         '[class*="like"] button',
         'div[role="button"][aria-label*="赞"]',
     ),
+    favorite_button_selectors=(
+        '[data-e2e="video-player-collect"]',
+        '[data-e2e*="collect"]',
+        '[data-e2e*="favorite"]',
+        'button[aria-label*="收藏"]',
+        '[role="button"][aria-label*="收藏"]',
+        'button[title*="收藏"]',
+        '[class*="collect"] button',
+        '[class*="favorite"] button',
+    ),
+    comment_action_selectors=(
+        '[class*="comment-input-inner-container"]',
+        '[data-e2e="video-player-comment"]',
+        'button[data-e2e*="comment"]',
+        '[role="button"][data-e2e*="comment"]',
+        'button[aria-label*="评论"]',
+        '[role="button"][aria-label*="评论"]',
+    ),
+    comment_input_selectors=(
+        '[data-e2e="comment-input"]',
+        '[class*="comment-input-inner-container"] [contenteditable="true"]',
+        '.public-DraftEditor-content[contenteditable="true"]',
+        '[contenteditable="true"][role="combobox"]',
+        'textarea[placeholder*="留下你的精彩评论"]',
+        'textarea[placeholder*="精彩评论"]',
+        'textarea[placeholder*="评论"]',
+        'input[placeholder*="留下你的精彩评论"]',
+        'input[placeholder*="评论"]',
+        '[contenteditable="true"][data-placeholder*="留下你的精彩评论"]',
+        '[contenteditable="true"][data-placeholder*="评论"]',
+        '[contenteditable="true"][aria-label*="留下你的精彩评论"]',
+        '[contenteditable="true"][aria-label*="评论"]',
+        '[contenteditable="true"]',
+        '[role="textbox"]',
+    ),
+    comment_submit_selectors=(
+        '[class*="commentInput-right-ct"] span:last-of-type',
+        '[data-e2e="comment-submit"]',
+        'button[type="submit"]',
+        '[role="button"][data-e2e*="comment"]',
+        'button[aria-label*="发送"]',
+        '[role="button"][aria-label*="发送"]',
+        'button[title*="发送"]',
+        '[class*="send"] button',
+        '[class*="send"][role="button"]',
+    ),
+    comment_submit_texts=("发送", "发表评论"),
+    comment_composer_texts=("留下你的精彩评论吧",),
+    like_active_texts=("已赞", "取消赞", "已点赞", "取消点赞"),
+    favorite_active_texts=("已收藏", "取消收藏"),
+    like_active_style_tokens=("rgb(255, 44, 85)", "#ff2c55"),
+    favorite_active_style_tokens=("rgb(255, 184, 2)", "#ffb802"),
     note_action_bar_marker="分享",
     like_action_text="赞",
     favorite_action_text="收藏",
@@ -100,7 +157,7 @@ DOUYIN_SELECTORS = PlatformSelectors(
         '[contenteditable="true"]',
         'div[role="textbox"]',
     ),
-    publish_image_markers=("继续添加", "编辑图片", "已添加", "取消上传"),
+    publish_image_markers=("继续添加", "编辑图片", "已添加"),
     music_open_selectors=(
         "span.action-Q1y01k",
         ".container-right-uW7Pj",
@@ -112,10 +169,11 @@ DOUYIN_SELECTORS = PlatformSelectors(
     music_name_selectors=(
         ".song-name-oRge4d",
         '[class*="song-name"]',
-        "span",
-        "div",
     ),
-    music_apply_selectors=("button.apply-btn-LUPP0D", "button"),
+    music_apply_selectors=(
+        "button.apply-btn-LUPP0D",
+        'button[class*="apply-btn"]',
+    ),
     music_apply_text="使用",
     selected_music_text="修改音乐",
     publish_button_text="发布",
@@ -171,10 +229,14 @@ class DouyinAdapter:
     def is_publish_url(self, value: str) -> bool:
         current = urlparse(str(value or ""))
         expected = urlparse(self.creator_upload_url)
+        supported_paths = {
+            expected.path.rstrip("/"),
+            "/creator-micro/content/post/image",
+        }
         return (
             current.scheme == expected.scheme
             and current.hostname == expected.hostname
-            and current.path == expected.path
+            and current.path.rstrip("/") in supported_paths
         )
 
     def parse_content_ref(self, value: str) -> tuple[str, str | None]:

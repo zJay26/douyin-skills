@@ -95,7 +95,7 @@ smuggling a platform-specific selector into shared code.
 | Group | Members |
 | --- | --- |
 | Login and session | `login_text_keywords`, `login_panel_markers`, `logged_in_text_hints`, `login_qrcode_selectors`, `profile_ui_selectors`, `auth_cookie_names`, `phone_input_selectors`, `send_code_texts`, `verification_input_selectors`, `submit_code_texts`, `agreement_text` |
-| Discovery and detail | `search_result_selectors`, `feed_card_selector`, `feed_content_id_attribute`, `trending_node_selectors`, `trending_topic_keywords`, `detail_desc_selectors`, `comment_item_selectors`, `like_button_selectors`, `note_action_bar_marker`, `like_action_text`, `favorite_action_text`, `share_action_text`, `comment_action_text`, `copy_link_text` |
+| Discovery and detail | `search_result_selectors`, `feed_card_selector`, `feed_content_id_attribute`, `trending_node_selectors`, `trending_topic_keywords`, `detail_desc_selectors`, `comment_item_selectors`, `like_button_selectors`, `favorite_button_selectors`, `comment_action_selectors`, `like_active_texts`, `favorite_active_texts`, `note_action_bar_marker`, `like_action_text`, `favorite_action_text`, `share_action_text`, `comment_action_text`, `copy_link_text` |
 | Photo publishing | `publish_file_input_selector`, `publish_title_input_selector`, `publish_editor_selectors`, `publish_image_markers`, `music_open_selectors`, `music_open_texts`, `music_panel_selector`, `music_panel_markers`, `music_name_selectors`, `music_apply_selectors`, `music_apply_text`, `selected_music_text`, `publish_button_text`, `publish_success_texts`, `publish_success_path_fragment`, `topic_markers` |
 
 Prefer a small ordered fallback list of selectors that represent the same

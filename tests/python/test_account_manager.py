@@ -66,6 +66,23 @@ class AccountManagerTests(unittest.TestCase):
 
         self.assertEqual(third["port"], first["port"])
 
+    def test_add_list_set_default_and_remove_account_lifecycle(self) -> None:
+        account_manager.add_account("first", "first profile")
+        account_manager.add_account("second", "second profile")
+
+        account_manager.set_default_account("second")
+        listed = account_manager.list_accounts()
+
+        self.assertEqual([item["name"] for item in listed], ["first", "second"])
+        self.assertFalse(listed[0]["is_default"])
+        self.assertTrue(listed[1]["is_default"])
+
+        account_manager.remove_account("second")
+        remaining = account_manager.list_accounts()
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0]["name"], "first")
+        self.assertTrue(remaining[0]["is_default"])
+
     def test_corrupt_config_has_actionable_error(self) -> None:
         account_manager._CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         account_manager._ACCOUNTS_FILE.write_text("{broken", encoding="utf-8")

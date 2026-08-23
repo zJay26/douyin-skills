@@ -10,7 +10,7 @@ python scripts/cli.py version
 {
   "success": true,
   "project": "douyin-skills",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "result_contract_version": "1.0"
 }
 ```
@@ -38,6 +38,12 @@ Consumers must tolerate unknown fields. New optional fields may be added within 
 | `status: publish_confirmed` | The page exposed an explicit post-publish success signal. | Report that publication was confirmed. |
 | `status: publish_clicked_unconfirmed` | One publish click occurred, but the resulting page did not provide reliable confirmation. | Report uncertainty, ask the user to check Creator Center, and do **not** retry. |
 | `state_verified: false` | An interaction click may have occurred, but the final like/favorite state was not reliably observed. | Describe the click only; do not claim the final state or click again. |
+| `state: active` / `inactive` with `state_verified: true` | The current like/favorite control exposed explicit state evidence; a read-only check or a click followed by confirmation completed. | Report the current state; do not click an already-active toggle. |
+| `state: already_active` | The requested like/favorite was already active, so no click was issued. | Report that the desired state was already present. |
+| `state: comment_confirmed` | The submitted comment text appeared in the visible comment list. | Report the comment as confirmed. |
+| `state: comment_clicked_unconfirmed` | The comment send control was clicked, but the comment was not observed afterward. | Report uncertainty and do **not** retry. |
+| `state: comment_input_not_found` / `comment_text_not_applied` / `comment_submit_not_found` | No comment was sent because the page did not expose usable controls or the controlled editor did not accept the text. | Report that the comment was not sent. |
+| `state: comment_input_not_empty` | The composer already contained a different draft. | Report that the existing draft was preserved; do not overwrite or send it. |
 | `needs_user_verification: true` | A captcha, identity check, or risk-control state needs a person. | Surface the visible browser and stop until the user completes the step. |
 | `success: false` | The requested command did not reach its defined successful outcome. | Read `error`, `message`, and any validation details before deciding what to do. |
 

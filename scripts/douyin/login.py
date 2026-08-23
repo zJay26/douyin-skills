@@ -10,9 +10,10 @@ from pathlib import Path
 
 from platform_adapter import PlatformAdapter, resolve_adapter
 
-from .page_states import (
-    classify_login_snapshot,
-)
+from .page_states import classify_login_snapshot
+
+LOGIN_STATE_SETTLE_TIMEOUT = 8.0
+LOGIN_STATE_SETTLE_INTERVAL = 1.0
 
 
 def inspect_login_state(page, adapter: PlatformAdapter | None = None) -> dict:
@@ -111,6 +112,42 @@ def check_login_state(page, adapter: PlatformAdapter | None = None) -> dict:
             ]
         },
     }
+
+
+def settle_login_state(
+    page,
+    adapter: PlatformAdapter | None = None,
+    *,
+    timeout_seconds: float = LOGIN_STATE_SETTLE_TIMEOUT,
+    interval_seconds: float = LOGIN_STATE_SETTLE_INTERVAL,
+) -> dict:
+    """Recheck a transient verification interstitial before surfacing a pause.
+
+    Douyin can briefly render a verification interstitial while a reused,
+    already-authenticated Chrome tab is navigating. A persistent verification
+    page remains a human checkpoint; only a later non-risk state is accepted.
+    """
+    state = check_login_state(page, adapter=adapter)
+    if not state.get("risk_page"):
+        return state
+
+    deadline = time.monotonic() + max(0.0, float(timeout_seconds))
+    attempts = 1
+    while time.monotonic() < deadline:
+        remaining = deadline - time.monotonic()
+        time.sleep(min(max(0.0, float(interval_seconds)), remaining))
+        state = check_login_state(page, adapter=adapter)
+        attempts += 1
+        if not state.get("risk_page"):
+            if state.get("logged_in"):
+                return {
+                    **state,
+                    "risk_recovered": True,
+                    "risk_recheck_count": attempts,
+                }
+            return state
+
+    return {**state, "risk_recheck_count": attempts}
 
 
 def _find_qrcode_data_url(page, adapter: PlatformAdapter | None = None) -> str | None:

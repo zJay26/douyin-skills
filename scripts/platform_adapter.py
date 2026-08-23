@@ -36,6 +36,16 @@ class PlatformSelectors:
     detail_desc_selectors: tuple[str, ...]
     comment_item_selectors: tuple[str, ...]
     like_button_selectors: tuple[str, ...]
+    favorite_button_selectors: tuple[str, ...]
+    comment_action_selectors: tuple[str, ...]
+    comment_input_selectors: tuple[str, ...]
+    comment_submit_selectors: tuple[str, ...]
+    comment_submit_texts: tuple[str, ...]
+    comment_composer_texts: tuple[str, ...]
+    like_active_texts: tuple[str, ...]
+    favorite_active_texts: tuple[str, ...]
+    like_active_style_tokens: tuple[str, ...]
+    favorite_active_style_tokens: tuple[str, ...]
     note_action_bar_marker: str
     like_action_text: str
     favorite_action_text: str

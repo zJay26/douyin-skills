@@ -86,6 +86,11 @@ test('CDP bridge uses modern HTTP verbs and direct target commands', async (t) =
     targetId: 'target-1',
     expression: '42',
   });
+  const inserted = await invoke('insert-text', {
+    port,
+    targetId: 'target-1',
+    text: 'native input',
+  });
   const navigated = await invoke('navigate', {
     port,
     targetId: 'target-1',
@@ -95,12 +100,18 @@ test('CDP bridge uses modern HTTP verbs and direct target commands', async (t) =
   assert.equal(listed.targets[0].id, 'target-1');
   assert.equal(created.targetId, 'target-1');
   assert.equal(evaluated.value, 'evaluated');
+  assert.equal(inserted.success, true);
   assert.equal(navigated.recovered, true);
   assert.equal(targetUrl, 'https://www.douyin.com/search/demo?type=video');
   assert.ok(requests.some((request) => request.url === '/json/new' && request.method === 'PUT'));
   assert.deepEqual(
     commands.slice(0, 3).map((command) => command.method),
     ['Runtime.enable', 'Page.enable', 'Runtime.evaluate'],
+  );
+  assert.ok(
+    commands.some(
+      (command) => command.method === 'Input.insertText' && command.params.text === 'native input',
+    ),
   );
   assert.ok(commands.every((command) => !('sessionId' in command)));
 });

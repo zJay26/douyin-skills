@@ -20,6 +20,7 @@ description: 在抖音创作者中心填写图文发布表单、上传本地图�
 7. 根据 `published` 与 `status` 判断是否已确认成功。
 
 不要省略校验，不要在校验读取失败时点击发布。
+`fill-publish-image` 只有在图片出现上传完成标记，且页面中的标题、正文与请求值一致时才返回 `success: true`；页面截断或改写字段时应停止并修正文案。
 
 ## 素材要求
 
@@ -46,7 +47,7 @@ python "{baseDir}/../../scripts/cli.py" fill-publish-image \
 python "{baseDir}/../../scripts/cli.py" select-music --names "目标音乐1" "目标音乐2"
 ```
 
-指定音乐不可用时，CLI 会尝试选择面板中的首个可用音乐。必须看到 `success: true`，并在页面显示“修改音乐”。
+指定音乐不可用时，CLI 会尝试选择面板中首个带有明确“使用”按钮的音乐。必须看到 `success: true`、返回具体曲名，并在页面显示“修改音乐”。
 
 ## 3. 页面复核与校验
 

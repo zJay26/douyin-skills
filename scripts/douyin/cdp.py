@@ -123,6 +123,19 @@ class Page:
             },
         )
 
+    def insert_text(self, text: str) -> bool:
+        """Insert text into the focused editor through Chrome's input domain."""
+        result = _run_node(
+            "insert-text",
+            {
+                "host": self.host,
+                "port": self.port,
+                "targetId": self.target_id,
+                "text": text,
+            },
+        )
+        return bool(result.get("success"))
+
     def set_files(self, selector: str, files: list[str]) -> bool:
         result = _run_node(
             "set-file-input-files",
