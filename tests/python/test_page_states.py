@@ -31,7 +31,7 @@ class PageStateFixtureTests(unittest.TestCase):
         cls.by_id = {fixture["id"]: fixture for fixture in cls.fixtures}
 
     def test_versioned_fixture_set_is_complete_and_consistent(self) -> None:
-        self.assertEqual(len(self.fixtures), 16)
+        self.assertEqual(len(self.fixtures), 19)
         self.assertEqual(validate_fixture_set(self.fixtures), [])
         self.assertTrue((FIXTURE_ROOT.parent / "README.md").is_file())
 
@@ -243,6 +243,15 @@ class PageStateFixtureTests(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["state"], "incomplete")
         self.assertEqual(result["errors"], ["未选择音乐"])
+
+    def test_video_publish_fixture_requires_cover(self) -> None:
+        fixture = self.by_id["publish-video-missing-cover"]
+
+        result = classify_fixture(fixture)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["state"], "incomplete")
+        self.assertEqual(result["errors"], ["未设置视频封面"])
 
     def test_publish_classifier_distinguishes_uploading_from_missing_image(
         self,

@@ -12,7 +12,7 @@ This roadmap separates implemented behavior from evidence we still need. Dates a
 
 ## Current baseline
 
-- [x] Five composable Douyin Skills for environment, authentication, discovery, photo publishing, and basic interactions
+- [x] Five composable Douyin Skills for environment, authentication, discovery, photo/video publishing, and basic interactions
 - [x] Structured JSON CLI and loopback-only Chrome CDP runtime
 - [x] Named local profiles and default-account handling
 - [x] Explicit publish validation and confirmation

@@ -4,6 +4,23 @@ All notable changes are documented here. Releases follow semantic versioning, an
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-25
+
+### Added
+
+- Added guarded video publishing with local video upload, exact title and
+  description filling, optional custom-cover setup, media-specific validation,
+  and a separate `click-publish-video --confirm` step.
+- Added synthetic video-ready and missing-cover fixtures plus current Creator
+  Center adapter markers for upload, preview, progress, failure, and cover state.
+
+### Fixed
+
+- Required explicit, adapter-owned active/inactive evidence before clicking
+  like or favorite; unknown toggle state now stops without probing the control.
+- Rechecked headed login state and ignored stale risk-page titles when current
+  authenticated UI disproves a persistent captcha or verification page.
+
 ## [1.3.0] - 2026-08-23
 
 ### Added
@@ -130,6 +147,7 @@ All notable changes are documented here. Releases follow semantic versioning, an
 - Captcha, identity checks, and platform risk controls are never bypassed.
 - Unconfirmed irreversible actions are never reported as confirmed or retried automatically.
 
+[1.4.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.4.0
 [1.3.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.3.0
 [1.2.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.2.0
 [1.1.2]: https://github.com/zJay26/douyin-skills/releases/tag/v1.1.2

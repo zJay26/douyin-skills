@@ -46,7 +46,7 @@ python "{baseDir}/../../scripts/cli.py" get-trending-topics
 
 ## 结果与边界
 
-- `success: false` 且 `risk_page: true`：切到人工验证流程。
+- `needs_user_verification: true`：切到人工验证流程；若 `check-login` 已返回 `risk_recovered: true`、`logged_in: true`，继续执行，不要因切换前的风险状态停下。
 - `count: 0` 且 `success: true`：搜索正常但没有结果，可建议更换关键词。
 - 不执行用户主页批量抓取、评论区全量采集、高级筛选、话题历史趋势分析或数据分析。
 - 不为补齐作者 ID 逐条打开结果详情；保持搜索流程轻量，避免额外请求。

@@ -19,8 +19,9 @@ These checks exercise behavior that does not need a Douyin account:
 - CLI argument validation, including explicit publish confirmation and search limits;
 - Douyin URL normalization and rejection of off-domain content links;
 - login-state classification with synthetic browser responses;
-- image-path validation, exact title/body application, upload-ready evidence,
-  semantic music controls, and distinct confirmed/unconfirmed publish states;
+- image/video-path validation, exact title/body application, media-specific
+  upload-ready evidence, video-cover validation, semantic music controls, and
+  distinct confirmed/unconfirmed publish states;
 - one-at-a-time interaction semantics that do not invent a final state,
   including existing-draft preservation and confirmed/unconfirmed comments;
 - the Node.js CDP request/response bridge, including native text insertion;
@@ -39,13 +40,15 @@ The versioned [page-state fixtures](../fixtures/page_states/README.md) are also 
 ## Supported source scope
 
 The current source tree implements the following Douyin web workflows through
-the local CLI. The `v1.3.0` tag is the first stable release that includes the
-bounded public-comment workflow:
+the local CLI. The `v1.4.0` tag is the first stable release that includes the
+guarded video-publishing workflow:
 
 - environment diagnosis and named local-account configuration;
 - login-state inspection, QR-code retrieval, and user-completed SMS verification;
 - public video/note search and detail lookup;
-- photo-post form filling, music selection, pre-publish validation, and a separately confirmed publish click;
+- photo-post form filling and music selection, plus video upload, custom-cover
+  setting, media-specific pre-publish validation, and separately confirmed
+  publish clicks;
 - one-at-a-time like, favorite, public-comment, and public-link sharing actions.
 
 Support here means the command and its safety/result contract are implemented and tested with synthetic inputs. Live success still depends on the current page, account state, and platform controls.
@@ -59,7 +62,7 @@ Use this checklist when validating against a real account. Never attach the resu
 3. Use a dedicated local profile and a low-risk test account that you are authorized to operate.
 4. Confirm login and risk pages are surfaced for human completion rather than bypassed.
 5. For discovery, compare the structured result with the visible public page.
-6. For photo publishing, fill synthetic test content first and stop at `validate-publish`.
+6. For photo publishing, fill synthetic test content first and stop at `validate-publish`; for video publishing, stop at `validate-publish-video`.
 7. If a real publish is necessary, inspect the visible page and provide `--confirm` separately.
 8. Treat `publish_clicked_unconfirmed` as unresolved: check Creator Center and never blind-retry.
 9. For comments, preserve any existing draft, submit once, and never retry
@@ -84,8 +87,8 @@ The current source tree does **not** claim:
 
 - successful login, search, interaction, or publishing for every account or current Douyin page version;
 - captcha, identity-check, or risk-control automation or bypass;
-- support for video publishing, comment replies, direct messages, draft
-  management, scheduling, or bulk operations;
+- support for comment replies, direct messages, draft management, scheduling,
+  or bulk operations;
 - unattended or idempotent retry after an irreversible click;
 - macOS runtime coverage in CI;
 - plug-and-play execution on every Agent Skills client;

@@ -46,6 +46,10 @@ class PlatformSelectors:
     favorite_active_texts: tuple[str, ...]
     like_active_style_tokens: tuple[str, ...]
     favorite_active_style_tokens: tuple[str, ...]
+    like_active_state_tokens: tuple[str, ...]
+    like_inactive_state_tokens: tuple[str, ...]
+    favorite_active_state_tokens: tuple[str, ...]
+    favorite_inactive_state_tokens: tuple[str, ...]
     note_action_bar_marker: str
     like_action_text: str
     favorite_action_text: str
@@ -56,6 +60,19 @@ class PlatformSelectors:
     publish_title_input_selector: str
     publish_editor_selectors: tuple[str, ...]
     publish_image_markers: tuple[str, ...]
+    publish_video_file_input_selector: str
+    publish_video_title_input_selector: str
+    publish_video_editor_selectors: tuple[str, ...]
+    publish_video_preview_selectors: tuple[str, ...]
+    publish_video_ready_texts: tuple[str, ...]
+    publish_video_progress_selectors: tuple[str, ...]
+    publish_video_failure_texts: tuple[str, ...]
+    publish_video_cover_control_selector: str
+    publish_video_empty_cover_text: str
+    publish_video_cover_dialog_markers: tuple[str, ...]
+    publish_video_cover_upload_markers: tuple[str, ...]
+    publish_video_cover_done_text: str
+    publish_video_cover_skip_horizontal_text: str
     music_open_selectors: tuple[str, ...]
     music_open_texts: tuple[str, ...]
     music_panel_selector: str
@@ -79,6 +96,7 @@ class PlatformAdapter(Protocol):
     featured_url: str
     trending_url: str
     creator_upload_url: str
+    creator_video_upload_url: str
     default_content_kind: str
     content_path_fragments: Sequence[str]
     content_url_templates: Mapping[str, str]
@@ -102,7 +120,7 @@ class PlatformAdapter(Protocol):
 
     def is_platform_url(self, value: str) -> bool: ...
 
-    def is_publish_url(self, value: str) -> bool: ...
+    def is_publish_url(self, value: str, kind: str | None = None) -> bool: ...
 
     def is_risk_page(self, title: str, text: str) -> bool: ...
 
@@ -115,6 +133,8 @@ class PlatformAdapter(Protocol):
     def navigate_trending(self, page: Any) -> None: ...
 
     def navigate_publish_image(self, page: Any) -> None: ...
+
+    def navigate_publish_video(self, page: Any) -> None: ...
 
 
 def get_default_adapter() -> PlatformAdapter:

@@ -1,11 +1,11 @@
 ---
 name: douyin-skills
-description: 抖音网页版与创作者中心的本地自动化技能包入口。用于组合登录、搜索、热门话题、图文发布、点赞、收藏、评论、分享链接，或解释整体能力、安全边界与多步骤流程；单一任务优先使用对应的 douyin-* 子技能。
+description: 抖音网页版与创作者中心的本地自动化技能包入口。用于组合登录、搜索、热门话题、图文/视频发布、点赞、收藏、评论、分享链接，或解释整体能力、安全边界与多步骤流程；单一任务优先使用对应的 douyin-* 子技能。
 ---
 
 # 抖音自动化技能包
 
-使用本项目的本地 CLI 驱动本机 Chrome，处理登录、内容发现、图文发布和基础互动。
+使用本项目的本地 CLI 驱动本机 Chrome，处理登录、内容发现、图文/视频发布和基础互动。
 
 ## 执行入口
 
@@ -35,7 +35,7 @@ python "{baseDir}/scripts/cli.py" version
 | 检查登录、扫码、短信验证、多账号 | `douyin-auth` |
 | 安装、迁移、依赖检查 | `douyin-env` |
 | 搜索、读取公开作品详情、查看热门话题 | `douyin-explore` |
-| 图文表单、音乐、发布 | `douyin-publish` |
+| 图文/视频表单、封面、音乐、发布 | `douyin-publish` |
 | 点赞、收藏、评论、获取分享链接 | `douyin-interact` |
 
 多步骤请求按 `认证 → 内容准备/搜索 → 发布或互动 → 结果确认` 的顺序组合子技能。
@@ -44,11 +44,11 @@ python "{baseDir}/scripts/cli.py" version
 
 1. 将实际抖音页面操作限制在本项目 CLI；可以使用普通文件或图片工具准备、检查素材，但不要换用另一套抖音自动化实现。
 2. 只连接 loopback Chrome 调试地址，不向局域网或公网暴露 CDP。
-3. 优先复用同一端口上已有的可用 loopback Chrome 调试实例，不因 headless/headed 偏好差异重启用户的登录会话；没有可用实例时才按默认模式启动 Chrome。导航后若短暂出现验证码/风控中间页，CLI 会先做有限稳定重检；只有风险页持续存在才切到 headed 并停下请用户人工处理；不要尝试绕过验证。
+3. 优先复用同一端口上已有的可用 loopback Chrome 调试实例，不因 headless/headed 偏好差异重启用户的登录会话；没有可用实例时才按默认模式启动 Chrome。导航后若短暂出现验证码/风控中间页，CLI 会先做有限稳定重检，并在切到 headed 后重新判定当前页面；`risk_recovered: true` 且 `logged_in: true` 时直接继续。只有 JSON 明确返回 `needs_user_verification: true` 才停下请用户人工处理；不要仅凭标题、页面片段或旧的 `risk_page` 结果暂停，也不要尝试绕过验证。
 4. 在任何会改变账号状态的操作前确认目标账号与目标作品。用户明确提出“点赞/收藏/评论/发布该内容”可视为本次操作授权。
-5. 发布前必须检查标题、正文、图片和音乐，并执行 `validate-publish`。最终点击必须显式传 `--confirm`。
+5. 发布前必须检查素材、标题、文案、封面及对应页面状态：图文执行 `validate-publish`，视频执行 `validate-publish-video`。最终点击必须显式传 `--confirm`。
 6. 发布返回 `status: publish_clicked_unconfirmed` 时，不要重试；先去作品管理确认，避免重复发布。
-7. 点赞和收藏应先读取按钮状态；已处于激活状态时不得再次点击。点击后优先根据 `aria-pressed`、`aria-checked`、平台已激活文案等证据确认；`state_verified: false` 时如实说明，不要自动重复点击。需要只读核对时使用 `get-interaction-state`。
+7. 点赞和收藏应先读取按钮状态；优先采用适配器声明的 `data-e2e-state` 等平台显式状态，再结合 `aria-pressed`、`aria-checked`、激活文案或样式。已处于激活状态时不得再次点击；状态仍为 `unknown` 时必须保持 `clicked: false` 并停止。点击后若 `state_verified: false`，如实说明且不要自动重复点击。需要只读核对时使用 `get-interaction-state`。
 8. 保持合理操作频率，不执行批量养号、刷量或规避平台限制的流程。
 
 ## 账号规则
@@ -65,11 +65,11 @@ python "{baseDir}/scripts/cli.py" version
 - 认证：`check-login`、`get-qrcode`、`wait-login`、`send-code`、`verify-code`
 - 账号：`list-accounts`、`add-account`、`remove-account`、`set-default-account`
 - 发现：`search-videos`、`get-trending-topics`、`get-video-detail`
-- 发布：`fill-publish-image`、`select-music`、`validate-publish`、`click-publish`
+- 发布：`fill-publish-image`、`select-music`、`validate-publish`、`click-publish`、`fill-publish-video`、`set-video-cover`、`validate-publish-video`、`click-publish-video`
 - 互动：`like-video`、`favorite-video`、`comment-video`、`get-interaction-state`、`share-video`
 
 ## 不承诺的能力
 
-评论只支持在页面明确提供输入框和发送控件时尝试一次；发送后未确认时不要重试。不要承诺回复评论、私信、视频发布、草稿、定时发布、数据分析、用户主页批量抓取、批量互动或完整运营流水线。
+评论只支持在页面明确提供输入框和发送控件时尝试一次；发送后未确认时不要重试。不要承诺回复评论、私信、草稿管理、定时发布、数据分析、用户主页批量抓取、批量互动或完整运营流水线。
 
 本项目与抖音及字节跳动无隶属或官方合作关系。仅操作用户有权使用的账号与内容，并遵守适用法律和平台规则。

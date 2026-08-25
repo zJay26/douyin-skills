@@ -38,9 +38,13 @@ from douyin.login import (
 )
 from douyin.publish import (
     click_publish,
+    click_publish_video,
     fill_publish_image,
+    fill_publish_video,
     select_music,
+    set_video_cover,
     validate_publish_state,
+    validate_video_publish_state,
 )
 from douyin.search import get_trending_topics, get_video_detail, search_videos
 from platform_adapter import get_default_adapter
@@ -52,7 +56,12 @@ def _wslg_headed_env_exports() -> str:
 
 
 def _maybe_switch_to_headed_for_risk(
-    args: argparse.Namespace, result: dict, reason: str, adapter
+    args: argparse.Namespace,
+    result: dict,
+    reason: str,
+    adapter,
+    *,
+    accept_recovered_login: bool = False,
 ):
     if not isinstance(result, dict) or not result.get("risk_page"):
         return None
@@ -70,6 +79,20 @@ def _maybe_switch_to_headed_for_risk(
     _browser, page = _connect(headed_args)
     adapter.navigate_home(page)
     page.wait_for_load(20)
+    if accept_recovered_login:
+        recovered = settle_login_state(page, adapter=adapter)
+        if not recovered.get("risk_page"):
+            logged_in = bool(recovered.get("logged_in"))
+            return {
+                **recovered,
+                "action": "risk_recovered_after_headed_switch",
+                "risk_recovered": True,
+                "needs_user_verification": False,
+                "message": "切换到可见浏览器后风险状态已消失，当前登录状态已重新确认。"
+                if logged_in
+                else "切换到可见浏览器后风险状态已消失，但当前尚未确认登录。",
+            }
+        result = recovered
     body = _risk_or_verify_text(page)
     return {
         **result,
@@ -205,10 +228,21 @@ def cmd_check_login(args: argparse.Namespace) -> None:
     page.wait_for_load(20)
     state = settle_login_state(page, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
-        args, state, "检测到验证码/风控页", adapter
+        args,
+        state,
+        "检测到验证码/风控页",
+        adapter,
+        accept_recovered_login=True,
     )
     if switched:
-        _output(switched, exit_code=2)
+        exit_code = (
+            2
+            if switched.get("needs_user_verification")
+            else 0
+            if switched.get("logged_in")
+            else 1
+        )
+        _output(switched, exit_code=exit_code)
     _output(state, exit_code=0 if state.get("logged_in") else 1)
 
 
@@ -389,6 +423,49 @@ def cmd_fill_publish_image(args: argparse.Namespace) -> None:
     _output(result, exit_code=0 if result.get("success") else 2)
 
 
+def cmd_fill_publish_video(args: argparse.Namespace) -> None:
+    desc_path = Path(args.desc_file).expanduser()
+    if not desc_path.is_absolute():
+        raise ValueError("--desc-file 必须使用绝对路径")
+    try:
+        desc_path = desc_path.resolve(strict=True)
+    except FileNotFoundError as exc:
+        raise ValueError(f"作品简介文件不存在：{args.desc_file}") from exc
+    if not desc_path.is_file():
+        raise ValueError(f"作品简介路径不是文件：{args.desc_file}")
+    desc = desc_path.read_text(encoding="utf-8").strip()
+    if not desc:
+        raise ValueError("作品简介文件不能为空")
+    adapter = get_default_adapter()
+    _browser, page = _connect(args)
+    result = fill_publish_video(
+        page,
+        args.video,
+        desc,
+        args.title,
+        cover=getattr(args, "cover", None),
+        adapter=adapter,
+    )
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "视频发布页检测到验证码/风控", adapter
+    )
+    if switched:
+        _output(switched, exit_code=2)
+    _output(result, exit_code=0 if result.get("success") else 2)
+
+
+def cmd_set_video_cover(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
+    _browser, page = _connect(args)
+    result = set_video_cover(page, args.cover, adapter=adapter)
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "设置视频封面时检测到验证码/风控", adapter
+    )
+    if switched:
+        _output(switched, exit_code=2)
+    _output(result, exit_code=0 if result.get("success") else 2)
+
+
 def cmd_select_music(args: argparse.Namespace) -> None:
     adapter = get_default_adapter()
     _browser, page = _connect(args)
@@ -435,6 +512,46 @@ def cmd_click_publish(args: argparse.Namespace) -> None:
     )
     switched = _maybe_switch_to_headed_for_risk(
         args, result, "发布前检测到验证码/风控", adapter
+    )
+    if switched:
+        _output(switched, exit_code=2)
+    _output(result, exit_code=0 if result.get("success") else 2)
+
+
+def cmd_validate_publish_video(args: argparse.Namespace) -> None:
+    adapter = get_default_adapter()
+    _browser, page = _connect(args)
+    result = validate_video_publish_state(
+        page,
+        require_topic=getattr(args, "require_topic", False),
+        adapter=adapter,
+    )
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "视频发布校验时检测到验证码/风控", adapter
+    )
+    if switched:
+        _output(switched, exit_code=2)
+    _output(result, exit_code=0 if result.get("success") else 2)
+
+
+def cmd_click_publish_video(args: argparse.Namespace) -> None:
+    if not getattr(args, "confirm", False):
+        _output(
+            {
+                "success": False,
+                "error": "click-publish-video 必须显式传入 --confirm，表示已完成视频、封面、文案与页面复核",
+            },
+            exit_code=2,
+        )
+    adapter = get_default_adapter()
+    _browser, page = _connect(args)
+    result = click_publish_video(
+        page,
+        require_topic=getattr(args, "require_topic", False),
+        adapter=adapter,
+    )
+    switched = _maybe_switch_to_headed_for_risk(
+        args, result, "视频发布前检测到验证码/风控", adapter
     )
     if switched:
         _output(switched, exit_code=2)
@@ -522,6 +639,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--title", required=True)
     p.add_argument("--images", nargs="+", required=True)
 
+    p = sub.add_parser("fill-publish-video")
+    p.add_argument("--desc-file", required=True)
+    p.add_argument("--title", required=True)
+    p.add_argument("--video", required=True)
+    p.add_argument("--cover")
+
+    p = sub.add_parser("set-video-cover")
+    p.add_argument("--cover", required=True)
+
     p = sub.add_parser("select-music")
     p.add_argument("--names", nargs="*", default=[])
 
@@ -534,6 +660,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--confirm",
         action="store_true",
         help="确认已人工复核标题、正文、图片、音乐和页面状态",
+    )
+
+    p = sub.add_parser("validate-publish-video")
+    p.add_argument("--require-topic", action="store_true")
+
+    p = sub.add_parser("click-publish-video")
+    p.add_argument("--require-topic", action="store_true")
+    p.add_argument(
+        "--confirm",
+        action="store_true",
+        help="确认已人工复核视频、封面、标题、作品简介和页面状态",
     )
 
     p = sub.add_parser("like-video")
@@ -576,9 +713,13 @@ def main(argv: list[str] | None = None) -> None:
         "get-trending-topics": cmd_get_trending_topics,
         "get-video-detail": cmd_get_video_detail,
         "fill-publish-image": cmd_fill_publish_image,
+        "fill-publish-video": cmd_fill_publish_video,
+        "set-video-cover": cmd_set_video_cover,
         "select-music": cmd_select_music,
         "validate-publish": cmd_validate_publish,
         "click-publish": cmd_click_publish,
+        "validate-publish-video": cmd_validate_publish_video,
+        "click-publish-video": cmd_click_publish_video,
         "like-video": cmd_like_video,
         "favorite-video": cmd_favorite_video,
         "comment-video": cmd_comment_video,

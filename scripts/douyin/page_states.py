@@ -71,19 +71,22 @@ def has_risk_evidence(title: str = "", text: str = "") -> bool:
 
 
 def classify_login_snapshot(snapshot: dict) -> dict:
-    risk_page = bool(snapshot.get("hasRiskKeyword"))
     has_login_panel = bool(snapshot.get("hasLoginPanel"))
-    high_confidence_marker = bool(snapshot.get("hasProfileUi")) or bool(
-        snapshot.get("hasAuthCookie")
-    )
+    has_profile_ui = bool(snapshot.get("hasProfileUi"))
+    has_auth_cookie = bool(snapshot.get("hasAuthCookie"))
     corroborated_ui = int(snapshot.get("loggedInHintCount", 0) or 0) >= 2 and not bool(
         snapshot.get("hasLoginKeyword")
     )
-    logged_in = (
-        not risk_page
-        and not has_login_panel
-        and (high_confidence_marker or corroborated_ui)
+    visible_authenticated_ui = has_profile_ui or corroborated_ui
+    explicit_risk_ui = (
+        bool(snapshot.get("hasRiskUi"))
+        or int(snapshot.get("riskKeywordCount", 0) or 0) >= 2
     )
+    risk_page = bool(snapshot.get("hasRiskKeyword")) and (
+        explicit_risk_ui or not visible_authenticated_ui
+    )
+    high_confidence_marker = visible_authenticated_ui or has_auth_cookie
+    logged_in = not risk_page and not has_login_panel and high_confidence_marker
     return {
         "logged_in": logged_in,
         "risk_page": risk_page,
@@ -150,6 +153,38 @@ def classify_publish_snapshot(snapshot: dict, require_topic: bool = False) -> di
         errors.append("正文为空")
     if not bool(state.get("hasMusic")):
         errors.append("未选择音乐")
+    if require_topic and not bool(state.get("hasTopic")):
+        errors.append("未关联热点")
+    state.update(
+        {
+            "success": not errors,
+            "requireTopic": bool(require_topic),
+            "errors": errors,
+            "state": "ready" if not errors else "incomplete",
+        }
+    )
+    return state
+
+
+def classify_video_publish_snapshot(
+    snapshot: dict, require_topic: bool = False
+) -> dict:
+    state = dict(snapshot)
+    errors: list[str] = []
+    if not bool(state.get("hasVideo")):
+        errors.append(
+            "视频上传未完成" if bool(state.get("uploadInProgress")) else "缺少视频"
+        )
+    if not str(state.get("title") or "").strip():
+        errors.append("标题为空")
+    if not str(state.get("editorText") or "").strip():
+        errors.append("作品简介为空")
+    if not bool(state.get("hasCover")):
+        errors.append("未设置视频封面")
+    if not bool(state.get("publishButtonFound")):
+        errors.append("未找到发布按钮")
+    elif bool(state.get("publishButtonDisabled")):
+        errors.append("发布按钮不可用")
     if require_topic and not bool(state.get("hasTopic")):
         errors.append("未关联热点")
     state.update(
@@ -293,6 +328,11 @@ def classify_fixture(fixture: dict) -> dict:
         )
     if flow == "publish" and fixture_input.get("mode") == "validation":
         return classify_publish_snapshot(
+            fixture_input["snapshot"],
+            require_topic=bool(fixture_input.get("require_topic")),
+        )
+    if flow == "publish" and fixture_input.get("mode") == "video_validation":
+        return classify_video_publish_snapshot(
             fixture_input["snapshot"],
             require_topic=bool(fixture_input.get("require_topic")),
         )

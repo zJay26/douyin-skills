@@ -28,9 +28,15 @@ def _read_action_state_with_styles(
     selector: str,
     active_texts: tuple[str, ...] = (),
     active_style_tokens: tuple[str, ...] = (),
+    active_state_tokens: tuple[str, ...] = (),
+    inactive_state_tokens: tuple[str, ...] = (),
 ) -> dict:
     active_texts_json = json.dumps(list(active_texts), ensure_ascii=False)
     active_style_tokens_json = json.dumps(list(active_style_tokens), ensure_ascii=False)
+    active_state_tokens_json = json.dumps(list(active_state_tokens), ensure_ascii=False)
+    inactive_state_tokens_json = json.dumps(
+        list(inactive_state_tokens), ensure_ascii=False
+    )
     selector_json = json.dumps(selector, ensure_ascii=False)
     return page.evaluate(
         f"""
@@ -49,6 +55,14 @@ def _read_action_state_with_styles(
           ].join(' ')).join(' ').trim();
           const activeTexts = {active_texts_json};
           const activeStyleTokens = {active_style_tokens_json};
+          const activeStateTokens = {active_state_tokens_json}
+            .map(value => String(value).toLowerCase());
+          const inactiveStateTokens = {inactive_state_tokens_json}
+            .map(value => String(value).toLowerCase());
+          const dataE2eState = String(root.getAttribute('data-e2e-state') || '')
+            .toLowerCase();
+          const attributeActive = activeStateTokens.includes(dataE2eState);
+          const attributeInactive = inactiveStateTokens.includes(dataE2eState);
           const explicitTrue = values.some(value => ['true', '1', 'yes'].includes(value));
           const explicitFalse = values.some(value => ['false', '0', 'no'].includes(value));
           const activeText = activeTexts.some(text => text && labels.includes(text));
@@ -66,22 +80,25 @@ def _read_action_state_with_styles(
           const activeStyle = activeStyleTokens.some(token =>
             colors.some(color => color.toLowerCase().includes(token.toLowerCase()))
           );
-          const state = explicitTrue || activeText
-            ? 'active'
-            : activeStyle
+          const highActive = attributeActive || explicitTrue || activeText || activeStyle;
+          const highInactive = attributeInactive || explicitFalse;
+          const evidenceConflict = highActive && highInactive;
+          const state = evidenceConflict
+            ? 'unknown'
+            : highActive
               ? 'active'
-            : explicitFalse
-              ? 'inactive'
-              : activeClass
-                ? 'active'
-                : 'unknown';
-          const confidence = explicitTrue || explicitFalse || activeText
-            ? 'high'
-            : activeStyle
+              : highInactive
+                ? 'inactive'
+                : activeClass
+                  ? 'active'
+                  : 'unknown';
+          const confidence = evidenceConflict
+            ? 'none'
+            : highActive || highInactive
               ? 'high'
-            : activeClass
-              ? 'low'
-              : 'none';
+              : activeClass
+                ? 'low'
+                : 'none';
           return {{
             state,
             confidence,
@@ -89,10 +106,14 @@ def _read_action_state_with_styles(
             ariaPressed: root.getAttribute('aria-pressed') || '',
             ariaChecked: root.getAttribute('aria-checked') || '',
             dataSelected: root.getAttribute('data-selected') || '',
+            dataE2eState,
             label: labels.slice(0, 300),
             classes,
             colors,
-            activeStyle
+            activeStyle,
+            attributeActive,
+            attributeInactive,
+            evidenceConflict
           }};
         }})()
         """
@@ -104,12 +125,19 @@ def _wait_for_active_action(
     selector: str,
     active_texts: tuple[str, ...] = (),
     active_style_tokens: tuple[str, ...] = (),
+    active_state_tokens: tuple[str, ...] = (),
+    inactive_state_tokens: tuple[str, ...] = (),
     *,
     timeout_seconds: float = ACTION_STATE_TIMEOUT,
 ) -> dict:
     deadline = time.monotonic() + max(0.0, float(timeout_seconds))
     state = _read_action_state_with_styles(
-        page, selector, active_texts, active_style_tokens
+        page,
+        selector,
+        active_texts,
+        active_style_tokens,
+        active_state_tokens,
+        inactive_state_tokens,
     )
     while time.monotonic() < deadline:
         if state.get("state") == "active" and state.get("confidence") == "high":
@@ -117,7 +145,12 @@ def _wait_for_active_action(
         remaining = deadline - time.monotonic()
         time.sleep(min(ACTION_STATE_INTERVAL, max(0.0, remaining)))
         state = _read_action_state_with_styles(
-            page, selector, active_texts, active_style_tokens
+            page,
+            selector,
+            active_texts,
+            active_style_tokens,
+            active_state_tokens,
+            inactive_state_tokens,
         )
     return state
 
@@ -127,25 +160,33 @@ def _ensure_action_active(
     selector: str,
     active_texts: tuple[str, ...] = (),
     active_style_tokens: tuple[str, ...] = (),
+    active_state_tokens: tuple[str, ...] = (),
+    inactive_state_tokens: tuple[str, ...] = (),
 ) -> dict:
     before = _read_action_state_with_styles(
-        page, selector, active_texts, active_style_tokens
+        page,
+        selector,
+        active_texts,
+        active_style_tokens,
+        active_state_tokens,
+        inactive_state_tokens,
     )
-    if before.get("state") == "active":
+    if before.get("state") == "active" and before.get("confidence") == "high":
         return {
             "success": True,
             "clicked": False,
             "state": "active",
-            "state_verified": before.get("confidence") == "high",
+            "state_verified": True,
             "before": before,
             "after": before,
         }
-    if before.get("state") == "missing":
+    if before.get("state") != "inactive" or before.get("confidence") != "high":
         return {
             "success": False,
             "clicked": False,
-            "state": "missing",
+            "state": before.get("state", "unknown"),
             "state_verified": False,
+            "blocked_reason": "interaction_state_unverified",
             "before": before,
             "after": before,
         }
@@ -159,7 +200,14 @@ def _ensure_action_active(
             "before": before,
             "after": {"state": "unknown", "confidence": "none"},
         }
-    after = _wait_for_active_action(page, selector, active_texts, active_style_tokens)
+    after = _wait_for_active_action(
+        page,
+        selector,
+        active_texts,
+        active_style_tokens,
+        active_state_tokens,
+        inactive_state_tokens,
+    )
     return {
         "success": True,
         "clicked": True,
@@ -606,6 +654,8 @@ def like_video(page, video_id: str, adapter: PlatformAdapter | None = None) -> d
             selector,
             adapter.selectors.like_active_texts,
             adapter.selectors.like_active_style_tokens,
+            adapter.selectors.like_active_state_tokens,
+            adapter.selectors.like_inactive_state_tokens,
         )
         if selector
         else None
@@ -631,6 +681,19 @@ def like_video(page, video_id: str, adapter: PlatformAdapter | None = None) -> d
                 else "已点击点赞按钮，但最终状态未确认；不要自动重复点击。"
             ),
         }
+    if interaction and interaction.get("blocked_reason"):
+        return {
+            "success": False,
+            **meta,
+            "selector": selector,
+            "clicked": False,
+            "state": interaction.get("state", "unknown"),
+            "state_verified": False,
+            "blocked_reason": interaction.get("blocked_reason"),
+            "detail": interaction,
+            "error": "点赞状态无法可靠判定，未执行点击",
+            "message": "点赞状态证据不足，已安全停止且未点击按钮。",
+        }
     if opened.get("kind") == "note":
         result = _click_note_action(page, "like", adapter=adapter)
         return {
@@ -643,7 +706,16 @@ def like_video(page, video_id: str, adapter: PlatformAdapter | None = None) -> d
             if result.get("ok")
             else "未找到可用的点赞区域。",
         }
-    return {"success": False, **meta, "error": "未找到点赞按钮"}
+    return {
+        "success": False,
+        **meta,
+        "selector": selector or "",
+        "clicked": False,
+        "state": interaction.get("state", "missing") if interaction else "missing",
+        "state_verified": False,
+        "detail": interaction,
+        "error": "点赞按钮不可用" if selector else "未找到点赞按钮",
+    }
 
 
 def favorite_video(page, video_id: str, adapter: PlatformAdapter | None = None) -> dict:
@@ -674,46 +746,63 @@ def favorite_video(page, video_id: str, adapter: PlatformAdapter | None = None) 
             selector,
             adapter.selectors.favorite_active_texts,
             adapter.selectors.favorite_active_style_tokens,
+            adapter.selectors.favorite_active_state_tokens,
+            adapter.selectors.favorite_inactive_state_tokens,
         )
         if selector
         else None
     )
-    interaction_succeeded = bool(interaction and interaction.get("success"))
-    fallback_clicked = False
-    if not interaction_succeeded:
-        fallback_clicked = _click_text(page, adapter.selectors.favorite_action_text)
-    clicked = interaction_succeeded or fallback_clicked
-    confirmed = bool(interaction and interaction.get("state_verified"))
-    already_active = interaction_succeeded and not bool(interaction.get("clicked"))
+    if interaction and interaction.get("success"):
+        confirmed = bool(interaction.get("state_verified"))
+        already_active = not bool(interaction.get("clicked"))
+        return {
+            "success": True,
+            "video_id": content_id,
+            "action": "favorite",
+            "page_kind": opened.get("kind"),
+            "url": opened.get("href"),
+            "selector": selector,
+            "clicked": interaction.get("clicked", True),
+            "state": "already_active"
+            if already_active
+            else interaction.get("state", "unknown"),
+            "state_verified": interaction.get("state_verified", False),
+            "detail": interaction,
+            "message": "收藏状态已确认，未重复点击。"
+            if confirmed and already_active
+            else "已点击收藏并确认状态已激活。"
+            if confirmed
+            else "已点击收藏按钮，但最终状态未确认；不要自动重复点击。",
+        }
+    if interaction and interaction.get("blocked_reason"):
+        return {
+            "success": False,
+            "video_id": content_id,
+            "action": "favorite",
+            "page_kind": opened.get("kind"),
+            "url": opened.get("href"),
+            "selector": selector,
+            "clicked": False,
+            "state": interaction.get("state", "unknown"),
+            "state_verified": False,
+            "blocked_reason": interaction.get("blocked_reason"),
+            "detail": interaction,
+            "error": "收藏状态无法可靠判定，未执行点击",
+            "message": "收藏状态证据不足，已安全停止且未点击按钮。",
+        }
     return {
-        "success": clicked,
+        "success": False,
         "video_id": content_id,
         "action": "favorite",
         "page_kind": opened.get("kind"),
         "url": opened.get("href"),
-        "selector": selector
-        if interaction_succeeded and selector
-        else (f"text:{adapter.selectors.favorite_action_text}" if clicked else ""),
-        "clicked": bool(interaction.get("clicked"))
-        if interaction_succeeded
-        else fallback_clicked,
-        "state": "already_active"
-        if already_active
-        else interaction.get("state", "unknown")
-        if interaction_succeeded
-        else "unknown",
-        "state_verified": bool(
-            interaction_succeeded and interaction.get("state_verified")
-        ),
+        "selector": selector or "",
+        "clicked": False,
+        "state": interaction.get("state", "missing") if interaction else "missing",
+        "state_verified": False,
         "detail": interaction,
-        "message": "收藏状态已确认，未重复点击。"
-        if confirmed and already_active
-        else "已点击收藏并确认状态已激活。"
-        if confirmed
-        else "已点击收藏按钮，但最终状态未确认；不要自动重复点击。"
-        if clicked
-        else "未找到收藏按钮。",
-        "error": "未找到收藏按钮" if not clicked else "",
+        "error": "收藏按钮不可用" if selector else "未找到收藏按钮",
+        "message": "收藏按钮不可用。" if selector else "未找到收藏按钮。",
     }
 
 
@@ -742,23 +831,35 @@ def get_interaction_state(
         "like": (
             adapter.selectors.like_button_selectors,
             adapter.selectors.like_active_texts,
+            adapter.selectors.like_active_style_tokens,
+            adapter.selectors.like_active_state_tokens,
+            adapter.selectors.like_inactive_state_tokens,
         ),
         "favorite": (
             adapter.selectors.favorite_button_selectors,
             adapter.selectors.favorite_active_texts,
+            adapter.selectors.favorite_active_style_tokens,
+            adapter.selectors.favorite_active_state_tokens,
+            adapter.selectors.favorite_inactive_state_tokens,
         ),
     }
     states = {}
-    for name, (selectors, active_texts) in actions.items():
+    for name, (
+        selectors,
+        active_texts,
+        active_style_tokens,
+        active_state_tokens,
+        inactive_state_tokens,
+    ) in actions.items():
         selector = _first_clickable(page, selectors)
         snapshot = (
             _read_action_state_with_styles(
                 page,
                 selector,
                 active_texts,
-                adapter.selectors.like_active_style_tokens
-                if name == "like"
-                else adapter.selectors.favorite_active_style_tokens,
+                active_style_tokens,
+                active_state_tokens,
+                inactive_state_tokens,
             )
             if selector
             else {"state": "missing", "confidence": "none"}

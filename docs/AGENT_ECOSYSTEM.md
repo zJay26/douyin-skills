@@ -13,7 +13,7 @@ intent → Skill contract → structured CLI → local browser runtime → platf
 
 | Surface | Current status | Evidence and limit |
 | --- | --- | --- |
-| Douyin Web / Creator Center | Implemented | Login, discovery, photo publishing, and one-at-a-time basic interactions have code and focused tests; live pages can still drift |
+| Douyin Web / Creator Center | Implemented | Login, discovery, photo/video publishing, and one-at-a-time basic interactions have code and focused tests; live pages can still drift |
 | OpenClaw | Primary packaged experience | Repository installation and nested Skill discovery are documented; a full OpenClaw end-to-end run is not part of CI |
 | Agent Skills format | Root Skill uses the open format | `SKILL.md` has the required metadata and versioned instructions; execution has not been certified across every compatible client |
 | Other Agent clients | Integration direction | The JSON CLI is callable, but client-specific installation, permissions, and UX need separate validation |

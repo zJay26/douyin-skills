@@ -39,7 +39,7 @@ Everyday Douyin web tasks are not inherently complicated, but browser startup, l
 | “Check login and show me the QR code if needed” | QR, SMS verification, multiple accounts | The user completes verification |
 | “Find five weekend camping posts” | Keyword search, video/photo details | Up to 20 public posts per search |
 | “Show me the current Douyin hot topics” | Read public trending topics | Up to 20; page drift is reported explicitly |
-| “Fill in these photos and caption, but do not publish” | Uploads, copy, music, page validation | Photo posts only; review first |
+| “Fill in these photos or this video, but do not publish” | Uploads, copy, cover/music, page validation | Review first; no publish click |
 | “Everything looks right—publish it” | Explicit publish confirmation | Never retry an unknown result |
 | “Comment ‘学到了！！’ on this post” | One bounded public comment attempt | Confirmed, unconfirmed, and unavailable states are distinct |
 | “Favorite this post and send me its link” | Like, favorite, share URL | No bulk actions or inflated claims |
@@ -93,14 +93,14 @@ The environment is ready when the JSON from `doctor` contains `"success": true` 
 
 ### Stable release download
 
-For a versioned, checksum-verifiable install, download `douyin-skills-v1.3.0.zip` and `SHA256SUMS` from the [v1.3.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.3.0). Verify the ZIP before extracting it:
+For a versioned, checksum-verifiable install, download `douyin-skills-v1.4.0.zip` and `SHA256SUMS` from the [v1.4.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.4.0). Verify the ZIP before extracting it:
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell: compare this value with the matching SHA256SUMS line
-Get-FileHash .\douyin-skills-v1.3.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.4.0.zip -Algorithm SHA256
 ```
 
 The named ZIP contains the complete repository under one versioned directory, including the privacy-safe Demo. GitHub's automatic source archives are separate and are not covered by the published checksum.
@@ -176,7 +176,7 @@ No other platform adapter ships in this repository today. See the [Agent ecosyst
 | --- | --- | --- |
 | [`douyin-auth`](./skills/douyin-auth/SKILL.md) | Login state, QR, SMS verification, multiple accounts | “Switch to my work account and check login” |
 | [`douyin-explore`](./skills/douyin-explore/SKILL.md) | Search public posts, read video/note details, and inspect trending topics | “Find seven camping posts” |
-| [`douyin-publish`](./skills/douyin-publish/SKILL.md) | Fill photo posts, select music, validate, confirm | “Prepare this post for my review” |
+| [`douyin-publish`](./skills/douyin-publish/SKILL.md) | Fill photo/video posts, set cover or music, validate, confirm | “Prepare this post for my review” |
 | [`douyin-interact`](./skills/douyin-interact/SKILL.md) | One like/favorite/comment attempt or a public share URL | “Comment this and return the result” |
 | [`douyin-env`](./skills/douyin-env/SKILL.md) | Installation, diagnostics, migration | “Check Chrome and dependencies” |
 
@@ -189,13 +189,13 @@ The root [`SKILL.md`](./SKILL.md) routes multi-step requests. Child Skills addre
 - Operates public pages on Douyin Web and Creator Center Web.
 - Keeps login state in loopback-only Chrome and supports named, isolated profiles.
 - Shows the browser and waits when captcha or identity verification is required.
-- Checks title, body, images, music, and button state before publishing.
+- Checks the selected media type, title, body, upload evidence, cover/music, and button state before publishing.
 - Returns explicit states for uncertain page outcomes and asks for human verification.
 
 ### What it deliberately does not do
 
 - Bypass captchas, identity checks, risk controls, or platform rate limits.
-- Reply to comments, send direct messages, publish videos, save drafts, or schedule posts.
+- Reply to comments, send direct messages, manage drafts, or schedule posts.
 - Farm accounts, inflate engagement, scrape entire profiles, or run bulk operating pipelines.
 - Retry when publishing is uncertain, or click like/favorite again when the final state is unknown.
 
@@ -273,12 +273,18 @@ Agent integrations should follow the stable minimum fields and certainty rules i
 | Publishing | `select-music` | Select the first available candidate by name |
 | Publishing | `validate-publish` | Inspect fields and button state without publishing |
 | Publishing | `click-publish --confirm` | Explicitly confirm one publish click |
+| Publishing | `fill-publish-video` | Upload one local video, fill exact copy, and optionally set a custom cover |
+| Publishing | `set-video-cover` | Set a custom cover on the current video form |
+| Publishing | `validate-publish-video` | Inspect video upload, copy, cover, topic, and button state without publishing |
+| Publishing | `click-publish-video --confirm` | Explicitly confirm one video publish click |
 | Interaction | `like-video` / `favorite-video` | Ensure one explicit post is liked/favorited, confirming state when the page exposes it |
 | Interaction | `comment-video` | Attempt one public comment when input and send controls are visible |
 | Interaction | `get-interaction-state` | Read current like/favorite state without clicking |
 | Interaction | `share-video` | Return a public URL and attempt to copy it |
 
 Run `python scripts/cli.py --help` or a subcommand's `--help` for every option.
+
+`check-login` performs a bounded recheck when navigation briefly exposes a verification interstitial. If switching to the visible browser clears that state, it returns `action: risk_recovered_after_headed_switch`, `risk_recovered: true`, and the newly confirmed login result. Agents should pause only for `needs_user_verification: true`, not for a stale title or a superseded risk snapshot.
 
 ### Publishing states are not interchangeable
 
@@ -288,7 +294,7 @@ Run `python scripts/cli.py --help` or a subcommand's `--help` for every option.
 | `publish_clicked_unconfirmed` | The button was clicked, but the result is not reliable | Check Creator Center and **do not retry** |
 | `success: false` | No click occurred, or preflight validation failed | Fix `validation.errors` |
 
-Likes and favorites now inspect the control before and after an action when the page exposes state evidence. `state: already_active` means no second click was issued; `state_verified: false` still means the final state was not reliable, so the agent should say so and avoid repeating the action. Use `get-interaction-state` for a read-only check.
+Likes and favorites inspect the control before and after an action, including adapter-declared `data-e2e-state` values, ARIA state, labels, and active styles. `state: already_active` means no second click was issued. If the pre-action state remains `unknown`, the command returns `clicked: false` and stops instead of probing a toggle; if a click occurred but the final state is unverified, the agent must report that uncertainty and never retry. Use `get-interaction-state` for a read-only check.
 
 ## Local data
 
@@ -364,7 +370,7 @@ If the state is `publish_clicked_unconfirmed`, check Creator Center first. Do no
 <details>
 <summary><strong>Does it support videos, replies, or bulk operations?</strong></summary>
 
-It can attempt one public comment when the page exposes a clear input and send control. It does not support replies, direct messages, video publishing, or bulk operations.
+It supports guarded photo and video publishing. It can also attempt one public comment when the page exposes a clear input and send control. It does not support replies, direct messages, draft management, scheduling, or bulk operations.
 </details>
 
 ## Contributing, license, and trademarks

@@ -51,6 +51,18 @@ class PlatformAdapterTests(unittest.TestCase):
                 "https://creator.douyin.com/creator-micro/content/post/image?media_type=image&type=new"
             )
         )
+        self.assertTrue(
+            DEFAULT_ADAPTER.is_publish_url(
+                "https://creator.douyin.com/creator-micro/content/post/video?enter_from=publish_page",
+                kind="video",
+            )
+        )
+        self.assertFalse(
+            DEFAULT_ADAPTER.is_publish_url(
+                "https://creator.douyin.com/creator-micro/content/post/image?type=new",
+                kind="video",
+            )
+        )
         self.assertFalse(
             DEFAULT_ADAPTER.is_publish_url("https://www.douyin.com/video/987")
         )
@@ -214,6 +226,43 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("data-adapter-title", expression)
         self.assertIn("data-adapter-editor", expression)
         self.assertIn("data-adapter-file", expression)
+        self.assert_javascript_parses(expression)
+        self.assertTrue(result["success"])
+
+    def test_video_publish_validation_uses_injected_form_selectors(self) -> None:
+        selectors = replace(
+            DEFAULT_ADAPTER.selectors,
+            publish_video_title_input_selector="input[data-adapter-video-title]",
+            publish_video_editor_selectors=("[data-adapter-video-editor]",),
+            publish_video_file_input_selector="input[data-adapter-video-file]",
+            publish_video_preview_selectors=("video[data-adapter-preview]",),
+            publish_video_cover_control_selector="[data-adapter-cover]",
+            publish_video_empty_cover_text="adapter-empty-cover",
+        )
+        adapter = replace(DEFAULT_ADAPTER, selectors=selectors)
+        page = mock.Mock()
+        page.evaluate.return_value = {
+            "title": "title",
+            "editorText": "body",
+            "href": "https://creator.douyin.com/creator-micro/content/post/video",
+            "page_title": "Creator Center",
+            "hasVideo": True,
+            "hasCover": True,
+            "publishButtonFound": True,
+            "publishButtonDisabled": False,
+            "hasTopic": False,
+            "text": "Synthetic video form",
+        }
+
+        result = publish.validate_video_publish_state(page, adapter=adapter)
+
+        expression = page.evaluate.call_args.args[0]
+        self.assertIn("data-adapter-video-title", expression)
+        self.assertIn("data-adapter-video-editor", expression)
+        self.assertIn("data-adapter-video-file", expression)
+        self.assertIn("data-adapter-preview", expression)
+        self.assertIn("data-adapter-cover", expression)
+        self.assertIn("adapter-empty-cover", expression)
         self.assert_javascript_parses(expression)
         self.assertTrue(result["success"])
 

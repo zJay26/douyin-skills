@@ -61,7 +61,7 @@ Implement these fields with one consistent URL and content-reference policy:
 | Member | Requirement |
 | --- | --- |
 | `key` | Stable lowercase identifier used in diagnostics and tests. |
-| `home_url`, `featured_url`, `trending_url`, `creator_upload_url` | HTTPS entry points owned by the platform. |
+| `home_url`, `featured_url`, `trending_url`, `creator_upload_url`, `creator_video_upload_url` | HTTPS entry points owned by the platform. |
 | `default_content_kind` | The fallback kind used when a reference has no explicit kind. |
 | `content_path_fragments` | Paths that the browser-side search extraction may treat as content links. |
 | `content_url_templates` | Canonical HTTPS templates keyed by every supported content kind. |
@@ -78,14 +78,14 @@ The URL methods must have deterministic behavior:
   value does not contain that information; they must not invent an ID.
 - `is_platform_url(value)` accepts only the platform's supported HTTPS hosts
   and rejects lookalike domains.
-- `is_publish_url(value)` accepts only the platform's creator-upload entry
-  page, so publish validation can distinguish an incomplete form from a
-  browser that is currently on an unrelated page.
+- `is_publish_url(value, kind)` accepts only the platform's creator-upload and
+  post-form routes for the requested media kind, so validation can distinguish
+  a photo form, a video form, and an unrelated page.
 
 The navigation methods—`navigate_home`, `navigate_featured`,
-`navigate_search`, `navigate_trending`, and `navigate_publish_image`—should
-only select an entry point and let the shared workflow own waiting, error
-handling, and result classification.
+`navigate_search`, `navigate_trending`, `navigate_publish_image`, and
+`navigate_publish_video`—should only select an entry point and let the shared
+workflow own waiting, error handling, and result classification.
 
 ### Selector and marker surface
 
@@ -95,14 +95,21 @@ smuggling a platform-specific selector into shared code.
 | Group | Members |
 | --- | --- |
 | Login and session | `login_text_keywords`, `login_panel_markers`, `logged_in_text_hints`, `login_qrcode_selectors`, `profile_ui_selectors`, `auth_cookie_names`, `phone_input_selectors`, `send_code_texts`, `verification_input_selectors`, `submit_code_texts`, `agreement_text` |
-| Discovery and detail | `search_result_selectors`, `feed_card_selector`, `feed_content_id_attribute`, `trending_node_selectors`, `trending_topic_keywords`, `detail_desc_selectors`, `comment_item_selectors`, `like_button_selectors`, `favorite_button_selectors`, `comment_action_selectors`, `like_active_texts`, `favorite_active_texts`, `note_action_bar_marker`, `like_action_text`, `favorite_action_text`, `share_action_text`, `comment_action_text`, `copy_link_text` |
+| Discovery and detail | `search_result_selectors`, `feed_card_selector`, `feed_content_id_attribute`, `trending_node_selectors`, `trending_topic_keywords`, `detail_desc_selectors`, `comment_item_selectors`, `like_button_selectors`, `favorite_button_selectors`, `comment_action_selectors`, `like_active_texts`, `favorite_active_texts`, `like_active_style_tokens`, `favorite_active_style_tokens`, `like_active_state_tokens`, `like_inactive_state_tokens`, `favorite_active_state_tokens`, `favorite_inactive_state_tokens`, `note_action_bar_marker`, `like_action_text`, `favorite_action_text`, `share_action_text`, `comment_action_text`, `copy_link_text` |
 | Photo publishing | `publish_file_input_selector`, `publish_title_input_selector`, `publish_editor_selectors`, `publish_image_markers`, `music_open_selectors`, `music_open_texts`, `music_panel_selector`, `music_panel_markers`, `music_name_selectors`, `music_apply_selectors`, `music_apply_text`, `selected_music_text`, `publish_button_text`, `publish_success_texts`, `publish_success_path_fragment`, `topic_markers` |
+| Video publishing | `publish_video_file_input_selector`, `publish_video_title_input_selector`, `publish_video_editor_selectors`, `publish_video_preview_selectors`, `publish_video_ready_texts`, `publish_video_progress_selectors`, `publish_video_failure_texts`, `publish_video_cover_control_selector`, `publish_video_empty_cover_text`, `publish_video_cover_dialog_markers`, `publish_video_cover_upload_markers`, `publish_video_cover_done_text`, `publish_video_cover_skip_horizontal_text` |
 
 Prefer a small ordered fallback list of selectors that represent the same
 semantic element. Scope selectors to visible, role-labelled, or otherwise
 stable elements where possible. Do not use a broad selector that can match a
 different destructive control. `auth_cookie_names` may identify cookie names
 for a local login check; never log or store cookie values.
+
+For toggle actions, put exact platform-owned active and inactive attribute
+values in the corresponding `*_state_tokens` fields. The shared workflow only
+clicks a toggle after a high-confidence inactive state and stops when evidence
+is missing or contradictory; do not encode platform values in shared code or
+treat the absence of an active color as proof of inactivity.
 
 The remaining adapter fields are part of the page-state boundary:
 
@@ -135,6 +142,7 @@ def navigate_featured(self, page) -> None: ...
 def navigate_search(self, page, keyword: str) -> None: ...
 def navigate_trending(self, page) -> None: ...
 def navigate_publish_image(self, page) -> None: ...
+def navigate_publish_video(self, page) -> None: ...
 ```
 
 Keep the adapter methods deterministic and side-effect-light. They may choose a

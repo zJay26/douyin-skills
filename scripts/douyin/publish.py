@@ -9,9 +9,23 @@ from platform_adapter import PlatformAdapter, resolve_adapter
 from .page_states import (
     classify_publish_outcome,
     classify_publish_snapshot,
+    classify_video_publish_snapshot,
 )
 
 SUPPORTED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+SUPPORTED_VIDEO_SUFFIXES = {
+    ".avi",
+    ".flv",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp4",
+    ".mpeg4",
+    ".mpg",
+    ".ts",
+    ".webm",
+    ".wmv",
+}
 
 
 def _wait_until(page, fn: str, timeout: float = 30.0, interval: float = 0.5):
@@ -52,6 +66,27 @@ def _resolve_image_paths(images: list[str]) -> list[str]:
     return resolved
 
 
+def _resolve_video_path(video: str) -> str:
+    raw_path = str(video or "").strip()
+    if not raw_path:
+        raise ValueError("视频路径不能为空")
+    path = Path(raw_path).expanduser()
+    if not path.is_absolute():
+        raise ValueError(f"视频路径必须是绝对路径：{raw_path}")
+    try:
+        path = path.resolve(strict=True)
+    except FileNotFoundError as exc:
+        raise ValueError(f"视频不存在：{raw_path}") from exc
+    if not path.is_file():
+        raise ValueError(f"视频路径不是文件：{raw_path}")
+    if path.suffix.lower() not in SUPPORTED_VIDEO_SUFFIXES:
+        supported = ", ".join(sorted(SUPPORTED_VIDEO_SUFFIXES))
+        raise ValueError(
+            f"不支持的视频格式：{path.suffix or '无扩展名'}；支持 {supported}"
+        )
+    return str(path)
+
+
 def _page_snapshot(page) -> dict:
     return (
         page.evaluate(
@@ -72,17 +107,20 @@ def _wrong_publish_page_result(
     adapter: PlatformAdapter,
     require_topic: bool = False,
     state: dict | None = None,
+    publish_kind: str = "image",
 ) -> dict | None:
     state = state or _page_snapshot(page)
-    if adapter.is_publish_url(state.get("href", "") or ""):
+    if adapter.is_publish_url(state.get("href", "") or "", kind=publish_kind):
         return None
+    label = "视频" if publish_kind == "video" else "图文"
+    command = "fill-publish-video" if publish_kind == "video" else "fill-publish-image"
     return {
         "success": False,
         "requireTopic": bool(require_topic),
         "state": "wrong_page",
         "risk_page": False,
-        "errors": ["当前页面不是图文发布页"],
-        "message": "当前页面不是图文发布页，请先执行 fill-publish-image。",
+        "errors": [f"当前页面不是{label}发布页"],
+        "message": f"当前页面不是{label}发布页，请先执行 {command}。",
         "page": state,
     }
 
@@ -113,14 +151,18 @@ def _fill_title_and_desc(
     title: str,
     desc: str,
     adapter: PlatformAdapter | None = None,
+    title_selector: str | None = None,
+    editor_selectors: tuple[str, ...] | None = None,
 ) -> dict:
     adapter = resolve_adapter(adapter)
     title = (title or "").strip()
     title_selector = json.dumps(
-        adapter.selectors.publish_title_input_selector, ensure_ascii=False
+        title_selector or adapter.selectors.publish_title_input_selector,
+        ensure_ascii=False,
     )
     editor_selector = json.dumps(
-        ",".join(adapter.selectors.publish_editor_selectors), ensure_ascii=False
+        ",".join(editor_selectors or adapter.selectors.publish_editor_selectors),
+        ensure_ascii=False,
     )
     return page.evaluate(
         f"""
@@ -306,6 +348,467 @@ def fill_publish_image(
         "message": "图文发布表单已填写，请在浏览器中确认后再执行 click-publish。"
         if success
         else "图文表单未完整确认：请检查图片上传状态，以及标题/正文是否被页面截断或改写。",
+    }
+
+
+def _video_publish_snapshot(page, adapter: PlatformAdapter) -> dict:
+    title_selector = json.dumps(
+        adapter.selectors.publish_video_title_input_selector, ensure_ascii=False
+    )
+    editor_selector = json.dumps(
+        ",".join(adapter.selectors.publish_video_editor_selectors),
+        ensure_ascii=False,
+    )
+    file_selector = json.dumps(
+        adapter.selectors.publish_video_file_input_selector, ensure_ascii=False
+    )
+    preview_selector = json.dumps(
+        ",".join(adapter.selectors.publish_video_preview_selectors),
+        ensure_ascii=False,
+    )
+    ready_texts = json.dumps(
+        list(adapter.selectors.publish_video_ready_texts), ensure_ascii=False
+    )
+    progress_selector = json.dumps(
+        ",".join(adapter.selectors.publish_video_progress_selectors),
+        ensure_ascii=False,
+    )
+    failure_texts = json.dumps(
+        list(adapter.selectors.publish_video_failure_texts), ensure_ascii=False
+    )
+    cover_control_selector = json.dumps(
+        adapter.selectors.publish_video_cover_control_selector,
+        ensure_ascii=False,
+    )
+    empty_cover_text = json.dumps(
+        adapter.selectors.publish_video_empty_cover_text, ensure_ascii=False
+    )
+    topic_markers = json.dumps(
+        list(adapter.selectors.topic_markers), ensure_ascii=False
+    )
+    publish_button_text = json.dumps(
+        adapter.selectors.publish_button_text, ensure_ascii=False
+    )
+    return (
+        page.evaluate(
+            f"""
+            (() => {{
+              const normalize = value => String(value || '')
+                .replace(/\u200b/g, '')
+                .replace(/\\r\\n/g, '\\n')
+                .trim();
+              const body = document.body?.innerText || '';
+              const titleEl = document.querySelector({title_selector});
+              const editorEl = document.querySelector({editor_selector});
+              const fileInputs = Array.from(document.querySelectorAll({file_selector}));
+              const fileCount = fileInputs.reduce(
+                (count, input) => count + (input.files?.length || 0), 0
+              );
+              const previews = Array.from(document.querySelectorAll({preview_selector}));
+              const preview = previews.find(el => /^https?:\/\//.test(el.currentSrc || el.src || ''));
+              const exactLeafText = value => Array.from(document.querySelectorAll('body *')).some(el =>
+                (el.innerText || '').trim() === value &&
+                !Array.from(el.children).some(child => (child.innerText || '').trim() === value)
+              );
+              const hasReadyControl = {ready_texts}.some(exactLeafText);
+              const progressFound = !!document.querySelector({progress_selector});
+              const hasUploadFailure = {failure_texts}.some(exactLeafText);
+              const hasVideo = !!preview || (hasReadyControl && !progressFound && !hasUploadFailure);
+              const controls = Array.from(document.querySelectorAll({cover_control_selector}));
+              const emptyCoverCount = controls.filter(el =>
+                (el.innerText || '').split('\\n').map(x => x.trim()).includes({empty_cover_text})
+              ).length;
+              const publishButton = Array.from(document.querySelectorAll('button')).find(
+                el => (el.innerText || '').trim() === {publish_button_text}
+              );
+              return {{
+                href: location.href || '',
+                page_title: document.title || '',
+                title: normalize(titleEl?.value),
+                editorText: normalize(editorEl?.innerText || editorEl?.textContent),
+                fileCount,
+                hasVideo,
+                hasReadyControl,
+                progressFound,
+                hasUploadFailure,
+                videoPreviewUrl: (preview?.currentSrc || preview?.src || '').slice(0, 500),
+                uploadInProgress: !hasVideo && (fileCount > 0 || progressFound),
+                coverControlCount: controls.length,
+                emptyCoverCount,
+                hasCover: controls.length > 0 && emptyCoverCount < controls.length,
+                hasTopic: {topic_markers}.some(marker => body.includes(marker)),
+                publishButtonFound: !!publishButton,
+                publishButtonDisabled: !!publishButton && (
+                  publishButton.disabled || publishButton.getAttribute('aria-disabled') === 'true'
+                ),
+                text: body.slice(0, 3500),
+              }};
+            }})()
+            """
+        )
+        or {}
+    )
+
+
+def set_video_cover(
+    page,
+    cover: str,
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
+    try:
+        cover_path = _resolve_image_paths([cover])[0]
+    except ValueError as exc:
+        return {"success": False, "message": str(exc)}
+
+    wrong_page = _wrong_publish_page_result(
+        page, adapter, state=_page_snapshot(page), publish_kind="video"
+    )
+    if wrong_page:
+        return wrong_page
+    risk = _risk_result(page, "当前处于验证码/风控页，无法设置视频封面。", adapter)
+    if risk:
+        return risk
+
+    opened = page.evaluate(
+        f"""
+        (() => {{
+          const controls = Array.from(document.querySelectorAll({json.dumps(adapter.selectors.publish_video_cover_control_selector, ensure_ascii=False)}));
+          const target = controls.find(control =>
+            (control.innerText || '').split('\\n').map(x => x.trim()).includes({json.dumps(adapter.selectors.publish_video_empty_cover_text, ensure_ascii=False)})
+          ) || controls[0];
+          if (!target) return {{ success: false, reason: 'no-cover-control' }};
+          const exact = Array.from(target.querySelectorAll('*')).find(el =>
+            (el.innerText || '').trim() === {json.dumps(adapter.selectors.publish_video_empty_cover_text, ensure_ascii=False)} &&
+            !Array.from(el.children).some(child => (child.innerText || '').trim() === {json.dumps(adapter.selectors.publish_video_empty_cover_text, ensure_ascii=False)})
+          );
+          (exact || target).click();
+          return {{ success: true }};
+        }})()
+        """
+    )
+    if not isinstance(opened, dict) or not opened.get("success"):
+        state = _video_publish_snapshot(page, adapter)
+        return {
+            "success": False,
+            "message": "未找到视频封面设置入口。",
+            "page": state,
+        }
+
+    dialog_markers = json.dumps(
+        list(adapter.selectors.publish_video_cover_dialog_markers),
+        ensure_ascii=False,
+    )
+    dialog_ready = _wait_until(
+        page,
+        f"""
+        (() => {{
+          const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
+          return dialogs.some(dialog => {dialog_markers}.every(marker =>
+            (dialog.innerText || '').includes(marker)
+          ));
+        }})()
+        """,
+        timeout=20,
+        interval=0.5,
+    )
+    if not dialog_ready:
+        return {"success": False, "message": "视频封面编辑器未成功打开。"}
+
+    upload_markers = json.dumps(
+        list(adapter.selectors.publish_video_cover_upload_markers),
+        ensure_ascii=False,
+    )
+    marked = page.evaluate(
+        f"""
+        (() => {{
+          const dialog = Array.from(document.querySelectorAll('[role="dialog"]')).find(el =>
+            {dialog_markers}.every(marker => (el.innerText || '').includes(marker))
+          );
+          if (!dialog) return {{ success: false, reason: 'no-cover-dialog' }};
+          const input = Array.from(dialog.querySelectorAll('input[type="file"]')).find(el => {{
+            let node = el.parentElement;
+            for (let depth = 0; node && depth < 6; depth += 1, node = node.parentElement) {{
+              const text = node.innerText || '';
+              if ({upload_markers}.every(marker => text.includes(marker))) return true;
+            }}
+            return false;
+          }});
+          if (!input) return {{ success: false, reason: 'no-cover-file-input' }};
+          input.setAttribute('data-douyin-skills-video-cover', 'true');
+          return {{ success: true, accept: input.accept || '' }};
+        }})()
+        """
+    )
+    if not isinstance(marked, dict) or not marked.get("success"):
+        return {
+            "success": False,
+            "message": "视频封面编辑器中未找到自定义封面上传输入框。",
+            "detail": marked or {},
+        }
+    if not page.set_files('input[data-douyin-skills-video-cover="true"]', [cover_path]):
+        return {"success": False, "message": "视频封面上传失败。"}
+
+    cover_loaded = _wait_until(
+        page,
+        f"""
+        (() => {{
+          const dialog = Array.from(document.querySelectorAll('[role="dialog"]')).find(el =>
+            {dialog_markers}.every(marker => (el.innerText || '').includes(marker))
+          );
+          if (!dialog) return null;
+          const imageReady = Array.from(dialog.querySelectorAll('img')).some(img =>
+            /^data:image\//.test(img.src || '')
+          );
+          const done = Array.from(dialog.querySelectorAll('button')).find(el =>
+            (el.innerText || '').trim() === {json.dumps(adapter.selectors.publish_video_cover_done_text, ensure_ascii=False)} &&
+            !el.disabled && el.getAttribute('aria-disabled') !== 'true'
+          );
+          return imageReady && done ? {{ ready: true }} : null;
+        }})()
+        """,
+        timeout=30,
+        interval=0.5,
+    )
+    if not cover_loaded:
+        return {
+            "success": False,
+            "message": "封面文件已选择，但编辑器未确认图片加载完成。",
+        }
+
+    completed = page.evaluate(
+        f"""
+        (() => {{
+          const dialog = Array.from(document.querySelectorAll('[role="dialog"]')).find(el =>
+            {dialog_markers}.every(marker => (el.innerText || '').includes(marker))
+          );
+          const button = Array.from(dialog?.querySelectorAll('button') || []).find(el =>
+            (el.innerText || '').trim() === {json.dumps(adapter.selectors.publish_video_cover_done_text, ensure_ascii=False)} &&
+            !el.disabled && el.getAttribute('aria-disabled') !== 'true'
+          );
+          if (!button) return {{ success: false }};
+          button.click();
+          return {{ success: true }};
+        }})()
+        """
+    )
+    if not isinstance(completed, dict) or not completed.get("success"):
+        return {"success": False, "message": "视频封面编辑器的完成按钮不可用。"}
+
+    skip_text = json.dumps(
+        adapter.selectors.publish_video_cover_skip_horizontal_text,
+        ensure_ascii=False,
+    )
+    followup = _wait_until(
+        page,
+        f"""
+        (() => {{
+          const skip = Array.from(document.querySelectorAll('button,[role="button"]')).find(el =>
+            (el.innerText || '').trim() === {skip_text} && !el.disabled
+          );
+          const controls = Array.from(document.querySelectorAll({json.dumps(adapter.selectors.publish_video_cover_control_selector, ensure_ascii=False)}));
+          const emptyCount = controls.filter(control =>
+            (control.innerText || '').split('\\n').map(x => x.trim()).includes({json.dumps(adapter.selectors.publish_video_empty_cover_text, ensure_ascii=False)})
+          ).length;
+          if (skip) return {{ state: 'needs-horizontal-decision' }};
+          if (controls.length && emptyCount < controls.length) return {{ state: 'cover-applied' }};
+          return null;
+        }})()
+        """,
+        timeout=15,
+        interval=0.5,
+    )
+    if (
+        isinstance(followup, dict)
+        and followup.get("state") == "needs-horizontal-decision"
+    ):
+        page.evaluate(
+            f"""
+            (() => {{
+              const buttons = Array.from(document.querySelectorAll('button,[role="button"]'));
+              const button = buttons.find(el =>
+                (el.innerText || '').trim() === {skip_text} && !el.disabled
+              );
+              if (!button) return false;
+              button.click();
+              return true;
+            }})()
+            """
+        )
+
+    applied = _wait_until(
+        page,
+        f"""
+        (() => {{
+          const controls = Array.from(document.querySelectorAll({json.dumps(adapter.selectors.publish_video_cover_control_selector, ensure_ascii=False)}));
+          if (!controls.length) return null;
+          const emptyCount = controls.filter(control =>
+            (control.innerText || '').split('\\n').map(x => x.trim()).includes({json.dumps(adapter.selectors.publish_video_empty_cover_text, ensure_ascii=False)})
+          ).length;
+          return emptyCount < controls.length ? {{ ready: true, emptyCount, controlCount: controls.length }} : null;
+        }})()
+        """,
+        timeout=20,
+        interval=0.5,
+    )
+    state = _video_publish_snapshot(page, adapter)
+    return {
+        "success": bool(applied and state.get("hasCover")),
+        "status": "set" if applied and state.get("hasCover") else "unconfirmed",
+        "cover": cover_path,
+        "page": state,
+        "message": "视频封面已设置。"
+        if applied and state.get("hasCover")
+        else "已完成封面编辑，但发布页未确认封面状态。",
+    }
+
+
+def fill_publish_video(
+    page,
+    video: str,
+    desc: str,
+    title: str,
+    cover: str | None = None,
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
+    title = (title or "").strip()
+    desc = (desc or "").strip()
+    if not title:
+        return {"success": False, "message": "标题不能为空。"}
+    if not desc:
+        return {"success": False, "message": "作品简介不能为空。"}
+    try:
+        video_path = _resolve_video_path(video)
+        cover_path = _resolve_image_paths([cover])[0] if cover else None
+    except ValueError as exc:
+        return {"success": False, "message": str(exc)}
+
+    adapter.navigate_publish_video(page)
+    page.wait_for_load(30)
+    risk = _risk_result(
+        page, "当前处于验证码/风控页，无法继续填写视频发布表单。", adapter
+    )
+    if risk:
+        return risk
+
+    file_ready = _wait_until(
+        page,
+        f"""(() => !!document.querySelector({json.dumps(adapter.selectors.publish_video_file_input_selector, ensure_ascii=False)}))()""",
+        timeout=20,
+    )
+    if not file_ready:
+        risk = _risk_result(
+            page, "当前处于验证码/风控页，无法继续填写视频发布表单。", adapter
+        )
+        if risk:
+            return risk
+        return {"success": False, "message": "未找到视频上传输入框。"}
+    if not page.set_files(
+        adapter.selectors.publish_video_file_input_selector, [video_path]
+    ):
+        return {"success": False, "message": "视频上传失败。"}
+
+    title_selector = adapter.selectors.publish_video_title_input_selector
+    editor_selectors = adapter.selectors.publish_video_editor_selectors
+    editor_ready = _wait_until(
+        page,
+        """
+        (() => {{
+          const hasTitle = !!document.querySelector({});
+          const hasEditor = !!document.querySelector({});
+          return hasTitle && hasEditor;
+        }})()
+        """.format(
+            json.dumps(title_selector, ensure_ascii=False),
+            json.dumps(",".join(editor_selectors), ensure_ascii=False),
+        ),
+        timeout=120,
+        interval=1,
+    )
+    if not editor_ready:
+        return {
+            "success": False,
+            "message": "视频已选择，但未等到标题/作品简介输入区域出现。",
+            "page": _page_snapshot(page),
+        }
+
+    upload_ready = _wait_until(
+        page,
+        f"""
+        (() => {{
+          const previews = Array.from(document.querySelectorAll({json.dumps(",".join(adapter.selectors.publish_video_preview_selectors), ensure_ascii=False)}));
+          const preview = previews.find(el => /^https?:\/\//.test(el.currentSrc || el.src || ''));
+          const exactLeafText = value => Array.from(document.querySelectorAll('body *')).some(el =>
+            (el.innerText || '').trim() === value &&
+            !Array.from(el.children).some(child => (child.innerText || '').trim() === value)
+          );
+          const hasReadyControl = {json.dumps(list(adapter.selectors.publish_video_ready_texts), ensure_ascii=False)}.some(exactLeafText);
+          const progressFound = !!document.querySelector({json.dumps(",".join(adapter.selectors.publish_video_progress_selectors), ensure_ascii=False)});
+          const hasUploadFailure = {json.dumps(list(adapter.selectors.publish_video_failure_texts), ensure_ascii=False)}.some(exactLeafText);
+          const ready = !!preview || (hasReadyControl && !progressFound && !hasUploadFailure);
+          return ready ? {{
+            ready: true,
+            evidence: preview ? 'remote-preview' : 'reupload-control',
+            previewUrl: (preview?.currentSrc || preview?.src || '').slice(0, 500)
+          }} : null;
+        }})()
+        """,
+        timeout=120,
+        interval=1,
+    )
+
+    fill_result: dict = {}
+    if upload_ready:
+        for attempt in range(3):
+            fill_result = _fill_title_and_desc(
+                page,
+                title,
+                desc,
+                adapter=adapter,
+                title_selector=title_selector,
+                editor_selectors=editor_selectors,
+            )
+            if fill_result and fill_result.get("success"):
+                break
+            if attempt < 2:
+                time.sleep(1)
+
+    cover_result = None
+    if cover_path and upload_ready:
+        cover_result = set_video_cover(page, cover_path, adapter=adapter)
+    state = _video_publish_snapshot(page, adapter)
+    fields_match = bool(
+        fill_result
+        and fill_result.get("success")
+        and state.get("title") == title
+        and state.get("editorText") == desc
+    )
+    cover_ok = bool(state.get("hasCover")) if cover_path else True
+    success = bool(fields_match and upload_ready and state.get("hasVideo") and cover_ok)
+    needs_cover = success and not state.get("hasCover")
+    status = (
+        "filled_needs_cover" if needs_cover else ("filled" if success else "partial")
+    )
+    return {
+        "success": success,
+        "status": status,
+        "video": video_path,
+        "cover": cover_path,
+        "title": title,
+        "desc": desc,
+        "fill": fill_result,
+        "upload": upload_ready
+        or {"ready": False, "reason": "video-upload-not-confirmed"},
+        "coverResult": cover_result,
+        "page": state,
+        "message": (
+            "视频发布表单已填写并设置封面，请人工复核后执行 validate-publish-video。"
+            if success and state.get("hasCover")
+            else "视频发布表单已填写；发布前还需要在页面设置封面。"
+            if needs_cover
+            else "视频表单未完整确认：请检查上传、封面，以及标题/作品简介是否被页面截断或改写。"
+        ),
     }
 
 
@@ -603,6 +1106,50 @@ def validate_publish_state(
     return {"success": False, "errors": ["无法读取发布页状态"]}
 
 
+def validate_video_publish_state(
+    page,
+    require_topic: bool = False,
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
+    state = _video_publish_snapshot(page, adapter)
+    if state:
+        page_title = state.get("page_title", "") or ""
+        page_text = state.get("text", "") or ""
+        is_risk = adapter.is_risk_page(page_title, page_text) or any(
+            hint in page_title or hint in page_text
+            for hint in adapter.risk_strong_hints
+        )
+        if is_risk:
+            return {
+                "success": False,
+                "risk_page": True,
+                "message": "当前处于验证码/风控页，无法读取视频发布页状态。",
+                "page_title": page_title,
+                "page": {
+                    "href": state.get("href", ""),
+                    "title": page_title,
+                    "text": page_text,
+                },
+            }
+        wrong_page = _wrong_publish_page_result(
+            page,
+            adapter,
+            require_topic,
+            state=state,
+            publish_kind="video",
+        )
+        if wrong_page:
+            wrong_page["page"] = {
+                "href": state.get("href", ""),
+                "page_title": state.get("page_title", ""),
+                "text": state.get("text", ""),
+            }
+            return wrong_page
+        return classify_video_publish_snapshot(state, require_topic=require_topic)
+    return {"success": False, "errors": ["无法读取视频发布页状态"]}
+
+
 def click_publish(
     page,
     require_topic: bool = False,
@@ -610,6 +1157,26 @@ def click_publish(
 ) -> dict:
     adapter = resolve_adapter(adapter)
     check = validate_publish_state(page, require_topic=require_topic, adapter=adapter)
+    return _click_publish_after_validation(page, check, adapter)
+
+
+def click_publish_video(
+    page,
+    require_topic: bool = False,
+    adapter: PlatformAdapter | None = None,
+) -> dict:
+    adapter = resolve_adapter(adapter)
+    check = validate_video_publish_state(
+        page, require_topic=require_topic, adapter=adapter
+    )
+    return _click_publish_after_validation(page, check, adapter)
+
+
+def _click_publish_after_validation(
+    page,
+    check: dict,
+    adapter: PlatformAdapter,
+) -> dict:
     if check.get("risk_page"):
         return check
     if not check.get("success"):

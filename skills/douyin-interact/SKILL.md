@@ -20,7 +20,7 @@ description: 对明确指定的抖音公开 video 或 note 作品执行一次点
 python "{baseDir}/../../scripts/cli.py" like-video --video-id <作品ID或公开链接>
 ```
 
-网页按钮可能是切换开关。返回 `state_verified: false` 时，只能报告“已点击点赞按钮，最终状态未稳定确认”；不要声称一定已点赞或取消，也不要自动再点一次。
+网页按钮是切换开关。CLI 会先读取平台显式状态；`state: already_active` 表示没有重复点击。若点击前仍为 `state: unknown`，CLI 应返回 `clicked: false` 并安全停止，不要改用坐标或文字匹配盲点。只有 `clicked: true` 且 `state_verified: false` 才能报告“已点击点赞按钮，最终状态未稳定确认”，且不得重试。
 
 ## 收藏
 
@@ -28,10 +28,10 @@ python "{baseDir}/../../scripts/cli.py" like-video --video-id <作品ID或公开
 python "{baseDir}/../../scripts/cli.py" favorite-video --video-id <作品ID或公开链接>
 ```
 
-同样按 `state_verified` 解释结果。按钮已点击但状态未确认时，交给用户在页面核对。
+同样先判定状态再操作。点击前状态不可靠时保持 `clicked: false`；按钮已点击但最终状态未确认时，交给用户在页面核对。
 
 - `state: already_active` 表示目标状态本来就已激活，CLI 没有再次点击。
-- `state_verified: true` 表示页面暴露了明确的激活/未激活证据；不要把一次普通点击自动等同于最终状态。
+- `state_verified: true` 表示页面通过适配器声明的 `data-e2e-state`、ARIA、文案或样式暴露了明确证据；不要把一次普通点击自动等同于最终状态。
 
 ## 只读核对点赞与收藏状态
 
@@ -65,7 +65,7 @@ python "{baseDir}/../../scripts/cli.py" share-video --video-id <作品ID或公�
 
 ## 失败处理
 
-- `risk_page: true`：停在 headed 浏览器，等待人工验证。
+- `needs_user_verification: true`：停在 headed 浏览器，等待人工验证；`risk_recovered: true` 且 `logged_in: true` 时继续，不要沿用切换前的风险判断。
 - 作品不可访问：说明可能私密、已删除或链接错误。
 - 按钮未找到：报告页面结构可能变化，不要用坐标盲点或其他自动化工具兜底。
 - 不支持回复评论、私信分享或批量互动。

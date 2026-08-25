@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "id": "publish-video-missing-cover",
+  "flow": "publish",
+  "description": "A filled video post without a selected cover remains incomplete and must not be published.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "mode": "video_validation",
+    "require_topic": false,
+    "snapshot": {
+      "title": "Synthetic video study",
+      "editorText": "Synthetic video description for regression testing only.",
+      "href": "https://creator.douyin.com/creator-micro/content/post/video?enter_from=publish_page",
+      "fileCount": 1,
+      "hasVideo": true,
+      "uploadInProgress": false,
+      "hasCover": false,
+      "publishButtonFound": true,
+      "publishButtonDisabled": false,
+      "hasTopic": false,
+      "text": "A synthetic remote video preview exists without a selected cover."
+    }
+  },
+  "expected": {
+    "success": false,
+    "state": "incomplete",
+    "errors": [
+      "未设置视频封面"
+    ]
+  }
+}

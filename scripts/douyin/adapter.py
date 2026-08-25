@@ -143,6 +143,10 @@ DOUYIN_SELECTORS = PlatformSelectors(
     favorite_active_texts=("已收藏", "取消收藏"),
     like_active_style_tokens=("rgb(255, 44, 85)", "#ff2c55"),
     favorite_active_style_tokens=("rgb(255, 184, 2)", "#ffb802"),
+    like_active_state_tokens=("video-player-is-digged",),
+    like_inactive_state_tokens=("video-player-no-digged",),
+    favorite_active_state_tokens=("video-player-is-collected",),
+    favorite_inactive_state_tokens=("video-player-no-collect",),
     note_action_bar_marker="分享",
     like_action_text="赞",
     favorite_action_text="收藏",
@@ -158,6 +162,30 @@ DOUYIN_SELECTORS = PlatformSelectors(
         'div[role="textbox"]',
     ),
     publish_image_markers=("继续添加", "编辑图片", "已添加"),
+    publish_video_file_input_selector='input[type="file"][accept*="video"]',
+    publish_video_title_input_selector='input[placeholder*="作品标题"]',
+    publish_video_editor_selectors=(
+        '[data-slate-editor="true"][data-placeholder*="作品简介"]',
+        '[data-slate-editor="true"]',
+        ".editor-kit-container",
+        '[contenteditable="true"][data-placeholder*="作品简介"]',
+    ),
+    publish_video_preview_selectors=(
+        'video[src^="https://"]',
+        'video[src^="http://"]',
+    ),
+    publish_video_ready_texts=("重新上传",),
+    publish_video_progress_selectors=(
+        '[class*="progress-bar"]',
+        '[role="progressbar"]',
+    ),
+    publish_video_failure_texts=("上传失败",),
+    publish_video_cover_control_selector='[class*="coverControl"]',
+    publish_video_empty_cover_text="选择封面",
+    publish_video_cover_dialog_markers=("设置竖封面", "上传封面", "完成"),
+    publish_video_cover_upload_markers=("上传封面", "点击上传文件"),
+    publish_video_cover_done_text="完成",
+    publish_video_cover_skip_horizontal_text="暂不设置",
     music_open_selectors=(
         "span.action-Q1y01k",
         ".container-right-uW7Pj",
@@ -195,6 +223,9 @@ class DouyinAdapter:
     creator_upload_url: str = (
         "https://creator.douyin.com/creator-micro/content/upload?default-tab=3"
     )
+    creator_video_upload_url: str = (
+        "https://creator.douyin.com/creator-micro/content/upload"
+    )
     search_base_url: str = "https://www.douyin.com/search/"
     default_content_kind: str = "video"
     content_path_fragments: tuple[str, ...] = ("/video/", "/note/")
@@ -226,18 +257,33 @@ class DouyinAdapter:
             parsed.hostname or ""
         )
 
-    def is_publish_url(self, value: str) -> bool:
+    def is_publish_url(self, value: str, kind: str | None = None) -> bool:
         current = urlparse(str(value or ""))
         expected = urlparse(self.creator_upload_url)
-        supported_paths = {
-            expected.path.rstrip("/"),
-            "/creator-micro/content/post/image",
-        }
-        return (
+        current_path = current.path.rstrip("/")
+        base_match = (
             current.scheme == expected.scheme
             and current.hostname == expected.hostname
-            and current.path.rstrip("/") in supported_paths
+            and current_path
+            in {
+                expected.path.rstrip("/"),
+                "/creator-micro/content/post/image",
+                "/creator-micro/content/post/video",
+            }
         )
+        if not base_match or kind is None:
+            return base_match
+        if kind == "image":
+            return current_path == "/creator-micro/content/post/image" or (
+                current_path == expected.path.rstrip("/")
+                and "default-tab=3" in current.query
+            )
+        if kind == "video":
+            return current_path == "/creator-micro/content/post/video" or (
+                current_path == expected.path.rstrip("/")
+                and "default-tab=3" not in current.query
+            )
+        return False
 
     def parse_content_ref(self, value: str) -> tuple[str, str | None]:
         value = str(value or "").strip()
@@ -310,6 +356,9 @@ class DouyinAdapter:
 
     def navigate_publish_image(self, page) -> None:
         page.navigate(self.creator_upload_url)
+
+    def navigate_publish_video(self, page) -> None:
+        page.navigate(self.creator_video_upload_url)
 
 
 DEFAULT_ADAPTER = DouyinAdapter()

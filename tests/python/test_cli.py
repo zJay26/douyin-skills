@@ -33,9 +33,13 @@ class CliTests(unittest.TestCase):
             "get-trending-topics",
             "get-video-detail",
             "fill-publish-image",
+            "fill-publish-video",
+            "set-video-cover",
             "select-music",
             "validate-publish",
             "click-publish",
+            "validate-publish-video",
+            "click-publish-video",
             "like-video",
             "favorite-video",
             "comment-video",
@@ -70,7 +74,7 @@ class CliTests(unittest.TestCase):
             {
                 "success": True,
                 "project": "douyin-skills",
-                "version": "1.3.0",
+                "version": "1.4.0",
                 "result_contract_version": "1.0",
             },
         )
@@ -99,9 +103,15 @@ class CliTests(unittest.TestCase):
     def test_publish_validation_and_confirmation_are_explicit(self) -> None:
         validate_args = cli.build_parser().parse_args(["validate-publish"])
         publish_args = cli.build_parser().parse_args(["click-publish", "--confirm"])
+        validate_video_args = cli.build_parser().parse_args(["validate-publish-video"])
+        publish_video_args = cli.build_parser().parse_args(
+            ["click-publish-video", "--confirm"]
+        )
 
         self.assertEqual(validate_args.command, "validate-publish")
         self.assertTrue(publish_args.confirm)
+        self.assertEqual(validate_video_args.command, "validate-publish-video")
+        self.assertTrue(publish_video_args.confirm)
 
     def test_non_loopback_hosts_are_rejected(self) -> None:
         self.assertTrue(cli._is_loopback_host("127.0.0.1"))
@@ -140,6 +150,87 @@ class CliTests(unittest.TestCase):
 
             cli._connect(cli.build_parser().parse_args(["--headed", "check-login"]))
             self.assertTrue(ensure.call_args.kwargs["force_mode"])
+
+    def test_check_login_accepts_recovery_after_headed_switch(self) -> None:
+        initial_page = mock.Mock()
+        headed_page = mock.Mock()
+        adapter = mock.Mock()
+        risk_state = {
+            "success": True,
+            "logged_in": False,
+            "risk_page": True,
+        }
+        recovered_state = {
+            "success": True,
+            "logged_in": True,
+            "risk_page": False,
+        }
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(cli, "get_default_adapter", return_value=adapter),
+            mock.patch.object(
+                cli,
+                "_connect",
+                side_effect=[
+                    (mock.Mock(), initial_page),
+                    (mock.Mock(), headed_page),
+                ],
+            ),
+            mock.patch.object(
+                cli,
+                "settle_login_state",
+                side_effect=[risk_state, recovered_state],
+            ),
+            contextlib.redirect_stdout(stdout),
+            self.assertRaises(SystemExit) as exit_context,
+        ):
+            cli.main(["check-login"])
+
+        result = json.loads(stdout.getvalue())
+        self.assertEqual(exit_context.exception.code, 0)
+        self.assertTrue(result["logged_in"])
+        self.assertFalse(result["risk_page"])
+        self.assertFalse(result["needs_user_verification"])
+        self.assertTrue(result["risk_recovered"])
+        self.assertEqual(result["action"], "risk_recovered_after_headed_switch")
+        self.assertEqual(adapter.navigate_home.call_count, 2)
+
+    def test_check_login_preserves_persistent_headed_risk(self) -> None:
+        initial_page = mock.Mock()
+        headed_page = mock.Mock()
+        adapter = mock.Mock()
+        risk_state = {
+            "success": True,
+            "logged_in": False,
+            "risk_page": True,
+        }
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(cli, "get_default_adapter", return_value=adapter),
+            mock.patch.object(
+                cli,
+                "_connect",
+                side_effect=[
+                    (mock.Mock(), initial_page),
+                    (mock.Mock(), headed_page),
+                ],
+            ),
+            mock.patch.object(
+                cli,
+                "settle_login_state",
+                side_effect=[risk_state, risk_state],
+            ),
+            mock.patch.object(cli, "_risk_or_verify_text", return_value="risk"),
+            contextlib.redirect_stdout(stdout),
+            self.assertRaises(SystemExit) as exit_context,
+        ):
+            cli.main(["check-login"])
+
+        result = json.loads(stdout.getvalue())
+        self.assertEqual(exit_context.exception.code, 2)
+        self.assertFalse(result["logged_in"])
+        self.assertTrue(result["risk_page"])
+        self.assertTrue(result["needs_user_verification"])
 
 
 if __name__ == "__main__":

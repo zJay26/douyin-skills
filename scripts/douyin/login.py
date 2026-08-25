@@ -54,7 +54,10 @@ def inspect_login_state(page, adapter: PlatformAdapter | None = None) -> dict:
       const loggedInHintCount = loggedInHints.filter(x => bodyText.includes(x) || title.includes(x)).length;
       const riskKeywordCount = riskKeywords.filter(x => bodyText.includes(x) || title.includes(x)).length;
       const hasRiskStrongHint = riskStrongHints.some(x => bodyText.includes(x) || title.includes(x));
-      const hasRiskUi = visibleTextNodes.some(el => riskStrongHints.includes((el.innerText || '').trim()));
+      const hasRiskUi = visibleTextNodes.some(el => {{
+        const text = (el.innerText || '').trim();
+        return riskStrongHints.some(hint => hint && text.includes(hint));
+      }});
       const hasLoginPanel = visibleTextNodes.some(el => {{
         const text = (el.innerText || '').trim();
         const role = el.getAttribute?.('role') || '';

@@ -1,31 +1,31 @@
 {
   "schema_version": "1.0",
-  "id": "risk-verification",
+  "id": "login-authenticated-stale-risk-title",
   "flow": "login",
-  "description": "Visible verification controls remain human-required even when authenticated UI and stale authentication evidence coexist.",
+  "description": "A stale verification title without visible risk controls must not override corroborated authenticated UI.",
   "source": {
     "kind": "synthetic",
     "contains_real_account_data": false
   },
   "input": {
     "snapshot": {
-      "title": "安全验证",
+      "title": "Verification interstitial",
       "href": "https://www.douyin.com/",
       "hasLoginKeyword": false,
       "loggedInHintCount": 2,
       "hasProfileUi": true,
-      "hasAuthCookie": true,
+      "hasAuthCookie": false,
       "hasRiskKeyword": true,
       "hasRiskStrongHint": true,
-      "hasRiskUi": true,
-      "riskKeywordCount": 2,
+      "hasRiskUi": false,
+      "riskKeywordCount": 1,
       "hasLoginPanel": false,
-      "cookieLength": 24
+      "cookieLength": 0
     }
   },
   "expected": {
-    "logged_in": false,
-    "risk_page": true,
-    "certainty": "not_authenticated"
+    "logged_in": true,
+    "risk_page": false,
+    "certainty": "high"
   }
 }

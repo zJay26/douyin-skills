@@ -24,9 +24,10 @@ python "{baseDir}/../../scripts/cli.py" check-login
 ```
 
 - CLI 会优先复用已有的本地 Chrome 调试实例和其中的登录会话；已有 headed Chrome 不会因为默认模式偏好被重启。
-- 导航后的短暂验证码/风控中间页会由 CLI 做有限稳定重检；若随后恢复到已登录页，可继续使用，不需要用户重复验证。
+- 导航后的短暂验证码/风控中间页会由 CLI 做有限稳定重检；切到 headed 后还会重新读取当前页面，不沿用切换前的旧风险结果。
 - `logged_in: true`：可以继续。
 - `logged_in: false`：进入登录流程；退出码 `1` 不是程序崩溃。
+- `action: risk_recovered_after_headed_switch`、`risk_recovered: true` 且 `logged_in: true`：临时风险状态已经消失，直接继续，不要请用户验证。
 - `needs_user_verification: true`：浏览器已切为 headed 或已停在验证页，请用户人工处理，不要绕过或连续重试。
 
 ## 二维码登录
@@ -84,4 +85,4 @@ python "{baseDir}/../../scripts/cli.py" remove-account --name work
 - 当前没有公开的强制退出或清除 Cookie 命令；不要承诺代替用户登出。
 - Chrome 未找到时先使用 `douyin-env` 运行 `doctor`。
 - 配置损坏时报告具体路径并停止，不要自动重建。
-- 风控页出现时保留可见浏览器，等待用户处理后再重试当前步骤。
+- 只有 CLI 最终返回 `needs_user_verification: true` 时，才保留可见浏览器并等待用户处理；标题或风险关键词命中本身不等于需要人工验证。

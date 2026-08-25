@@ -10,7 +10,7 @@ python scripts/cli.py version
 {
   "success": true,
   "project": "douyin-skills",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "result_contract_version": "1.0"
 }
 ```
@@ -40,10 +40,12 @@ Consumers must tolerate unknown fields. New optional fields may be added within 
 | `state_verified: false` | An interaction click may have occurred, but the final like/favorite state was not reliably observed. | Describe the click only; do not claim the final state or click again. |
 | `state: active` / `inactive` with `state_verified: true` | The current like/favorite control exposed explicit state evidence; a read-only check or a click followed by confirmation completed. | Report the current state; do not click an already-active toggle. |
 | `state: already_active` | The requested like/favorite was already active, so no click was issued. | Report that the desired state was already present. |
+| `state: unknown`, `clicked: false`, `blocked_reason: interaction_state_unverified` | The pre-action like/favorite state had insufficient or conflicting evidence, so no toggle click was issued. | Report the safe stop; inspect or update the adapter evidence instead of probing the toggle. |
 | `state: comment_confirmed` | The submitted comment text appeared in the visible comment list. | Report the comment as confirmed. |
 | `state: comment_clicked_unconfirmed` | The comment send control was clicked, but the comment was not observed afterward. | Report uncertainty and do **not** retry. |
 | `state: comment_input_not_found` / `comment_text_not_applied` / `comment_submit_not_found` | No comment was sent because the page did not expose usable controls or the controlled editor did not accept the text. | Report that the comment was not sent. |
 | `state: comment_input_not_empty` | The composer already contained a different draft. | Report that the existing draft was preserved; do not overwrite or send it. |
+| `action: risk_recovered_after_headed_switch`, `risk_recovered: true`, `logged_in: true` | A transient risk result disappeared after switching to the visible browser and the current page reconfirmed the authenticated session. | Continue the workflow; do not ask the user to verify. |
 | `needs_user_verification: true` | A captcha, identity check, or risk-control state needs a person. | Surface the visible browser and stop until the user completes the step. |
 | `success: false` | The requested command did not reach its defined successful outcome. | Read `error`, `message`, and any validation details before deciding what to do. |
 
@@ -63,7 +65,7 @@ JSON is authoritative for program behavior; exit codes are a coarse shell-level 
 
 1. Call `version` before depending on fields introduced by a particular contract version.
 2. Parse standard output as JSON and keep standard error for diagnostics.
-3. Require an explicit user decision before calling `click-publish --confirm`.
+3. Require an explicit user decision before calling `click-publish --confirm` or `click-publish-video --confirm`.
 4. Never retry an irreversible action when its prior result is unconfirmed.
 5. Preserve `needs_user_verification` as a supported pause state rather than treating it as a bypass target.
 6. Avoid logging or transmitting account configuration, cookies, QR codes, phone numbers, or Chrome profile data.

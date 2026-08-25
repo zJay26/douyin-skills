@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import unittest
@@ -13,6 +14,55 @@ from douyin import interact
 
 
 class InteractTests(unittest.TestCase):
+    def _evaluate_action_state_expression(
+        self,
+        data_e2e_state: str,
+        active_state_token: str,
+        inactive_state_token: str,
+    ) -> dict:
+        page = mock.Mock()
+        page.evaluate.return_value = {}
+        interact._read_action_state_with_styles(
+            page,
+            '[data-e2e="video-player-digg"]',
+            ("已赞",),
+            ("rgb(255, 44, 85)",),
+            (active_state_token,),
+            (inactive_state_token,),
+        )
+        expression = page.evaluate.call_args.args[0]
+        node_script = """
+        const stateValue = process.argv[1];
+        const expression = process.argv[2];
+        const root = {
+          innerText: '',
+          className: '',
+          getAttribute(name) {
+            return name === 'data-e2e-state' ? stateValue : null;
+          },
+          querySelectorAll() { return []; }
+        };
+        globalThis.document = {querySelector() { return root; }};
+        globalThis.getComputedStyle = () => ({color:'', fill:'', stroke:''});
+        process.stdout.write(JSON.stringify(eval(expression)));
+        """
+        result = subprocess.run(
+            [
+                "node",
+                "--input-type=module",
+                "-e",
+                node_script,
+                data_e2e_state,
+                expression,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)
+
     def test_action_state_javascript_is_syntactically_valid(self) -> None:
         page = mock.Mock()
         page.evaluate.return_value = {}
@@ -39,6 +89,83 @@ class InteractTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_action_state_reads_explicit_platform_attribute(self) -> None:
+        cases = (
+            (
+                "video-player-is-digged",
+                "video-player-is-digged",
+                "video-player-no-digged",
+                "active",
+            ),
+            (
+                "video-player-no-digged",
+                "video-player-is-digged",
+                "video-player-no-digged",
+                "inactive",
+            ),
+            (
+                "video-player-is-collected",
+                "video-player-is-collected",
+                "video-player-no-collect",
+                "active",
+            ),
+            (
+                "video-player-no-collect",
+                "video-player-is-collected",
+                "video-player-no-collect",
+                "inactive",
+            ),
+        )
+        for value, active_token, inactive_token, expected in cases:
+            with self.subTest(value=value):
+                result = self._evaluate_action_state_expression(
+                    value, active_token, inactive_token
+                )
+                self.assertEqual(result["state"], expected)
+                self.assertEqual(result["confidence"], "high")
+                self.assertEqual(result["dataE2eState"], value)
+
+    def test_unknown_action_state_blocks_without_clicking(self) -> None:
+        page = mock.Mock()
+        with mock.patch.object(
+            interact,
+            "_read_action_state_with_styles",
+            return_value={"state": "unknown", "confidence": "none"},
+        ):
+            result = interact._ensure_action_active(page, "#like")
+
+        self.assertFalse(result["success"])
+        self.assertFalse(result["clicked"])
+        self.assertEqual(result["blocked_reason"], "interaction_state_unverified")
+        page.click.assert_not_called()
+
+    def test_verified_inactive_state_clicks_once_and_confirms_active(self) -> None:
+        page = mock.Mock()
+        page.click.return_value = True
+        with (
+            mock.patch.object(
+                interact,
+                "_read_action_state_with_styles",
+                return_value={"state": "inactive", "confidence": "high"},
+            ),
+            mock.patch.object(
+                interact,
+                "_wait_for_active_action",
+                return_value={"state": "active", "confidence": "high"},
+            ),
+        ):
+            result = interact._ensure_action_active(
+                page,
+                "#like",
+                active_state_tokens=("video-player-is-digged",),
+                inactive_state_tokens=("video-player-no-digged",),
+            )
+
+        self.assertTrue(result["success"])
+        self.assertTrue(result["clicked"])
+        self.assertTrue(result["state_verified"])
+        page.click.assert_called_once_with("#like")
 
     def test_like_click_does_not_claim_final_state(self) -> None:
         opened = {
@@ -118,7 +245,7 @@ class InteractTests(unittest.TestCase):
         self.assertEqual(result["selector"], '[data-e2e="video-player-collect"]')
         click_text.assert_not_called()
 
-    def test_favorite_text_fallback_reports_the_click(self) -> None:
+    def test_favorite_unknown_state_does_not_use_text_fallback(self) -> None:
         opened = {
             "success": True,
             "kind": "video",
@@ -135,16 +262,19 @@ class InteractTests(unittest.TestCase):
                     "clicked": False,
                     "state": "unknown",
                     "state_verified": False,
+                    "blocked_reason": "interaction_state_unverified",
                 },
             ),
-            mock.patch.object(interact, "_click_text", return_value=True),
+            mock.patch.object(interact, "_click_text", return_value=True) as click_text,
         ):
             result = interact.favorite_video(mock.Mock(), "123456789")
 
-        self.assertTrue(result["success"])
-        self.assertTrue(result["clicked"])
-        self.assertEqual(result["selector"], "text:收藏")
+        self.assertFalse(result["success"])
+        self.assertFalse(result["clicked"])
+        self.assertEqual(result["selector"], "#favorite")
+        self.assertEqual(result["blocked_reason"], "interaction_state_unverified")
         self.assertFalse(result["state_verified"])
+        click_text.assert_not_called()
 
     def test_active_like_is_confirmed_without_clicking_again(self) -> None:
         opened = {

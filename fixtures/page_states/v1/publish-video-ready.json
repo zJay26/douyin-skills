@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "id": "publish-video-ready",
+  "flow": "publish",
+  "description": "Synthetic video fields, remote preview, and cover pass pre-publish validation without clicking publish.",
+  "source": {
+    "kind": "synthetic",
+    "contains_real_account_data": false
+  },
+  "input": {
+    "mode": "video_validation",
+    "require_topic": false,
+    "snapshot": {
+      "title": "Synthetic video study",
+      "editorText": "Synthetic video description for regression testing only.",
+      "href": "https://creator.douyin.com/creator-micro/content/post/video?enter_from=publish_page",
+      "fileCount": 1,
+      "hasVideo": true,
+      "uploadInProgress": false,
+      "hasCover": true,
+      "publishButtonFound": true,
+      "publishButtonDisabled": false,
+      "hasTopic": false,
+      "text": "A synthetic remote video preview and cover are prepared."
+    }
+  },
+  "expected": {
+    "success": true,
+    "state": "ready",
+    "errors": []
+  }
+}
