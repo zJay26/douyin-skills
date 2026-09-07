@@ -52,6 +52,7 @@ python "{baseDir}/../../scripts/cli.py" comment-video --video-id <作品ID或公
 - 只在页面明确提供评论输入框和发送控件时尝试一次。
 - `state: comment_confirmed` 表示评论文本已在评论区出现。
 - `state: comment_clicked_unconfirmed` 表示发送控件已点击但未确认评论出现；不要自动重试。
+- `state: comment_outcome_unknown`、`clicked: null` 表示发送指令期间异常，无法确认是否发送；不要重试，先检查评论区。
 - `comment_input_not_found`、`comment_text_not_applied` 或 `comment_submit_not_found` 表示没有发送评论，不要把填写输入框报告为已评论。
 - `comment_input_not_empty` 表示评论框中已有其他草稿；保留草稿且不要覆盖。
 
@@ -64,6 +65,9 @@ python "{baseDir}/../../scripts/cli.py" share-video --video-id <作品ID或公�
 优先返回 JSON 的 `share_url`。`copied_to_clipboard: false` 只表示当前环境没有确认剪贴板写入；只要 `share_url` 有值，仍可把链接交给用户。
 
 ## 失败处理
+
+- 点赞、收藏在图文和视频页面都必须先有可靠状态证据；图文操作栏缺少状态时不能按位置点击。
+- `outcome_unknown: true`、`clicked: null` 或 `retry_safe: false` 表示不能自动重复操作；连接错误不等于没有执行。
 
 - `needs_user_verification: true`：停在 headed 浏览器，等待人工验证；`risk_recovered: true` 且 `logged_in: true` 时继续，不要沿用切换前的风险判断。
 - 作品不可访问：说明可能私密、已删除或链接错误。

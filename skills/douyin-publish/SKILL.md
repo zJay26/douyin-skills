@@ -87,7 +87,10 @@ python "{baseDir}/../../scripts/cli.py" click-publish-video --confirm
 
 - `published: true`、`status: publish_confirmed`：页面已给出明确成功信号。
 - `published: false`、`status: publish_clicked_unconfirmed`：已经点击，但成功状态未知。不要自动重试；先到作品管理核对，避免重复发布。
-- `success: false`：未点击或发布前校验失败，按 `validation.errors` 修复。
+- `status: publish_outcome_unknown`、`clicked: null`、`retry_safe: false`：指令期间异常，是否点击未知；先去作品管理核对，禁止自动重试。
+- `success: false`：先检查上述状态和 `retry_safe`；只有确认发布前校验失败且未点击时，才按 `validation.errors` 修复。
+
+会话丢失或页面已关闭时，后续发布步骤不会自动选择另一个标签页。先用 `browser-status --include-tabs` 在本地确认目标，再通过全局 `--target-id` 指定现有表单，或重新准备内容。
 
 ## 风控与边界
 

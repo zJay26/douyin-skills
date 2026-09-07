@@ -46,6 +46,8 @@ jobs:
       - run: python scripts/validate_repository.py
       - run: npm run check
       - run: npm test
+      - run: python scripts/smoke_browser.py
+      - run: python scripts/validate_release.py
 
   lint:
     name: Ruff

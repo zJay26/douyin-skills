@@ -24,9 +24,12 @@ CLI 始终输出 JSON。根据字段判断结果，不要只看进程退出码�
 
 ```bash
 python "{baseDir}/scripts/cli.py" version
+python "{baseDir}/scripts/cli.py" capabilities
 ```
 
 解析规则、确认/未确认状态和退出码见 `{baseDir}/docs/RESULT_CONTRACT.md`。
+
+`capabilities` 提供当前命令、参数和影响类型，不代表用户授权。只读排查浏览器时使用 `browser-status`；只有本地排查需要时加 `--include-tabs` 显示标题和 URL。全局 `--target-id` 可显式接管已有页面；会话丢失后的发布后续步骤会停止，不能随意选取其他标签页。迁移细节见 `{baseDir}/docs/RUNTIME.md`。
 
 ## 路由任务
 
@@ -47,7 +50,7 @@ python "{baseDir}/scripts/cli.py" version
 3. 优先复用同一端口上已有的可用 loopback Chrome 调试实例，不因 headless/headed 偏好差异重启用户的登录会话；没有可用实例时才按默认模式启动 Chrome。导航后若短暂出现验证码/风控中间页，CLI 会先做有限稳定重检，并在切到 headed 后重新判定当前页面；`risk_recovered: true` 且 `logged_in: true` 时直接继续。只有 JSON 明确返回 `needs_user_verification: true` 才停下请用户人工处理；不要仅凭标题、页面片段或旧的 `risk_page` 结果暂停，也不要尝试绕过验证。
 4. 在任何会改变账号状态的操作前确认目标账号与目标作品。用户明确提出“点赞/收藏/评论/发布该内容”可视为本次操作授权。
 5. 发布前必须检查素材、标题、文案、封面及对应页面状态：图文执行 `validate-publish`，视频执行 `validate-publish-video`。最终点击必须显式传 `--confirm`。
-6. 发布返回 `status: publish_clicked_unconfirmed` 时，不要重试；先去作品管理确认，避免重复发布。
+6. 发布返回 `status: publish_clicked_unconfirmed` 或 `publish_outcome_unknown` 时，不要重试；先去作品管理确认。`clicked: null` 表示是否点击未知，`success: false` 也不能证明未执行。评论和切换状态操作的 `retry_safe: false` 同样禁止自动重试。
 7. 点赞和收藏应先读取按钮状态；优先采用适配器声明的 `data-e2e-state` 等平台显式状态，再结合 `aria-pressed`、`aria-checked`、激活文案或样式。已处于激活状态时不得再次点击；状态仍为 `unknown` 时必须保持 `clicked: false` 并停止。点击后若 `state_verified: false`，如实说明且不要自动重复点击。需要只读核对时使用 `get-interaction-state`。
 8. 保持合理操作频率，不执行批量养号、刷量或规避平台限制的流程。
 
@@ -60,10 +63,10 @@ python "{baseDir}/scripts/cli.py" version
 
 ## 当前公开命令
 
-- 运行时：`version`
-- 环境：`doctor`
+- 运行时：`version`、`capabilities`
+- 环境：`doctor`、`browser-status`
 - 认证：`check-login`、`get-qrcode`、`wait-login`、`send-code`、`verify-code`
-- 账号：`list-accounts`、`add-account`、`remove-account`、`set-default-account`
+- 账号：`list-accounts`、`add-account`、`remove-account`、`set-default-account`、`update-account`
 - 发现：`search-videos`、`get-trending-topics`、`get-video-detail`
 - 发布：`fill-publish-image`、`select-music`、`validate-publish`、`click-publish`、`fill-publish-video`、`set-video-cover`、`validate-publish-video`、`click-publish-video`
 - 互动：`like-video`、`favorite-video`、`comment-video`、`get-interaction-state`、`share-video`

@@ -1172,21 +1172,8 @@ def click_publish_video(
     return _click_publish_after_validation(page, check, adapter)
 
 
-def _click_publish_after_validation(
-    page,
-    check: dict,
-    adapter: PlatformAdapter,
-) -> dict:
-    if check.get("risk_page"):
-        return check
-    if not check.get("success"):
-        return {
-            "success": False,
-            "message": "发布前校验失败",
-            "validation": check,
-        }
-
-    result = (
+def _dispatch_publish_click(page, adapter: PlatformAdapter) -> dict:
+    return (
         page.evaluate(
             f"""
         (() => {{
@@ -1210,6 +1197,32 @@ def _click_publish_after_validation(
         )
         or {}
     )
+
+
+def _click_publish_after_validation(
+    page,
+    check: dict,
+    adapter: PlatformAdapter,
+) -> dict:
+    if check.get("risk_page"):
+        return check
+    if not check.get("success"):
+        return {"success": False, "message": "发布前校验失败", "validation": check}
+    try:
+        result = _dispatch_publish_click(page, adapter)
+        if not isinstance(result, dict) or not isinstance(result.get("clicked"), bool):
+            raise RuntimeError("发布点击指令未返回明确执行结果")
+    except (OSError, RuntimeError) as error:
+        return {
+            "success": False,
+            "status": "publish_outcome_unknown",
+            "clicked": None,
+            "published": False,
+            "retry_safe": False,
+            "validation": check,
+            "error": str(error),
+            "message": "发布指令期间连接或执行异常，无法确认是否已点击；不要重试，请到作品管理核对。",
+        }
     if not result.get("clicked"):
         return {
             "success": False,
@@ -1218,9 +1231,11 @@ def _click_publish_after_validation(
             "click": result,
         }
 
-    confirmation = _wait_until(
-        page,
-        f"""
+    verification_error = None
+    try:
+        confirmation = _wait_until(
+            page,
+            f"""
         (() => {{
           const body = document.body?.innerText || '';
           const href = location.href || '';
@@ -1228,9 +1243,12 @@ def _click_publish_after_validation(
           return confirmed ? {{ confirmed: true, href, text: body.slice(0, 1200) }} : null;
         }})()
         """,
-        timeout=20,
-        interval=1,
-    )
+            timeout=20,
+            interval=1,
+        )
+    except (OSError, RuntimeError) as error:
+        confirmation = None
+        verification_error = str(error)
     outcome = classify_publish_outcome(True, confirmation)
     if outcome["status"] == "publish_confirmed":
         return {
@@ -1242,11 +1260,18 @@ def _click_publish_after_validation(
             "confirmation": confirmation,
         }
 
+    try:
+        snapshot = _page_snapshot(page) if not verification_error else {}
+    except (OSError, RuntimeError) as error:
+        snapshot = {}
+        verification_error = str(error)
     return {
         "success": True,
         **outcome,
+        "clicked": True,
+        **({"verification_error": verification_error} if verification_error else {}),
         "message": "已点击发布，但页面尚未给出明确成功信号。不要自动重试，请先到作品管理确认，避免重复发布。",
         "validation": check,
         "click": result,
-        "page": _page_snapshot(page),
+        "page": snapshot,
     }

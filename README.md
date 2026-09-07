@@ -43,6 +43,7 @@ Everyday Douyin web tasks are not inherently complicated, but browser startup, l
 | “Everything looks right—publish it” | Explicit publish confirmation | Never retry an unknown result |
 | “Comment ‘学到了！！’ on this post” | One bounded public comment attempt | Confirmed, unconfirmed, and unavailable states are distinct |
 | “Favorite this post and send me its link” | Like, favorite, share URL | No bulk actions or inflated claims |
+| “Check the runtime and list available commands” | Offline command discovery and attach-only browser diagnostics | Tab titles and URLs are omitted by default |
 
 What makes it different:
 
@@ -93,14 +94,14 @@ The environment is ready when the JSON from `doctor` contains `"success": true` 
 
 ### Stable release download
 
-For a versioned, checksum-verifiable install, download `douyin-skills-v1.4.0.zip` and `SHA256SUMS` from the [v1.4.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.4.0). Verify the ZIP before extracting it:
+For a versioned, checksum-verifiable install, download `douyin-skills-v1.5.0.zip` and `SHA256SUMS` from the [v1.5.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.5.0). Verify the ZIP before extracting it:
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell: compare this value with the matching SHA256SUMS line
-Get-FileHash .\douyin-skills-v1.4.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.5.0.zip -Algorithm SHA256
 ```
 
 The named ZIP contains the complete repository under one versioned directory, including the privacy-safe Demo. GitHub's automatic source archives are separate and are not covered by the published checksum.
@@ -126,6 +127,8 @@ The named ZIP contains the complete repository under one versioned directory, in
    > I reviewed the page. Publish once, and do not retry if the result is not explicitly confirmed.
 
 The first login creates an isolated local Chrome profile. Later commands reuse an available local Chrome debugging instance instead of restarting an already signed-in headed browser just to satisfy the default headless preference. If Douyin presents a captcha, identity check, or risk page, the CLI switches to a visible browser when a safe, tracked mode transition is needed and waits for you to complete it manually.
+
+Commands reuse their saved page. When that session is missing, discovery and login create a dedicated tab; publishing steps require an existing form. To resume a tab after upgrading, use `browser-status --include-tabs` and select it with the global `--target-id` option. See [runtime diagnostics and migration](./docs/RUNTIME.md).
 
 ## Why this matters to the Agent ecosystem
 
@@ -258,7 +261,8 @@ Agent integrations should follow the stable minimum fields and certainty rules i
 
 | Area | Command | Purpose |
 | --- | --- | --- |
-| Runtime | `version` | Return project and result-contract versions without Chrome |
+| Runtime | `version` / `capabilities` | Return versions or machine-readable command arguments and effects without Chrome |
+| Environment | `browser-status` | Inspect an existing endpoint without launching Chrome or changing tabs |
 | Environment | `doctor` | Check Python, Node.js, `ws`, Chrome, and display availability |
 | Auth | `check-login` | Inspect login, risk, and human-verification state |
 | Auth | `get-qrcode` / `wait-login` | Retrieve a QR image and wait once for scanning |
@@ -266,6 +270,7 @@ Agent integrations should follow the stable minimum fields and certainty rules i
 | Accounts | `list-accounts` | List named accounts and the current default |
 | Accounts | `add-account` / `remove-account` | Register or remove a named account |
 | Accounts | `set-default-account` | Select the default named account |
+| Accounts | `update-account` | Update the description while preserving the account port and profile |
 | Discovery | `search-videos` | Keyword search; seven by default, twenty maximum |
 | Discovery | `get-trending-topics` | Read public trending topics; twenty maximum |
 | Discovery | `get-video-detail` | Read a numeric ID or public video/note URL |
@@ -292,7 +297,8 @@ Run `python scripts/cli.py --help` or a subcommand's `--help` for every option.
 | --- | --- | --- |
 | `publish_confirmed` | The page exposed an explicit success signal | Report confirmed publication |
 | `publish_clicked_unconfirmed` | The button was clicked, but the result is not reliable | Check Creator Center and **do not retry** |
-| `success: false` | No click occurred, or preflight validation failed | Fix `validation.errors` |
+| `publish_outcome_unknown` | The click command lost its result; whether a click occurred is unknown | Check Creator Center and **do not retry** |
+| `success: false` | Validation or execution failed; inspect `status`, `clicked`, and `retry_safe` | Repair validation errors only when no click occurred |
 
 Likes and favorites inspect the control before and after an action, including adapter-declared `data-e2e-state` values, ARIA state, labels, and active styles. `state: already_active` means no second click was issued. If the pre-action state remains `unknown`, the command returns `clicked: false` and stops instead of probing a toggle; if a click occurred but the final state is unverified, the agent must report that uncertainty and never retry. Use `get-interaction-state` for a read-only check.
 
@@ -313,6 +319,8 @@ The default data directory is `~/.douyin-skills/`; set `DOUYIN_SKILLS_HOME` to u
 ├── skills/                   # Five composable child Skills
 ├── scripts/
 │   ├── cli.py                # Unified JSON CLI
+│   ├── browser_runtime.py    # Platform-neutral Python CDP client
+│   ├── cli_contract.py       # JSON argument errors and command discovery
 │   ├── doctor.py             # Environment diagnostics
 │   ├── chrome_launcher.py    # Chrome lifecycle and profiles
 │   ├── cdp_client.mjs        # Node.js CDP bridge
@@ -326,6 +334,8 @@ The default data directory is `~/.douyin-skills/`; set `DOUYIN_SKILLS_HOME` to u
 ```
 
 ## Development and verification
+
+`python scripts/smoke_browser.py` runs real Chrome on a synthetic local page in a temporary profile. `python scripts/validate_release.py` requires committed tracked files, builds twice, compares bytes and checksums, and runs offline commands from the extracted package. Both checks run in CI; neither authenticates to Douyin.
 
 ```bash
 npm ci

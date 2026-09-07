@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import ipaddress
+import hashlib
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
 
 from account_manager import (
@@ -18,10 +17,12 @@ from account_manager import (
     list_accounts,
     remove_account,
     set_default_account,
+    update_account_description,
 )
+from browser_runtime import Browser, CDPError, normalize_host
 from chrome_launcher import DEFAULT_PORT, ensure_chrome
+from cli_contract import JsonArgumentParser, capabilities_payload
 from doctor import run_doctor
-from douyin.cdp import Browser
 from douyin.interact import (
     comment_video,
     favorite_video,
@@ -47,6 +48,7 @@ from douyin.publish import (
     validate_video_publish_state,
 )
 from douyin.search import get_trending_topics, get_video_detail, search_videos
+from local_state import atomic_write
 from platform_adapter import get_default_adapter
 from project_metadata import version_payload
 
@@ -65,6 +67,13 @@ def _maybe_switch_to_headed_for_risk(
 ):
     if not isinstance(result, dict) or not result.get("risk_page"):
         return None
+    if getattr(args, "target_id", None):
+        return {
+            **result,
+            "action": "needs_user_verification",
+            "needs_user_verification": True,
+            "message": "指定页面需要人工验证；请在该浏览器中完成验证后重试。",
+        }
     if getattr(args, "headed", False):
         page_title = result.get("page_title") or ""
         return {
@@ -112,30 +121,40 @@ def _output(data: dict, exit_code: int = 0) -> None:
     raise SystemExit(exit_code)
 
 
-def _session_tab_file(port: int) -> str:
-    return os.path.join(
-        tempfile.gettempdir(), "douyin-skills", f"session_tab_{port}.txt"
+def _session_tab_file(
+    port: int, host: str = "127.0.0.1", profile: str | None = None
+) -> Path:
+    root = Path(
+        os.environ.get("DOUYIN_SKILLS_HOME", Path.home() / ".douyin-skills")
+    ).expanduser()
+    identity = json.dumps(
+        [normalize_host(host), port, profile or ""], ensure_ascii=False
     )
+    key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
+    return root / "runtime" / f"session-{key}.txt"
 
 
-def _save_session_tab(target_id: str, port: int) -> None:
-    path = _session_tab_file(port)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    Path(path).write_text(target_id, encoding="utf-8")
+def _save_session_tab(
+    target_id: str, port: int, host: str = "127.0.0.1", profile: str | None = None
+) -> None:
+    atomic_write(_session_tab_file(port, host, profile), target_id)
 
 
-def _load_session_tab(port: int) -> str | None:
+def _load_session_tab(
+    port: int, host: str = "127.0.0.1", profile: str | None = None
+) -> str | None:
     with contextlib.suppress(FileNotFoundError):
-        data = Path(_session_tab_file(port)).read_text(encoding="utf-8").strip()
+        data = (
+            _session_tab_file(port, host, profile).read_text(encoding="utf-8").strip()
+        )
         return data or None
     return None
 
 
 def _is_loopback_host(host: str) -> bool:
-    if host.strip().lower() == "localhost":
-        return True
     try:
-        return ipaddress.ip_address(host.strip()).is_loopback
+        normalize_host(host)
+        return True
     except ValueError:
         return False
 
@@ -165,21 +184,43 @@ def _connect(args: argparse.Namespace):
     if not _is_loopback_host(args.host):
         raise ValueError("出于安全考虑，--host 只允许 localhost、127.0.0.1 或 ::1")
     user_data_dir = _resolve_account(args)
+    args.host = normalize_host(args.host)
+    browser = Browser(host=args.host, port=args.port)
+    explicit_target = getattr(args, "target_id", None)
+    if explicit_target:
+        page = browser.get_page_by_target_id(explicit_target)
+        if page is None:
+            raise RuntimeError(
+                "指定的 --target-id 不存在或不是页面；请运行 browser-status --include-tabs 核对"
+            )
+        _save_session_tab(page.target_id, args.port, args.host, user_data_dir)
+        return browser, page
     desired_headless = not getattr(args, "headed", False)
-    if not ensure_chrome(
+    if args.host != "127.0.0.1":
+        browser.version()  # Alternate loopback endpoints are attach-only.
+    elif not ensure_chrome(
         port=args.port,
         headless=desired_headless,
         user_data_dir=user_data_dir,
         force_mode=bool(getattr(args, "headed", False)),
     ):
         raise RuntimeError("无法启动 Chrome")
-    browser = Browser(host=args.host, port=args.port)
-    browser.connect()
-    saved = _load_session_tab(args.port)
+    saved = _load_session_tab(args.port, args.host, user_data_dir)
     page = browser.get_page_by_target_id(saved) if saved else None
     if not page:
+        if args.command in {
+            "set-video-cover",
+            "select-music",
+            "validate-publish",
+            "click-publish",
+            "validate-publish-video",
+            "click-publish-video",
+        }:
+            raise RuntimeError(
+                "发布会话不存在或已关闭；请先准备发布表单，或用 --target-id 显式选择现有表单"
+            )
         page = browser.get_or_create_page()
-    _save_session_tab(page.target_id, args.port)
+    _save_session_tab(page.target_id, args.port, args.host, user_data_dir)
     return browser, page
 
 
@@ -210,6 +251,64 @@ def cmd_remove_account(args: argparse.Namespace) -> None:
 def cmd_set_default_account(args: argparse.Namespace) -> None:
     set_default_account(args.name)
     _output({"success": True, "default": args.name})
+
+
+def cmd_update_account(args: argparse.Namespace) -> None:
+    update_account_description(args.name, args.description)
+    _output({"success": True, "name": args.name, "description": args.description})
+
+
+def cmd_capabilities(_args: argparse.Namespace) -> None:
+    _output(capabilities_payload(build_parser()))
+
+
+def cmd_browser_status(args: argparse.Namespace) -> None:
+    profile = _resolve_account(args)
+    args.host = normalize_host(args.host)
+    browser = Browser(args.host, args.port)
+    base = {"host": args.host, "port": args.port, "account": args.account or None}
+    try:
+        version = browser.version()
+        pages = [
+            target for target in browser.list_pages() if target.get("type") == "page"
+        ]
+    except (OSError, RuntimeError, ValueError) as error:
+        _output(
+            {
+                "success": False,
+                **base,
+                "connected": False,
+                "error": str(error),
+                "error_code": getattr(error, "code", "connection_failed"),
+            },
+            exit_code=2,
+        )
+    saved = args.target_id or _load_session_tab(args.port, args.host, profile)
+    found = any(
+        (target.get("id") or target.get("targetId")) == saved for target in pages
+    )
+    result = {
+        **version,
+        **base,
+        "connected": True,
+        "page_count": len(pages),
+        "session_target_id": saved,
+        "session_target_found": found,
+    }
+    if args.include_tabs:
+        result["tabs"] = [
+            {
+                "target_id": target.get("id") or target.get("targetId"),
+                "title": target.get("title", ""),
+                "url": target.get("url", ""),
+            }
+            for target in pages
+        ]
+    if args.target_id and not found:
+        result.update(
+            success=False, error="指定的页面不存在", error_code="target_not_found"
+        )
+    _output(result, exit_code=0 if result["success"] else 2)
 
 
 def cmd_doctor(_args: argparse.Namespace) -> None:
@@ -579,7 +678,7 @@ def _valid_search_limit(value: str) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="douyin-skills CLI")
+    parser = JsonArgumentParser(description="douyin-skills CLI")
     parser.add_argument(
         "--host", default="127.0.0.1", help="本地 Chrome 调试地址（仅允许 loopback）"
     )
@@ -593,6 +692,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--account", default="", help="命名账号；省略时使用已设置的默认账号"
     )
     parser.add_argument(
+        "--target-id", help="显式选择现有页面；只连接现有浏览器，不自动启动"
+    )
+    parser.add_argument(
         "--headed",
         action="store_true",
         help="需要时强制切换到有头模式；已有可用 Chrome 默认复用",
@@ -601,6 +703,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     for name in [
         "version",
+        "capabilities",
         "doctor",
         "check-login",
         "get-qrcode",
@@ -608,6 +711,13 @@ def build_parser() -> argparse.ArgumentParser:
         "list-accounts",
     ]:
         sub.add_parser(name)
+
+    p = sub.add_parser("browser-status")
+    p.add_argument(
+        "--include-tabs",
+        action="store_true",
+        help="包含标签页标题和 URL，仅在本地排查时使用",
+    )
 
     p = sub.add_parser("send-code")
     p.add_argument("--phone", default="")
@@ -624,6 +734,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("set-default-account")
     p.add_argument("--name", required=True)
+
+    p = sub.add_parser("update-account")
+    p.add_argument("--name", required=True)
+    p.add_argument("--description", required=True)
 
     p = sub.add_parser("search-videos")
     p.add_argument("--keyword", required=True)
@@ -699,11 +813,14 @@ def main(argv: list[str] | None = None) -> None:
 
     dispatch = {
         "version": cmd_version,
+        "capabilities": cmd_capabilities,
+        "browser-status": cmd_browser_status,
         "doctor": cmd_doctor,
         "list-accounts": cmd_list_accounts,
         "add-account": cmd_add_account,
         "remove-account": cmd_remove_account,
         "set-default-account": cmd_set_default_account,
+        "update-account": cmd_update_account,
         "check-login": cmd_check_login,
         "get-qrcode": cmd_get_qrcode,
         "wait-login": cmd_wait_login,
@@ -734,6 +851,7 @@ def main(argv: list[str] | None = None) -> None:
                 "success": False,
                 "error": str(exc),
                 "error_type": type(exc).__name__,
+                **({"error_code": exc.code} if isinstance(exc, CDPError) else {}),
             },
             exit_code=2,
         )

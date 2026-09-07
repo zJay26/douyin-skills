@@ -20,6 +20,7 @@ python scripts/validate_fixtures.py
 python scripts/validate_repository.py
 npm run check
 npm test
+python scripts/smoke_browser.py
 
 python -m pip install ruff==0.16.2
 ruff check scripts tests/python
@@ -27,6 +28,14 @@ ruff format --check scripts tests/python
 ```
 
 Wait for the same commit's GitHub Actions checks to pass. Automated evidence remains subject to the boundaries in [`VALIDATION.md`](./VALIDATION.md).
+
+The browser smoke uses a synthetic data URL and temporary Chrome profile. It does not require a Douyin login or publish anything. Commit all tracked changes before running the archive gate; release builds reject dirty tracked files:
+
+```bash
+python scripts/validate_release.py
+```
+
+This builds twice, checks byte equality, checksum and ZIP CRC, then runs `version` and `capabilities` from a fresh extraction. CI runs this gate on both operating systems.
 
 ## 3. Build and inspect assets
 

@@ -6,6 +6,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "scripts"
@@ -16,12 +17,23 @@ from build_release import (  # noqa: E402
     build_archive,
     build_release,
     normalize_version,
+    require_clean_checkout,
     safe_relative_path,
     should_include,
 )
 
 
 class BuildReleaseTests(unittest.TestCase):
+    def test_release_rejects_uncommitted_tracked_changes(self) -> None:
+        with (
+            mock.patch(
+                "build_release.subprocess.run",
+                return_value=mock.Mock(returncode=0, stdout=" M scripts/cli.py"),
+            ),
+            self.assertRaisesRegex(RuntimeError, "tracked changes"),
+        ):
+            require_clean_checkout(ROOT)
+
     def test_version_requires_stable_semantic_versioning(self) -> None:
         self.assertEqual(normalize_version("v1.0.0"), "1.0.0")
         self.assertEqual(normalize_version("2.3.4"), "2.3.4")

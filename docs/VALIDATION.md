@@ -24,7 +24,16 @@ These checks exercise behavior that does not need a Douyin account:
   distinct confirmed/unconfirmed publish states;
 - one-at-a-time interaction semantics that do not invent a final state,
   including existing-draft preservation and confirmed/unconfirmed comments;
-- the Node.js CDP request/response bridge, including native text insertion;
+- the Node.js CDP request/response bridge, including native text insertion,
+  loopback endpoint checks, malformed responses, JavaScript exceptions,
+  navigation failures, connection loss, and large Unicode stdin payloads;
+- concurrent account updates, atomic-write failure recovery, offline command
+  discovery, JSON argument errors, and explicit page selection;
+- real Chrome against a synthetic local page in a temporary profile, exercising
+  navigation, Unicode text, native editor input, local file upload, one click,
+  and JavaScript exception propagation;
+- two byte-identical release builds and offline CLI execution from the extracted
+  package, without Node dependencies or account access;
 - sanitized page-state fixtures for login, risk, search, detail, and publishing certainty, including schema and privacy rules plus focused flow/id reruns for page-drift reports.
 
 The repository also includes a deterministic, synthetic 40-second walkthrough. Its source is [`assets/demo/index.html`](../assets/demo/index.html), and maintainers can render [`assets/demo.gif`](../assets/demo.gif) with:
@@ -64,9 +73,9 @@ Use this checklist when validating against a real account. Never attach the resu
 5. For discovery, compare the structured result with the visible public page.
 6. For photo publishing, fill synthetic test content first and stop at `validate-publish`; for video publishing, stop at `validate-publish-video`.
 7. If a real publish is necessary, inspect the visible page and provide `--confirm` separately.
-8. Treat `publish_clicked_unconfirmed` as unresolved: check Creator Center and never blind-retry.
+8. Treat `publish_clicked_unconfirmed` and `publish_outcome_unknown` as unresolved: check Creator Center and never blind-retry.
 9. For comments, preserve any existing draft, submit once, and never retry
-   `comment_clicked_unconfirmed`.
+   `comment_clicked_unconfirmed` or `comment_outcome_unknown`.
 10. Record observed selectors or page-state changes without copying session data.
 
 ## Stable release gate

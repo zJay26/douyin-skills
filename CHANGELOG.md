@@ -4,6 +4,31 @@ All notable changes are documented here. Releases follow semantic versioning, an
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-07
+
+### Added
+
+- Offline `capabilities`, attach-only `browser-status`, explicit `--target-id`,
+  and `update-account` description editing.
+- Platform-neutral Python CDP client, shared atomic state and process locks,
+  plus result-contract 1.1 unknown-dispatch outcomes.
+- Real Chrome smoke tests using a temporary profile and synthetic page;
+  reproducible release/archive extraction checks on Windows and Ubuntu CI.
+
+### Fixed
+
+- Reject JavaScript exceptions, navigation failures, malformed CDP responses,
+  non-loopback debugger endpoints, and interrupted commands instead of
+  silently reporting success. Transfer Unicode payloads through stdin.
+- Preserve uncertainty and no-retry semantics after publish/comment/toggle
+  dispatch or verification errors; remove unverified positional note toggles.
+- Avoid selecting unrelated tabs when a saved session disappears.
+- Prevent concurrent account updates from losing writes and reject invalid
+  directory names, duplicate ports, and case-colliding account names.
+- Return JSON argument errors, require full option names, and retain doctor
+  diagnostics for unsupported Node versions and corrupt account configuration.
+- Synchronize the Chinese guide's video-publishing support and release links.
+
 ## [1.4.0] - 2026-08-25
 
 ### Added
@@ -147,6 +172,7 @@ All notable changes are documented here. Releases follow semantic versioning, an
 - Captcha, identity checks, and platform risk controls are never bypassed.
 - Unconfirmed irreversible actions are never reported as confirmed or retried automatically.
 
+[1.5.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.5.0
 [1.4.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.4.0
 [1.3.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.3.0
 [1.2.0]: https://github.com/zJay26/douyin-skills/releases/tag/v1.2.0

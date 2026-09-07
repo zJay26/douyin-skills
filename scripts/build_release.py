@@ -82,6 +82,21 @@ def tracked_files(root: Path) -> list[str]:
     return files
 
 
+def require_clean_checkout(root: Path) -> None:
+    result = subprocess.run(
+        ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=no"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("release builds require a Git checkout")
+    if result.stdout.strip():
+        raise RuntimeError(
+            "commit or restore tracked changes before building a release"
+        )
+
+
 def source_date_epoch(root: Path) -> int:
     configured = os.environ.get("SOURCE_DATE_EPOCH")
     if configured:
@@ -179,6 +194,7 @@ def build_release(root: Path, version: str, output_dir: Path) -> tuple[Path, Pat
         raise ValueError(
             f"requested version {normalized} does not match runtime version {PROJECT_VERSION}"
         )
+    require_clean_checkout(root)
     archive_name = f"{PROJECT_NAME}-v{normalized}.zip"
     output_dir = output_dir.resolve()
     archive_path = output_dir / archive_name

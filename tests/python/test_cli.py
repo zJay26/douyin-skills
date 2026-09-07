@@ -19,6 +19,9 @@ class CliTests(unittest.TestCase):
     def test_all_documented_commands_are_exposed(self) -> None:
         expected = {
             "version",
+            "capabilities",
+            "browser-status",
+            "update-account",
             "doctor",
             "check-login",
             "get-qrcode",
@@ -74,14 +77,150 @@ class CliTests(unittest.TestCase):
             {
                 "success": True,
                 "project": "douyin-skills",
-                "version": "1.4.0",
-                "result_contract_version": "1.0",
+                "version": "1.5.0",
+                "result_contract_version": "1.1",
             },
         )
 
     def test_doctor_command_is_exposed(self) -> None:
         args = cli.build_parser().parse_args(["doctor"])
         self.assertEqual(args.command, "doctor")
+
+    def run_json(self, arguments: list[str]) -> tuple[int, dict]:
+        stdout = io.StringIO()
+        with (
+            contextlib.redirect_stdout(stdout),
+            self.assertRaises(SystemExit) as result,
+        ):
+            cli.main(arguments)
+        return result.exception.code, json.loads(stdout.getvalue())
+
+    def test_capabilities_are_offline_and_describe_real_arguments(self) -> None:
+        with mock.patch.object(cli, "_connect", side_effect=AssertionError("offline")):
+            code, payload = self.run_json(["capabilities"])
+        commands = {item["name"]: item for item in payload["commands"]}
+        self.assertEqual(code, 0)
+        publish = commands["click-publish-video"]
+        self.assertTrue(publish["requires_confirmation"])
+        self.assertEqual(publish["retry_policy"], "never_automatically")
+        self.assertFalse(commands["capabilities"]["requires_browser"])
+        arguments = {arg["name"]: arg for arg in commands["search-videos"]["arguments"]}
+        self.assertTrue(arguments["keyword"]["required"])
+        self.assertEqual(arguments["limit"]["maximum"], 20)
+
+    def test_argument_errors_are_json_and_do_not_start_browser(self) -> None:
+        for arguments in (
+            [],
+            ["unknown"],
+            ["search-videos"],
+            ["--port", "0", "check-login"],
+            ["click-publish", "--conf"],
+            ["click-publish-video", "--conf"],
+        ):
+            with (
+                self.subTest(arguments=arguments),
+                mock.patch.object(cli, "_connect") as connect,
+            ):
+                code, payload = self.run_json(arguments)
+                self.assertEqual(code, 2)
+                self.assertFalse(payload["success"])
+                self.assertEqual(payload["error_code"], "invalid_arguments")
+                connect.assert_not_called()
+
+    def test_publish_without_confirmation_never_connects(self) -> None:
+        for command in ("click-publish", "click-publish-video"):
+            with (
+                self.subTest(command=command),
+                mock.patch.object(cli, "_connect") as connect,
+            ):
+                code, payload = self.run_json([command])
+                self.assertEqual(code, 2)
+                self.assertFalse(payload["success"])
+                connect.assert_not_called()
+
+    def test_browser_status_is_attach_only_and_hides_tab_contents_by_default(
+        self,
+    ) -> None:
+        browser = mock.Mock()
+        browser.version.return_value = {
+            "success": True,
+            "browser": "Chrome/test",
+            "protocol_version": "1.3",
+        }
+        browser.list_pages.return_value = [
+            {
+                "id": "target",
+                "type": "page",
+                "title": "private title",
+                "url": "https://example.test/private",
+                "webSocketDebuggerUrl": "ws://private",
+            }
+        ]
+        with (
+            mock.patch.object(cli, "Browser", return_value=browser),
+            mock.patch.object(cli, "ensure_chrome") as launch,
+            mock.patch.object(cli, "_load_session_tab", return_value="target"),
+            mock.patch.object(cli, "_save_session_tab") as save,
+        ):
+            code, payload = self.run_json(["--port", "9333", "browser-status"])
+            self.assertEqual(code, 0)
+            self.assertTrue(payload["session_target_found"])
+            self.assertEqual(payload["page_count"], 1)
+            self.assertNotIn("private", json.dumps(payload))
+            _, expanded = self.run_json(
+                ["--port", "9333", "browser-status", "--include-tabs"]
+            )
+            self.assertEqual(expanded["tabs"][0]["title"], "private title")
+            self.assertNotIn("webSocketDebuggerUrl", expanded["tabs"][0])
+            launch.assert_not_called()
+            save.assert_not_called()
+            browser.new_page.assert_not_called()
+
+    def test_browser_status_reports_connection_failure_without_launch(self) -> None:
+        browser = mock.Mock()
+        browser.version.side_effect = cli.CDPError("closed", "connection_closed")
+        with (
+            mock.patch.object(cli, "Browser", return_value=browser),
+            mock.patch.object(cli, "ensure_chrome") as launch,
+        ):
+            code, payload = self.run_json(["--port", "9333", "browser-status"])
+        self.assertEqual(code, 2)
+        self.assertFalse(payload["connected"])
+        self.assertEqual(payload["error_code"], "connection_closed")
+        launch.assert_not_called()
+
+    def test_explicit_missing_target_never_creates_or_launches(self) -> None:
+        browser = mock.Mock()
+        browser.get_page_by_target_id.return_value = None
+        with (
+            mock.patch.object(cli, "Browser", return_value=browser),
+            mock.patch.object(cli, "ensure_chrome") as launch,
+        ):
+            code, payload = self.run_json(
+                ["--port", "9333", "--target-id", "gone", "check-login"]
+            )
+        self.assertEqual(code, 2)
+        self.assertFalse(payload["success"])
+        launch.assert_not_called()
+        browser.get_or_create_page.assert_not_called()
+
+    def test_missing_publish_session_never_selects_an_unrelated_page(self) -> None:
+        browser = mock.Mock()
+        with (
+            mock.patch.object(cli, "Browser", return_value=browser),
+            mock.patch.object(cli, "ensure_chrome", return_value=True),
+            mock.patch.object(cli, "_load_session_tab", return_value=None),
+        ):
+            code, payload = self.run_json(["--port", "9333", "validate-publish"])
+        self.assertEqual(code, 2)
+        self.assertFalse(payload["success"])
+        browser.get_or_create_page.assert_not_called()
+
+    def test_session_keys_separate_profiles_and_loopback_endpoints(self) -> None:
+        first = cli._session_tab_file(9333, "localhost", "first")
+        self.assertEqual(first, cli._session_tab_file(9333, "127.0.0.1", "first"))
+        self.assertNotEqual(first, cli._session_tab_file(9333, "127.0.0.1", "second"))
+        self.assertNotEqual(first, cli._session_tab_file(9333, "::1", "first"))
 
     def test_trending_topics_command_is_exposed(self) -> None:
         args = cli.build_parser().parse_args(["get-trending-topics"])

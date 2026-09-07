@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -97,6 +99,93 @@ class AccountManagerTests(unittest.TestCase):
 
         self.assertEqual(data["default"], "个人号")
         self.assertEqual(data["accounts"]["个人号"]["description"], "日常使用")
+
+    def test_windows_unsafe_names_are_rejected_before_profile_creation(self) -> None:
+        for name in (
+            "NUL",
+            "com1.txt",
+            "work.",
+            "work:stream",
+            "bad?name",
+            "team|work",
+        ):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                account_manager.add_account(name)
+        self.assertFalse(account_manager._ACCOUNTS_FILE.exists())
+
+    def test_duplicate_ports_and_case_collisions_are_rejected_without_rewrite(
+        self,
+    ) -> None:
+        for accounts in (
+            {"a": {"port": 9333}, "b": {"port": 9333}},
+            {"Work": {"port": 9333}, "work": {"port": 9334}},
+        ):
+            with self.subTest(accounts=accounts):
+                original = json.dumps({"accounts": accounts})
+                account_manager._ACCOUNTS_FILE.write_text(original, encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    account_manager.add_account("new")
+                self.assertEqual(
+                    account_manager._ACCOUNTS_FILE.read_text(encoding="utf-8"), original
+                )
+
+    def test_update_description_preserves_profile_and_port(self) -> None:
+        original = account_manager.add_account("work", "old")
+        account_manager.update_account_description("work", "new")
+        updated = account_manager.list_accounts()[0]
+        self.assertEqual(updated["description"], "new")
+        self.assertEqual(updated["port"], original["port"])
+        self.assertEqual(updated["profile_dir"], original["profile_dir"])
+
+    def test_parallel_process_updates_do_not_lose_accounts(self) -> None:
+        script = (
+            "import account_manager,time,sys; "
+            "original=account_manager._save_config; "
+            "account_manager._save_config=lambda config: (time.sleep(0.1), original(config)); "
+            "account_manager.add_account(sys.argv[1])"
+        )
+        environment = {
+            **os.environ,
+            "DOUYIN_SKILLS_HOME": self.temp_dir.name,
+            "PYTHONPATH": str(SCRIPTS_DIR),
+        }
+        processes = [
+            subprocess.Popen(
+                [sys.executable, "-c", script, f"worker-{index}"],
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+            )
+            for index in range(6)
+        ]
+        try:
+            for process in processes:
+                stdout, stderr = process.communicate(timeout=15)
+                self.assertEqual(process.returncode, 0, stdout + stderr)
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate()
+        accounts = account_manager.list_accounts()
+        self.assertEqual(len(accounts), 6)
+        self.assertEqual(len({account["port"] for account in accounts}), 6)
+        self.assertEqual(sum(account["is_default"] for account in accounts), 1)
+
+    def test_failed_atomic_replace_preserves_existing_configuration(self) -> None:
+        account_manager.add_account("work", "original")
+        previous = account_manager._ACCOUNTS_FILE.read_bytes()
+        with (
+            mock.patch("local_state.os.replace", side_effect=OSError("replace failed")),
+            self.assertRaises(OSError),
+        ):
+            account_manager.update_account_description("work", "changed")
+        self.assertEqual(account_manager._ACCOUNTS_FILE.read_bytes(), previous)
+        self.assertFalse(list(account_manager._CONFIG_DIR.glob(".accounts.json.*")))
+        account_manager.update_account_description("work", "recovered")
+        self.assertEqual(account_manager.list_accounts()[0]["description"], "recovered")
 
 
 if __name__ == "__main__":

@@ -190,7 +190,20 @@ def _ensure_action_active(
             "before": before,
             "after": before,
         }
-    clicked = page.click(selector)
+    try:
+        clicked = page.click(selector)
+    except (OSError, RuntimeError) as error:
+        return {
+            "success": False,
+            "clicked": None,
+            "state": "unknown",
+            "state_verified": False,
+            "retry_safe": False,
+            "outcome_unknown": True,
+            "before": before,
+            "error": str(error),
+            "message": "点击指令期间异常，无法确认是否已执行；请核对状态，不要重试。",
+        }
     if not clicked:
         return {
             "success": False,
@@ -200,17 +213,21 @@ def _ensure_action_active(
             "before": before,
             "after": {"state": "unknown", "confidence": "none"},
         }
-    after = _wait_for_active_action(
-        page,
-        selector,
-        active_texts,
-        active_style_tokens,
-        active_state_tokens,
-        inactive_state_tokens,
-    )
+    try:
+        after = _wait_for_active_action(
+            page,
+            selector,
+            active_texts,
+            active_style_tokens,
+            active_state_tokens,
+            inactive_state_tokens,
+        )
+    except (OSError, RuntimeError) as error:
+        after = {"state": "unknown", "confidence": "none", "error": str(error)}
     return {
         "success": True,
         "clicked": True,
+        "retry_safe": False,
         "state": after.get("state", "unknown"),
         "state_verified": after.get("state") == "active"
         and after.get("confidence") == "high",
@@ -660,6 +677,8 @@ def like_video(page, video_id: str, adapter: PlatformAdapter | None = None) -> d
         if selector
         else None
     )
+    if interaction and interaction.get("outcome_unknown"):
+        return {**interaction, **meta, "selector": selector}
     if interaction and interaction.get("success"):
         confirmed = bool(interaction.get("state_verified"))
         already_active = not bool(interaction.get("clicked"))
@@ -694,23 +713,12 @@ def like_video(page, video_id: str, adapter: PlatformAdapter | None = None) -> d
             "error": "点赞状态无法可靠判定，未执行点击",
             "message": "点赞状态证据不足，已安全停止且未点击按钮。",
         }
-    if opened.get("kind") == "note":
-        result = _click_note_action(page, "like", adapter=adapter)
-        return {
-            "success": bool(result.get("ok")),
-            **meta,
-            "selector": "note-action-bar:first-child",
-            "detail": result,
-            "state_verified": False,
-            "message": "已点击点赞区域，但当前页面未提供可稳定读取的最终状态；不要自动重复点击。"
-            if result.get("ok")
-            else "未找到可用的点赞区域。",
-        }
     return {
         "success": False,
         **meta,
         "selector": selector or "",
         "clicked": False,
+        "blocked_reason": "interaction_state_unverified",
         "state": interaction.get("state", "missing") if interaction else "missing",
         "state_verified": False,
         "detail": interaction,
@@ -724,21 +732,6 @@ def favorite_video(page, video_id: str, adapter: PlatformAdapter | None = None) 
     if not opened.get("success"):
         return opened
     content_id, _kind = adapter.parse_content_ref(video_id)
-    if opened.get("kind") == "note":
-        result = _click_note_action(page, "favorite", adapter=adapter)
-        return {
-            "success": bool(result.get("ok")),
-            "video_id": content_id,
-            "action": "favorite",
-            "page_kind": opened.get("kind"),
-            "url": opened.get("href"),
-            "selector": "note-action-bar:favorite",
-            "detail": result,
-            "state_verified": False,
-            "message": "已点击收藏区域，但当前页面未提供可稳定读取的最终状态；不要自动重复点击。"
-            if result.get("ok")
-            else "未找到可用的收藏区域。",
-        }
     selector = _first_clickable(page, adapter.selectors.favorite_button_selectors)
     interaction = (
         _ensure_action_active(
@@ -752,6 +745,15 @@ def favorite_video(page, video_id: str, adapter: PlatformAdapter | None = None) 
         if selector
         else None
     )
+    if interaction and interaction.get("outcome_unknown"):
+        return {
+            **interaction,
+            "video_id": content_id,
+            "action": "favorite",
+            "page_kind": opened.get("kind"),
+            "url": opened.get("href"),
+            "selector": selector,
+        }
     if interaction and interaction.get("success"):
         confirmed = bool(interaction.get("state_verified"))
         already_active = not bool(interaction.get("clicked"))
@@ -798,6 +800,7 @@ def favorite_video(page, video_id: str, adapter: PlatformAdapter | None = None) 
         "url": opened.get("href"),
         "selector": selector or "",
         "clicked": False,
+        "blocked_reason": "interaction_state_unverified",
         "state": interaction.get("state", "missing") if interaction else "missing",
         "state_verified": False,
         "detail": interaction,
@@ -952,7 +955,26 @@ def comment_video(
         }
     time.sleep(0.5)
     previous_match_count = _comment_match_count(page, comment, adapter=adapter)
-    submitted = _submit_comment(page, comment, adapter=adapter)
+    try:
+        submitted = _submit_comment(page, comment, adapter=adapter)
+        if (
+            not isinstance(submitted, dict)
+            or submitted.get("reason") == "evaluate-failed"
+            or not isinstance(submitted.get("ok"), bool)
+        ):
+            raise RuntimeError("评论发送指令未返回明确执行结果")
+    except (OSError, RuntimeError) as error:
+        return {
+            "success": False,
+            **result_base,
+            "state": "comment_outcome_unknown",
+            "state_verified": False,
+            "clicked": None,
+            "retry_safe": False,
+            "typed": True,
+            "error": str(error),
+            "message": "评论发送指令期间异常，无法确认是否已发送；请检查评论区，不要重试。",
+        }
     if not submitted.get("ok"):
         return {
             "success": False,
@@ -963,14 +985,20 @@ def comment_video(
             "detail": submitted,
             "message": "已填写评论，但未找到可确认的发送控件，未发送评论。",
         }
+    verification_error = None
     for _ in range(5):
         time.sleep(1)
-        if _comment_is_visible(
-            page,
-            comment,
-            adapter=adapter,
-            previous_count=previous_match_count,
-        ):
+        try:
+            visible = _comment_is_visible(
+                page,
+                comment,
+                adapter=adapter,
+                previous_count=previous_match_count,
+            )
+        except (OSError, RuntimeError) as error:
+            verification_error = str(error)
+            break
+        if visible:
             return {
                 "success": True,
                 **result_base,
@@ -988,6 +1016,9 @@ def comment_video(
         **result_base,
         "state": "comment_clicked_unconfirmed",
         "state_verified": False,
+        "clicked": True,
+        "retry_safe": False,
+        **({"verification_error": verification_error} if verification_error else {}),
         "typed": True,
         "detail": {
             **submitted,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -58,6 +59,10 @@ def _check_ws() -> tuple[bool, str]:
 
 def run_doctor() -> dict:
     node_ok, node_detail = _command_version("node", "--version")
+    node_version = re.match(r"v?(\d+)\.", node_detail)
+    node_ok = node_ok and bool(node_version and int(node_version[1]) >= 18)
+    if not node_ok:
+        node_detail += "；需要 Node.js >= 18"
     npm_ok, npm_detail = _command_version("npm", "--version")
     ws_ok, ws_detail = _check_ws()
     chrome = find_chrome()
@@ -87,15 +92,25 @@ def run_doctor() -> dict:
             else "无图形环境；遇到验证码时需要可见桌面",
         },
     ]
+    try:
+        accounts = list_accounts()
+        accounts_result = {"count": len(accounts), "items": accounts}
+        checks.append(
+            {"name": "accounts", "ok": True, "required": True, "detail": "账号配置可读"}
+        )
+    except (OSError, TypeError, ValueError) as error:
+        accounts_result = {"count": None, "error": str(error)}
+        checks.append(
+            {"name": "accounts", "ok": False, "required": True, "detail": str(error)}
+        )
     required_failures = [
         check["name"] for check in checks if check["required"] and not check["ok"]
     ]
-    accounts = list_accounts()
     return {
         "success": not required_failures,
         "checks": checks,
         "required_failures": required_failures,
-        "accounts": {"count": len(accounts), "items": accounts},
+        "accounts": accounts_result,
         "project_root": str(PROJECT_ROOT),
         "message": "运行环境已就绪"
         if not required_failures

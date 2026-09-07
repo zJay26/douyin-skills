@@ -10,8 +10,8 @@ python scripts/cli.py version
 {
   "success": true,
   "project": "douyin-skills",
-  "version": "1.4.0",
-  "result_contract_version": "1.0"
+  "version": "1.5.0",
+  "result_contract_version": "1.1"
 }
 ```
 
@@ -29,6 +29,8 @@ On failure, commands provide a human-readable `error` or `message` when one is a
 
 Consumers must tolerate unknown fields. New optional fields may be added within result-contract 1.x; removing a required field or changing an existing field's meaning requires a new major contract version.
 
+Contract 1.1 adds offline `capabilities` discovery, attach-only `browser-status`, JSON argument errors, and explicit unknown-dispatch outcomes. `--help` is the human-readable exception to the JSON output rule. Argument errors return `error_type: ArgumentError`, `error_code: invalid_arguments`, and exit code `2`; abbreviated long options are not accepted. See [runtime diagnostics](./RUNTIME.md) for command metadata and page selection.
+
 ## Outcome certainty
 
 `success: true` means that the command completed according to its command-level contract. For actions that can change remote state, inspect the certainty fields as well:
@@ -37,6 +39,9 @@ Consumers must tolerate unknown fields. New optional fields may be added within 
 | --- | --- | --- |
 | `status: publish_confirmed` | The page exposed an explicit post-publish success signal. | Report that publication was confirmed. |
 | `status: publish_clicked_unconfirmed` | One publish click occurred, but the resulting page did not provide reliable confirmation. | Report uncertainty, ask the user to check Creator Center, and do **not** retry. |
+| `status: publish_outcome_unknown`, `clicked: null`, `retry_safe: false` | Dispatch raised an error, so whether the publish click occurred is unknown. `published: false` means publication is not confirmed. | Check Creator Center and do **not** retry. |
+| `state: comment_outcome_unknown`, `clicked: null`, `retry_safe: false` | The comment send command lost its result. | Check the comment list and do **not** retry. |
+| `outcome_unknown: true`, `clicked: null`, `retry_safe: false` | A like/favorite click command lost its result. | Inspect the current state and do **not** repeat the toggle. |
 | `state_verified: false` | An interaction click may have occurred, but the final like/favorite state was not reliably observed. | Describe the click only; do not claim the final state or click again. |
 | `state: active` / `inactive` with `state_verified: true` | The current like/favorite control exposed explicit state evidence; a read-only check or a click followed by confirmation completed. | Report the current state; do not click an already-active toggle. |
 | `state: already_active` | The requested like/favorite was already active, so no click was issued. | Report that the desired state was already present. |
@@ -50,6 +55,8 @@ Consumers must tolerate unknown fields. New optional fields may be added within 
 | `success: false` | The requested command did not reach its defined successful outcome. | Read `error`, `message`, and any validation details before deciding what to do. |
 
 The absence of a certainty field must never be upgraded into a stronger claim. In particular, a successful button dispatch is not automatically a confirmed platform outcome.
+
+After a confirmed click dispatch, a connection or evaluation error during verification preserves the existing unconfirmed outcome and may add `verification_error`. It does not erase the click or make the action safe to retry. These rules apply to both photo and video posts; missing state evidence on photo-note action bars no longer permits positional toggle clicks.
 
 ## Process exit codes
 

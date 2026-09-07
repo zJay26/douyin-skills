@@ -6,7 +6,7 @@ before a new adapter can be advertised, and the safety checks that must remain
 true. It is an implementation and review checklist, not a compatibility
 promise.
 
-As of `v1.1.x`, this repository ships only the Douyin adapter. A new adapter
+As of `v1.5.x`, this repository ships only the Douyin adapter. A new adapter
 must bring its own authorized validation evidence; copying the Douyin selectors
 or adding a name to a registry is not support.
 
@@ -31,6 +31,11 @@ else's session data.
 
 The adapter owns platform facts. The shared runtime owns execution and safety
 policy:
+
+Use `scripts/browser_runtime.py` for Python CDP operations and `local_state.py`
+for atomic state and process locks. `douyin.cdp` remains a compatibility import.
+The CLI's `capabilities` command exposes arguments and effect metadata for
+integrations; details and migration behavior are in [RUNTIME.md](./RUNTIME.md).
 
 | Adapter-owned | Shared and must not be duplicated |
 | --- | --- |

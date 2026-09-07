@@ -297,6 +297,76 @@ class PublishTests(unittest.TestCase):
         self.assertTrue(result["published"])
         self.assertEqual(result["status"], "publish_confirmed")
 
+    def test_dispatch_error_is_unknown_and_never_retried(self) -> None:
+        page = mock.Mock()
+        page.evaluate.side_effect = RuntimeError("connection lost")
+        with (
+            mock.patch.object(
+                publish, "validate_publish_state", return_value={"success": True}
+            ),
+            mock.patch.object(publish, "_wait_until") as wait,
+        ):
+            result = publish.click_publish(page)
+        self.assertFalse(result["success"])
+        self.assertEqual(result["status"], "publish_outcome_unknown")
+        self.assertIsNone(result["clicked"])
+        self.assertFalse(result["retry_safe"])
+        page.evaluate.assert_called_once()
+        wait.assert_not_called()
+
+    def test_missing_dispatch_acknowledgement_is_unknown(self) -> None:
+        page = mock.Mock()
+        page.evaluate.return_value = None
+        with mock.patch.object(
+            publish, "validate_publish_state", return_value={"success": True}
+        ):
+            result = publish.click_publish(page)
+        self.assertEqual(result["status"], "publish_outcome_unknown")
+        self.assertIsNone(result["clicked"])
+        self.assertFalse(result["retry_safe"])
+        page.evaluate.assert_called_once()
+
+    def test_post_click_connection_loss_retains_unconfirmed_state(self) -> None:
+        for command, validator in (
+            (publish.click_publish, "validate_publish_state"),
+            (publish.click_publish_video, "validate_video_publish_state"),
+        ):
+            with self.subTest(validator=validator):
+                page = mock.Mock()
+                page.evaluate.return_value = {"clicked": True}
+                with (
+                    mock.patch.object(
+                        publish, validator, return_value={"success": True}
+                    ),
+                    mock.patch.object(
+                        publish, "_wait_until", side_effect=RuntimeError("lost")
+                    ),
+                ):
+                    result = command(page)
+                self.assertEqual(result["status"], "publish_clicked_unconfirmed")
+                self.assertTrue(result["clicked"])
+                self.assertFalse(result["retry_safe"])
+                self.assertFalse(result["published"])
+                self.assertEqual(result["verification_error"], "lost")
+                page.evaluate.assert_called_once()
+
+    def test_snapshot_error_does_not_erase_known_click(self) -> None:
+        page = mock.Mock()
+        page.evaluate.return_value = {"clicked": True}
+        with (
+            mock.patch.object(
+                publish, "validate_publish_state", return_value={"success": True}
+            ),
+            mock.patch.object(publish, "_wait_until", return_value=None),
+            mock.patch.object(
+                publish, "_page_snapshot", side_effect=RuntimeError("lost")
+            ),
+        ):
+            result = publish.click_publish(page)
+        self.assertEqual(result["status"], "publish_clicked_unconfirmed")
+        self.assertFalse(result["retry_safe"])
+        page.evaluate.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

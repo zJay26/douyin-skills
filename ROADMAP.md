@@ -18,6 +18,9 @@ This roadmap separates implemented behavior from evidence we still need. Dates a
 - [x] Explicit publish validation and confirmation
 - [x] Unit tests on Windows and Ubuntu CI
 - [x] English-first repository documentation with a complete Chinese guide
+- [x] Offline command discovery, attach-only browser diagnostics, and explicit page selection
+- [x] Concurrent account-write protection and unknown-dispatch result states
+- [x] Real Chrome smoke on synthetic pages and packaged CLI validation in CI
 
 The baseline does **not** prove arbitrary page-version compatibility or authenticated publishing on every account.
 
@@ -33,7 +36,8 @@ The baseline does **not** prove arbitrary page-version compatibility or authenti
 
 - [x] Document a stable cross-command result envelope for confirmed, failed, blocked, and unconfirmed outcomes
 - [x] Isolate platform URLs, selectors, and page flows behind an explicit adapter boundary
-- [ ] Keep browser lifecycle, profiles, timeouts, and human checkpoints platform-neutral
+- [x] Extract the Python CDP client, atomic local state, and process locks from platform flows
+- [ ] Keep remaining human checkpoints and platform login transitions platform-neutral
 - [ ] Add an integration smoke test for at least one Agent Skills client beyond the primary OpenClaw path
 - [ ] Evaluate additional tool surfaces only when they can reuse the same execution core
 

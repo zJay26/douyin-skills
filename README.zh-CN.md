@@ -39,10 +39,11 @@ Agent 可以规划多步骤任务，但真正进入社交网站后，还要面�
 | “检查登录，没登录就把二维码给我” | 二维码、短信验证、多账号 | 验证由用户亲自完成 |
 | “搜索周末露营，给我 5 条结果” | 关键词搜索、视频/图文详情 | 单次最多 20 条公开作品 |
 | “看看抖音现在有哪些热门话题” | 公开热门话题读取 | 最多 20 条；页面结构变化会明确报告 |
-| “把这些图片和文案填好，先别发布” | 图片上传、文案、音乐、页面校验 | 只支持图文，发布前复核 |
+| “把这些图片或视频和文案填好，先别发布” | 图文/视频上传、文案、封面或音乐、页面校验 | 发布前复核 |
 | “确认无误后发布” | 显式发布确认 | 状态未知时绝不自动重试 |
 | “在这条下面评论‘学到了！！’” | 单次公开评论尝试 | 区分已确认、未确认和控件不可用 |
 | “收藏这条，并把链接发给我” | 点赞、收藏、分享链接 | 不批量操作，不夸大最终状态 |
+| “检查运行环境，并列出可用命令” | 命令发现、只读浏览器诊断 | 默认不输出标签页标题或 URL |
 
 核心特点：
 
@@ -93,14 +94,14 @@ python scripts/cli.py doctor
 
 ### 下载稳定版本
 
-如需版本固定且可校验的安装包，请从 [v1.3.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.3.0) 下载 `douyin-skills-v1.3.0.zip` 与 `SHA256SUMS`，解压前先校验：
+如需版本固定且可校验的安装包，请从 [v1.5.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.5.0) 下载 `douyin-skills-v1.5.0.zip` 与 `SHA256SUMS`，解压前先校验：
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell：将结果与 SHA256SUMS 对应行比较
-Get-FileHash .\douyin-skills-v1.3.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.5.0.zip -Algorithm SHA256
 ```
 
 这个命名 ZIP 会把完整仓库放在一个版本目录中，并包含脱敏 Demo。GitHub 自动生成的源码压缩包是另一组文件，不适用这里发布的校验值。
@@ -167,7 +168,7 @@ flowchart LR
 | --- | --- | --- |
 | [`douyin-auth`](./skills/douyin-auth/SKILL.md) | 登录状态、二维码、短信验证、多账号 | “切到工作号并检查登录” |
 | [`douyin-explore`](./skills/douyin-explore/SKILL.md) | 搜索公开作品、读取 video/note 详情、查看热门话题 | “查找 7 条露营内容” |
-| [`douyin-publish`](./skills/douyin-publish/SKILL.md) | 填写图文、选音乐、校验、确认发布 | “填好内容，先让我复核” |
+| [`douyin-publish`](./skills/douyin-publish/SKILL.md) | 填写图文/视频、封面或音乐、校验、确认发布 | “填好内容，先让我复核” |
 | [`douyin-interact`](./skills/douyin-interact/SKILL.md) | 单次点赞、收藏、评论、获取分享链接 | “评论这条并返回结果” |
 | [`douyin-env`](./skills/douyin-env/SKILL.md) | 安装、自检、迁移、环境排障 | “检查 Chrome 和依赖” |
 
@@ -180,13 +181,13 @@ flowchart LR
 - 通过抖音网页版 / 创作者中心网页版操作公开页面。
 - 在 loopback Chrome 中保留登录状态并支持多个命名 Profile。
 - 在需要验证码或身份验证时展示浏览器，等待用户处理。
-- 发布前检查标题、正文、图片、音乐和按钮状态。
+- 发布前检查标题、正文、图片或视频、音乐或封面和按钮状态。
 - 对不确定的页面结果返回明确状态，提醒用户人工确认。
 
 ### 不会做
 
 - 绕过验证码、身份验证、风控或平台频率限制。
-- 回复评论、私信、视频发布、草稿或定时发布。
+- 回复评论、私信、草稿管理或定时发布。
 - 批量养号、刷量、批量互动、用户主页全量抓取或完整运营流水线。
 - 在发布结果未知时自动重试，或在点赞/收藏状态未知时再次点击。
 
@@ -249,7 +250,8 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 
 | 分类 | 命令 | 说明 |
 | --- | --- | --- |
-| 运行时 | `version` | 不启动 Chrome，返回项目与结果契约版本 |
+| 运行时 | `version` / `capabilities` | 不启动 Chrome，返回版本或命令参数、影响类型和确认要求 |
+| 环境 | `browser-status` | 只连接现有调试端口，不启动 Chrome，不改变页面 |
 | 环境 | `doctor` | 检查 Python、Node.js、`ws`、Chrome 和图形环境 |
 | 认证 | `check-login` | 检查登录、风控与人工验证状态 |
 | 认证 | `get-qrcode` / `wait-login` | 获取二维码并单次等待扫码结果 |
@@ -257,6 +259,7 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 | 账号 | `list-accounts` | 列出命名账号与默认账号 |
 | 账号 | `add-account` / `remove-account` | 登记或移除命名账号 |
 | 账号 | `set-default-account` | 设置默认命名账号 |
+| 账号 | `update-account` | 修改账号描述，保留端口和 Profile |
 | 发现 | `search-videos` | 按关键词搜索，默认 7 条、最多 20 条 |
 | 发现 | `get-trending-topics` | 读取公开热门话题，最多 20 条 |
 | 发现 | `get-video-detail` | 读取数字 ID 或公开 video/note 链接 |
@@ -264,6 +267,9 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 | 发布 | `select-music` | 按候选名称选择可用音乐 |
 | 发布 | `validate-publish` | 读取发布页字段和按钮状态，不点击发布 |
 | 发布 | `click-publish --confirm` | 显式确认后执行一次发布点击 |
+| 发布 | `fill-publish-video` / `set-video-cover` | 上传本地视频、填写文案及设置封面 |
+| 发布 | `validate-publish-video` | 核对视频上传、文案、封面及按钮状态 |
+| 发布 | `click-publish-video --confirm` | 显式确认后执行一次视频发布点击 |
 | 互动 | `like-video` / `favorite-video` | 确保明确作品已点赞/收藏，并尽量确认状态 |
 | 互动 | `comment-video` | 仅在输入框和发送控件明确可见时尝试一次评论 |
 | 互动 | `get-interaction-state` | 只读查看当前点赞/收藏状态，不点击 |
@@ -271,13 +277,16 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 
 运行 `python scripts/cli.py --help` 或对应子命令的 `--help` 查看完整参数。
 
+页面会话丢失时，登录和发现命令创建独立标签页；发布后续步骤会要求先准备表单或显式指定页面，不会复用任意标签页。升级后需要继续已有表单时，先运行 `browser-status --include-tabs`，再在子命令前添加 `--target-id <页面ID>`。详见[运行时诊断与迁移说明](./docs/RUNTIME.md)。
+
 ### 发布状态不能混为一谈
 
 | 返回状态 | 含义 | 下一步 |
 | --- | --- | --- |
 | `publish_confirmed` | 页面出现明确成功信号 | 可以报告已确认发布 |
 | `publish_clicked_unconfirmed` | 已点击，但页面没有给出可靠结果 | 去作品管理核对，**不要重试** |
-| `success: false` | 没有点击，或发布前校验失败 | 根据 `validation.errors` 修复 |
+| `publish_outcome_unknown` | 指令期间异常，无法确认是否已点击 | 去作品管理核对，**不要重试** |
+| `success: false` | 校验或执行失败；仍需检查 `status`、`clicked`、`retry_safe` | 只有确认未点击时，才按校验错误修复 |
 
 点赞与收藏现在会在页面提供状态证据时读取点击前后状态。`state: already_active` 表示没有再次点击；`state_verified: false` 仍表示最终状态不可靠，Agent 应如实说明并停止重复操作。需要只读核对时使用 `get-interaction-state`。
 
@@ -298,6 +307,8 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 ├── skills/                   # 5 个可组合子 Skill
 ├── scripts/
 │   ├── cli.py                # 统一 JSON CLI
+│   ├── browser_runtime.py    # 与平台无关的 Python CDP 客户端
+│   ├── cli_contract.py       # JSON 参数错误与命令发现
 │   ├── doctor.py             # 环境诊断
 │   ├── chrome_launcher.py    # Chrome 生命周期与 Profile
 │   ├── cdp_client.mjs        # Node.js CDP bridge
@@ -311,6 +322,8 @@ Agent 集成应遵守 [JSON 结果契约](./docs/RESULT_CONTRACT.md)中定义的
 ```
 
 ## 开发与验证
+
+`python scripts/smoke_browser.py` 使用临时独立 Profile，在真实 Chrome 中测试本地合成页面。`python scripts/validate_release.py` 要求已提交所有受跟踪改动，会构建两次、比较字节与校验和，再运行解压后的离线 CLI。两项检查都纳入 CI，不使用真实抖音账号。
 
 ```bash
 npm ci

@@ -14,6 +14,118 @@ from douyin import interact
 
 
 class InteractTests(unittest.TestCase):
+    def test_note_toggles_without_verified_state_never_use_positional_clicks(
+        self,
+    ) -> None:
+        for action in (interact.like_video, interact.favorite_video):
+            page = mock.Mock()
+            with (
+                self.subTest(action=action.__name__),
+                mock.patch.object(
+                    interact,
+                    "_open_detail",
+                    return_value={
+                        "success": True,
+                        "kind": "note",
+                        "href": "https://www.douyin.com/note/123",
+                    },
+                ),
+                mock.patch.object(interact, "_first_clickable", return_value=None),
+                mock.patch.object(interact, "_click_note_action") as fallback,
+            ):
+                result = action(page, "123")
+            self.assertFalse(result["success"])
+            self.assertFalse(result["clicked"])
+            self.assertEqual(result["blocked_reason"], "interaction_state_unverified")
+            page.click.assert_not_called()
+            fallback.assert_not_called()
+
+    def test_toggle_dispatch_loss_is_unknown_and_never_retried(self) -> None:
+        for action in (interact.like_video, interact.favorite_video):
+            page = mock.Mock()
+            page.click.side_effect = RuntimeError("connection lost")
+            with (
+                self.subTest(action=action.__name__),
+                mock.patch.object(
+                    interact,
+                    "_open_detail",
+                    return_value={"success": True, "kind": "video"},
+                ),
+                mock.patch.object(interact, "_first_clickable", return_value="button"),
+                mock.patch.object(
+                    interact,
+                    "_read_action_state_with_styles",
+                    return_value={"state": "inactive", "confidence": "high"},
+                ),
+            ):
+                result = action(page, "123")
+            self.assertFalse(result["success"])
+            self.assertIsNone(result["clicked"])
+            self.assertTrue(result["outcome_unknown"])
+            self.assertFalse(result["retry_safe"])
+            page.click.assert_called_once()
+
+    def test_toggle_verification_error_retains_known_click(self) -> None:
+        page = mock.Mock()
+        page.click.return_value = True
+        with (
+            mock.patch.object(
+                interact,
+                "_read_action_state_with_styles",
+                return_value={"state": "inactive", "confidence": "high"},
+            ),
+            mock.patch.object(
+                interact, "_wait_for_active_action", side_effect=RuntimeError("lost")
+            ),
+        ):
+            result = interact._ensure_action_active(page, "button")
+        self.assertTrue(result["clicked"])
+        self.assertFalse(result["state_verified"])
+        self.assertFalse(result["retry_safe"])
+        page.click.assert_called_once()
+
+    def test_comment_dispatch_and_verification_errors_preserve_uncertainty(
+        self,
+    ) -> None:
+        for failed_stage, state in (
+            ("dispatch", "comment_outcome_unknown"),
+            ("verification", "comment_clicked_unconfirmed"),
+        ):
+            page = mock.Mock()
+            with (
+                self.subTest(stage=failed_stage),
+                mock.patch.object(
+                    interact,
+                    "_open_detail",
+                    return_value={"success": True, "kind": "video"},
+                ),
+                mock.patch.object(
+                    interact, "_prepare_comment", return_value={"ok": True}
+                ),
+                mock.patch.object(interact, "_comment_match_count", return_value=0),
+                mock.patch.object(
+                    interact,
+                    "_submit_comment",
+                    return_value={"ok": True},
+                    side_effect=RuntimeError("lost")
+                    if failed_stage == "dispatch"
+                    else None,
+                ) as submit,
+                mock.patch.object(
+                    interact, "_comment_is_visible", side_effect=RuntimeError("lost")
+                ) as verify,
+                mock.patch.object(interact.time, "sleep"),
+            ):
+                result = interact.comment_video(page, "123", "synthetic comment")
+            self.assertEqual(result["state"], state)
+            self.assertFalse(result["state_verified"])
+            self.assertFalse(result["retry_safe"])
+            self.assertIs(
+                result["clicked"], None if failed_stage == "dispatch" else True
+            )
+            submit.assert_called_once()
+            self.assertEqual(verify.call_count, int(failed_stage == "verification"))
+
     def _evaluate_action_state_expression(
         self,
         data_e2e_state: str,

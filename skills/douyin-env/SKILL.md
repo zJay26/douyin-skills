@@ -43,6 +43,14 @@ python "{baseDir}/../../scripts/cli.py" doctor
 
 只有当 JSON 中 `success` 为 `true` 且 `required_failures` 为空时，才报告环境已就绪。`display` 是可选项，但没有图形环境时无法在风控阶段显示浏览器供人工验证。
 
+只检查现有浏览器连接而不启动 Chrome 时运行：
+
+```bash
+python "{baseDir}/../../scripts/cli.py" browser-status
+```
+
+默认只返回连接、版本、页面数量及会话是否存在；本地需要核对页面时可加 `--include-tabs`。不要把包含标题和 URL 的输出上传。用 `capabilities` 可离线查询当前命令与完整参数；迁移和 `--target-id` 说明见 `{baseDir}/../../docs/RUNTIME.md`。
+
 ## Chrome 定位
 
 CLI 会检查 PATH，以及 Windows、macOS、Linux、WSL 中的常见安装位置。仍未找到时设置：

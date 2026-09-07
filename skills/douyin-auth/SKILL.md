@@ -74,11 +74,12 @@ python "{baseDir}/../../scripts/cli.py" verify-code --code <6位验证码>
 ```bash
 python "{baseDir}/../../scripts/cli.py" add-account --name work --description "工作号"
 python "{baseDir}/../../scripts/cli.py" set-default-account --name work
+python "{baseDir}/../../scripts/cli.py" update-account --name work --description "创作账号"
 python "{baseDir}/../../scripts/cli.py" --account work check-login
 python "{baseDir}/../../scripts/cli.py" remove-account --name work
 ```
 
-每个命名账号使用独立端口和 Chrome Profile。账号名称不能包含路径分隔符。`remove-account` 只移除账号登记，不承诺删除 Profile 数据。
+每个命名账号使用独立端口和 Chrome Profile。账号名称必须是跨平台有效目录名；重复端口、大小写冲突名称和损坏配置会被拒绝。`update-account` 只修改描述，`remove-account` 只移除账号登记并保留 Profile 数据。
 
 ## 边界与失败处理
 

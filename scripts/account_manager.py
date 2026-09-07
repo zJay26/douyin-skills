@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import contextlib
 import json
 import os
+from functools import wraps
 from pathlib import Path
+
+from local_state import atomic_write, file_lock
 
 _CONFIG_DIR = Path(
     os.environ.get("DOUYIN_SKILLS_HOME", Path.home() / ".douyin-skills")
@@ -22,6 +24,15 @@ def _validate_account_name(name: str) -> str:
         raise ValueError("账号名称不能包含路径分隔符")
     if any(ord(ch) < 32 for ch in name):
         raise ValueError("账号名称不能包含控制字符")
+    reserved = {"con", "prn", "aux", "nul"} | {
+        f"{prefix}{number}" for prefix in ("com", "lpt") for number in range(1, 10)
+    }
+    if (
+        any(ch in name for ch in '<>:"|?*')
+        or name.endswith(".")
+        or name.split(".", 1)[0].casefold() in reserved
+    ):
+        raise ValueError("账号名称必须可用于 Windows、macOS 和 Linux 的目录名")
     return name
 
 
@@ -34,8 +45,13 @@ def _normalise_config(raw: object) -> dict:
         raise TypeError("账号配置格式无效：accounts 必须是对象")
 
     accounts: dict[str, dict] = {}
+    names: set[str] = set()
+    ports: set[int] = set()
     for raw_name, raw_info in raw_accounts.items():
         name = _validate_account_name(str(raw_name))
+        if name.casefold() in names:
+            raise ValueError(f"账号配置存在重复名称：{name}")
+        names.add(name.casefold())
         if not isinstance(raw_info, dict):
             raise TypeError(f"账号 '{name}' 的配置格式无效")
         port = raw_info.get("port", _NAMED_PORT_START)
@@ -45,6 +61,9 @@ def _normalise_config(raw: object) -> dict:
             or not 1 <= port <= 65535
         ):
             raise ValueError(f"账号 '{name}' 的端口无效")
+        if port in ports:
+            raise ValueError(f"账号配置存在重复端口：{port}")
+        ports.add(port)
         accounts[name] = {
             "description": str(raw_info.get("description", "")),
             "port": port,
@@ -67,17 +86,19 @@ def _load_config() -> dict:
 
 
 def _save_config(config: dict) -> None:
-    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     config = _normalise_config(config)
-    temp_file = _ACCOUNTS_FILE.with_suffix(f".json.{os.getpid()}.tmp")
-    with open(temp_file, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(temp_file, _ACCOUNTS_FILE)
-    with contextlib.suppress(OSError):
-        _ACCOUNTS_FILE.chmod(0o600)
+    atomic_write(
+        _ACCOUNTS_FILE, json.dumps(config, ensure_ascii=False, indent=2) + "\n"
+    )
+
+
+def _locked_update(function):
+    @wraps(function)
+    def update(*args, **kwargs):
+        with file_lock(_ACCOUNTS_FILE.with_suffix(".lock")):
+            return function(*args, **kwargs)
+
+    return update
 
 
 def list_accounts() -> list[dict]:
@@ -99,6 +120,7 @@ def list_accounts() -> list[dict]:
     ]
 
 
+@_locked_update
 def add_account(name: str, description: str = "") -> dict:
     name = _validate_account_name(name)
     config = _load_config()
@@ -119,9 +141,9 @@ def add_account(name: str, description: str = "") -> dict:
     accounts[name] = {"description": description, "port": port}
     if not config.get("default"):
         config["default"] = name
-    _save_config(config)
     profile_dir = get_profile_dir(name)
     os.makedirs(profile_dir, exist_ok=True)
+    _save_config(config)
     return {
         "name": name,
         "description": description,
@@ -130,6 +152,7 @@ def add_account(name: str, description: str = "") -> dict:
     }
 
 
+@_locked_update
 def remove_account(name: str) -> None:
     name = _validate_account_name(name)
     config = _load_config()
@@ -142,6 +165,7 @@ def remove_account(name: str) -> None:
     _save_config(config)
 
 
+@_locked_update
 def set_default_account(name: str) -> None:
     name = _validate_account_name(name)
     config = _load_config()
@@ -152,6 +176,7 @@ def set_default_account(name: str) -> None:
     _save_config(config)
 
 
+@_locked_update
 def update_account_description(name: str, description: str) -> None:
     name = _validate_account_name(name)
     config = _load_config()
