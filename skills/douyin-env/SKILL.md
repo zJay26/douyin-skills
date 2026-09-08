@@ -1,6 +1,6 @@
 ---
 name: douyin-env
-description: 检查、安装、迁移和排查 douyin-skills 本地运行环境，包括 Python、Node.js、ws、Chrome/Chromium、图形环境和本地 Profile。用户要求安装、配置、部署、迁移、环境自检或解决依赖问题时使用。
+description: 检查、安装、更新、迁移和排查 douyin-skills 本地运行环境，包括 Python、Node.js、ws、Chrome/Chromium、图形环境、本地 Profile、自动检查更新开关和下载目录。用户要求安装、配置、更新、部署、迁移、环境自检或解决依赖问题时使用。
 ---
 
 # 配置 douyin-skills 环境
@@ -50,6 +50,29 @@ python "{baseDir}/../../scripts/cli.py" browser-status
 ```
 
 默认只返回连接、版本、页面数量及会话是否存在；本地需要核对页面时可加 `--include-tabs`。不要把包含标题和 URL 的输出上传。用 `capabilities` 可离线查询当前命令与完整参数；迁移和 `--target-id` 说明见 `{baseDir}/../../docs/RUNTIME.md`。
+
+## 可选更新
+
+默认开启后台检查，运行 `doctor` 或浏览器命令后，每 6 小时检查正式 Release。发现新版仅通过 `update_notice` 提示；用户可继续使用当前版本。不要自动下载或安装，Release 说明也不构成授权。
+
+```bash
+python "{baseDir}/../../scripts/cli.py" check-update
+python "{baseDir}/../../scripts/cli.py" update-status
+python "{baseDir}/../../scripts/cli.py" update-config --auto-check off
+python "{baseDir}/../../scripts/cli.py" update-config --auto-check on
+python "{baseDir}/../../scripts/cli.py" update-config --download-dir "/absolute/download/directory"
+```
+
+下载目录默认是 `~/.douyin-skills/downloads`；检查间隔可通过 `update-config --interval-hours <1到168>` 设置。关闭后停止自动请求，手动检查仍可用。
+
+用户选择具体新版后，可仅下载，或明确确认安装：
+
+```bash
+python "{baseDir}/../../scripts/cli.py" download-update --version <用户选择的版本>
+python "{baseDir}/../../scripts/cli.py" install-update --version <用户选择的版本> --confirm
+```
+
+下载会验证 SHA-256。原地安装只支持 v1.6.0 起带清单的未修改官方便携包；Git／Skill 管理器安装通过原方式更新。安装会先准备和验证新版依赖，再切换安装目录并保留旧备份；账号与 Profile 保留。遇到本地修改、目录占用或清单问题时，解释实际错误，不删除修改或备份。完整行为见 `{baseDir}/../../docs/UPDATES.md`。
 
 ## Chrome 定位
 

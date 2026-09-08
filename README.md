@@ -94,19 +94,39 @@ The environment is ready when the JSON from `doctor` contains `"success": true` 
 
 ### Stable release download
 
-For a versioned, checksum-verifiable install, download `douyin-skills-v1.5.0.zip` and `SHA256SUMS` from the [v1.5.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.5.0). Verify the ZIP before extracting it:
+For a versioned, checksum-verifiable install, download `douyin-skills-v1.6.0.zip` and `SHA256SUMS` from the [v1.6.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.6.0). Verify the ZIP before extracting it:
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell: compare this value with the matching SHA256SUMS line
-Get-FileHash .\douyin-skills-v1.5.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.6.0.zip -Algorithm SHA256
 ```
 
 The named ZIP contains the complete repository under one versioned directory, including the privacy-safe Demo. GitHub's automatic source archives are separate and are not covered by the published checksum.
 
 ## Your first workflow
+
+### Optional updates
+
+From v1.6.0, `doctor` and browser commands start a hidden worker that checks
+stable releases every **6 hours** by default. A new version is offered through
+a JSON notice; it never downloads or installs automatically. You can keep
+using the current version, disable checking or choose a download directory:
+
+```bash
+python scripts/cli.py check-update
+python scripts/cli.py update-config --auto-check off
+python scripts/cli.py update-config --download-dir "D:/Downloads/Douyin Updates"
+```
+
+For the selected version, use `download-update --version vX.Y.Z` to download
+only, or `install-update --version vX.Y.Z --confirm` to update an official
+portable install with a retained backup. Git/Skill-manager installs update
+through their original manager. See the [update guide](./docs/UPDATES.md).
+
+### Work with Douyin
 
 1. **Check the environment**
 

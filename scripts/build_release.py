@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -130,6 +131,8 @@ def build_archive(
     output: Path,
     prefix: str,
     epoch: int,
+    *,
+    manifest_version: str | None = None,
 ) -> str:
     prefix_path = safe_relative_path(prefix)
     if len(prefix_path.parts) != 1:
@@ -161,6 +164,22 @@ def build_archive(
 
     if not entries:
         raise ValueError("release archive would be empty")
+
+    if manifest_version is not None:
+        manifest = {
+            "version": manifest_version,
+            "files": {
+                relative.as_posix(): hashlib.sha256(data).hexdigest()
+                for relative, data in entries
+            },
+        }
+        entries.append(
+            (
+                PurePosixPath("release-manifest.json"),
+                json.dumps(manifest, sort_keys=True, indent=2).encode("utf-8"),
+            )
+        )
+        entries.sort(key=lambda item: item[0].as_posix())
 
     handle, temporary_name = tempfile.mkstemp(
         prefix=f".{output.name}.", suffix=".tmp", dir=output.parent
@@ -205,6 +224,7 @@ def build_release(root: Path, version: str, output_dir: Path) -> tuple[Path, Pat
         output=archive_path,
         prefix=f"{PROJECT_NAME}-v{normalized}",
         epoch=source_date_epoch(root),
+        manifest_version=normalized,
     )
     checksum_path.write_bytes(f"{digest}  {archive_name}\n".encode("ascii"))
     return archive_path, checksum_path, digest

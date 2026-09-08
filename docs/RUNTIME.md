@@ -7,7 +7,9 @@ python scripts/cli.py version
 python scripts/cli.py capabilities
 ```
 
-Both commands work without Chrome, Node dependencies, or an account. `capabilities` describes all 30 commands, their actual flags, required arguments, defaults, numeric limits, effect category, and confirmation requirement. Global options belong before the command. Unknown optional fields must be tolerated.
+Both commands work without Chrome, Node dependencies, or an account. `capabilities` describes all 35 commands, their actual flags, required arguments, defaults, numeric limits, effect category, and confirmation requirement. Global options belong before the command. Unknown optional fields must be tolerated.
+
+Automatic update checks default to every 6 hours and start with `doctor` or a browser command. They only offer a new version; downloading and installing remain user choices. Settings, download directories, portable installation and Git migration are described in [optional updates](./UPDATES.md). Set `DOUYIN_SKILLS_NO_UPDATE_CHECK=1` to suppress automatic networking for CI or offline diagnostics. CLI commands sharing one installation/state root are serialized with a process lock to avoid updating during a browser operation; a busy installation returns a JSON error.
 
 `effect` is descriptive metadata, not authorization. `browser_read` commands can navigate or reveal login UI; `browser_form` commands can upload media. Only `browser-status` is strictly attach-only and does not change pages. A command's `requires_confirmation` field describes its CLI flag, not whether the user has authorized the action.
 

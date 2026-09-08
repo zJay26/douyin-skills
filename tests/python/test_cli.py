@@ -22,6 +22,11 @@ class CliTests(unittest.TestCase):
             "capabilities",
             "browser-status",
             "update-account",
+            "check-update",
+            "update-status",
+            "update-config",
+            "download-update",
+            "install-update",
             "doctor",
             "check-login",
             "get-qrcode",
@@ -77,7 +82,7 @@ class CliTests(unittest.TestCase):
             {
                 "success": True,
                 "project": "douyin-skills",
-                "version": "1.5.0",
+                "version": "1.6.0",
                 "result_contract_version": "1.1",
             },
         )

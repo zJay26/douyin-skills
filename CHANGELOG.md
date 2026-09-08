@@ -4,6 +4,19 @@ All notable changes are documented here. Releases follow semantic versioning, an
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-08
+
+### Added
+
+- Optional automatic update checks every 6 hours, with an off switch,
+  configurable interval and download directory, and cached JSON notices.
+- Manual stable-release checks, checksum-verified downloads and explicit
+  confirmed installation for official portable ZIPs, retaining old backups.
+- Deterministic release file manifests, staged dependency/CLI validation,
+  protection for local changes and regression tests for update failures.
+
+See the [update guide](./docs/UPDATES.md) for setup and installation boundaries.
+
 ## [1.5.0] - 2026-09-07
 
 ### Added

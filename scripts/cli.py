@@ -6,6 +6,7 @@ import contextlib
 import hashlib
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -51,6 +52,15 @@ from douyin.search import get_trending_topics, get_video_detail, search_videos
 from local_state import atomic_write
 from platform_adapter import get_default_adapter
 from project_metadata import version_payload
+from update_install import install, installation_lock
+from updates import check as check_updates
+from updates import configure as configure_updates
+from updates import download as download_update
+from updates import notification as update_notification
+from updates import start_worker
+from updates import status as update_status
+
+_include_update_notification = False
 
 
 def _wslg_headed_env_exports() -> str:
@@ -117,6 +127,10 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 
 
 def _output(data: dict, exit_code: int = 0) -> None:
+    if _include_update_notification:
+        notice = update_notification()
+        if notice:
+            data = {**data, "update_notice": notice}
     print(json.dumps(data, ensure_ascii=False, indent=2))
     raise SystemExit(exit_code)
 
@@ -318,6 +332,33 @@ def cmd_doctor(_args: argparse.Namespace) -> None:
 
 def cmd_version(_args: argparse.Namespace) -> None:
     _output(version_payload())
+
+
+def cmd_check_update(_args: argparse.Namespace) -> None:
+    _output(check_updates())
+
+
+def cmd_update_status(_args: argparse.Namespace) -> None:
+    _output(update_status())
+
+
+def cmd_update_config(args: argparse.Namespace) -> None:
+    result = configure_updates(
+        auto_check=None if args.auto_check is None else args.auto_check == "on",
+        interval_hours=args.interval_hours,
+        download_dir=args.download_dir,
+    )
+    if result["auto_check"] and args.auto_check == "on":
+        start_worker()
+    _output(result)
+
+
+def cmd_download_update(args: argparse.Namespace) -> None:
+    _output(download_update(args.version))
+
+
+def cmd_install_update(args: argparse.Namespace) -> None:
+    _output(install(args.version, confirm=args.confirm))
 
 
 def cmd_check_login(args: argparse.Namespace) -> None:
@@ -709,8 +750,30 @@ def build_parser() -> argparse.ArgumentParser:
         "get-qrcode",
         "wait-login",
         "list-accounts",
+        "check-update",
+        "update-status",
     ]:
         sub.add_parser(name)
+
+    p = sub.add_parser("update-config")
+    p.add_argument(
+        "--auto-check", choices=("on", "off"), help="开启或关闭自动检查（默认开启）"
+    )
+    p.add_argument(
+        "--interval-hours", type=int, help="检查间隔，1 到 168 小时（默认 6）"
+    )
+    p.add_argument(
+        "--download-dir", help="更新包下载目录；相对路径按当前目录解析后保存"
+    )
+
+    p = sub.add_parser("download-update")
+    p.add_argument(
+        "--version", required=True, help="已查看并选择的稳定版本，例如 v1.7.0"
+    )
+
+    p = sub.add_parser("install-update")
+    p.add_argument("--version", required=True, help="已查看并选择的稳定版本")
+    p.add_argument("--confirm", action="store_true", help="用户确认下载并安装该版本")
 
     p = sub.add_parser("browser-status")
     p.add_argument(
@@ -806,13 +869,36 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> None:
+def main(argv: list[str] | None = None, *, background_updates: bool = False) -> None:
+    global _include_update_notification
+    _include_update_notification = False
     parser = build_parser()
 
     args = parser.parse_args(argv)
+    if background_updates and args.command not in {
+        "version",
+        "capabilities",
+        "update-status",
+        "update-config",
+        "check-update",
+        "download-update",
+        "install-update",
+        "list-accounts",
+        "add-account",
+        "remove-account",
+        "set-default-account",
+        "update-account",
+    }:
+        start_worker()
+        _include_update_notification = True
 
     dispatch = {
         "version": cmd_version,
+        "check-update": cmd_check_update,
+        "update-status": cmd_update_status,
+        "update-config": cmd_update_config,
+        "download-update": cmd_download_update,
+        "install-update": cmd_install_update,
         "capabilities": cmd_capabilities,
         "browser-status": cmd_browser_status,
         "doctor": cmd_doctor,
@@ -844,8 +930,15 @@ def main(argv: list[str] | None = None) -> None:
         "share-video": cmd_share_video,
     }
     try:
-        dispatch[args.command](args)
-    except (FileNotFoundError, OSError, RuntimeError, TypeError, ValueError) as exc:
+        with installation_lock():
+            dispatch[args.command](args)
+    except (
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+        subprocess.SubprocessError,
+    ) as exc:
         _output(
             {
                 "success": False,
@@ -858,4 +951,4 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(background_updates=True)
