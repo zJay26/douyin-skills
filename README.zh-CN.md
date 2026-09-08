@@ -94,19 +94,54 @@ python scripts/cli.py doctor
 
 ### 下载稳定版本
 
-如需版本固定且可校验的安装包，请从 [v1.5.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.5.0) 下载 `douyin-skills-v1.5.0.zip` 与 `SHA256SUMS`，解压前先校验：
+如需版本固定且可校验的安装包，请从 [v1.6.0 Release](https://github.com/zJay26/douyin-skills/releases/tag/v1.6.0) 下载 `douyin-skills-v1.6.0.zip` 与 `SHA256SUMS`，解压前先校验：
 
 ```bash
 # Linux / macOS
 sha256sum -c SHA256SUMS
 
 # Windows PowerShell：将结果与 SHA256SUMS 对应行比较
-Get-FileHash .\douyin-skills-v1.5.0.zip -Algorithm SHA256
+Get-FileHash .\douyin-skills-v1.6.0.zip -Algorithm SHA256
 ```
 
 这个命名 ZIP 会把完整仓库放在一个版本目录中，并包含脱敏 Demo。GitHub 自动生成的源码压缩包是另一组文件，不适用这里发布的校验值。
 
 ## 第一次使用
+
+### 可选更新
+
+从 v1.6.0 起，运行 `doctor` 或浏览器命令会启动隐藏的本地检查进程，默认每 **6 小时**检查正式版本。发现新版后，Agent 可根据 JSON 中的 `update_notice` 提醒你，由你决定是否更新；后台不会自行下载或安装，也不影响继续使用当前版本。
+
+```bash
+# 立即检查新版
+python scripts/cli.py check-update
+
+# 关闭／重新开启自动检查
+python scripts/cli.py update-config --auto-check off
+python scripts/cli.py update-config --auto-check on
+
+# 配置更新包下载目录，支持空格和中文
+python scripts/cli.py update-config --download-dir "D:/Downloads/抖音更新"
+
+# 查看设置和上次结果（离线）
+python scripts/cli.py update-status
+```
+
+默认下载到 `~/.douyin-skills/downloads/`；也可用 `--interval-hours 12` 修改检查间隔（1–168 小时）。关闭后不再自动发起请求，手动检查仍可使用。系统重启后，下次运行 `doctor` 或浏览器命令会重新启动检查进程；不注册系统服务或开机任务。
+
+查看新版说明后，将以下 `vX.Y.Z` 替换为你选择的版本：
+
+```bash
+# 仅下载并校验，不切换安装
+python scripts/cli.py download-update --version vX.Y.Z
+
+# 确认下载并安装，保留旧版本备份
+python scripts/cli.py install-update --version vX.Y.Z --confirm
+```
+
+原地安装适用于 v1.6.0 起带文件清单的官方便携 ZIP。更新先校验 SHA-256、在临时目录安装依赖并检查 CLI，再切换目录；保留旧安装备份、账号配置和浏览器 Profile。本地文件有修改、目录含链接或存在文件冲突时会停止。Git／Skill 管理器安装可使用检查和下载功能，实际升级请通过原安装方式完成。旧版本需手动升级到 v1.6.0 一次才能获得本功能。详细行为和恢复方法见[更新指南](./docs/UPDATES.md)。
+
+### 使用抖音功能
 
 1. **检查环境**
 

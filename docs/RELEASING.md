@@ -45,6 +45,10 @@ npm run build:release
 
 The builder reads tracked files only, rejects unsafe archive paths and symlinks, applies fixed metadata, and packages everything beneath `douyin-skills-vX.Y.Z/`. Local profiles, dependencies, caches, and prior output are excluded. It writes:
 
+From v1.6.0, the archive also contains a generated `release-manifest.json`
+with the version and SHA-256 of each packaged source file. The updater uses
+this manifest to detect local edits and validate the staged package.
+
 ```text
 dist/douyin-skills-vX.Y.Z.zip
 dist/SHA256SUMS

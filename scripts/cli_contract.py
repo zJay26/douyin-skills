@@ -8,7 +8,14 @@ import json
 from project_metadata import version_payload
 
 COMMAND_EFFECTS = {
-    **dict.fromkeys(("version", "capabilities", "doctor", "list-accounts"), "offline"),
+    **dict.fromkeys(
+        ("version", "capabilities", "list-accounts", "update-status"), "offline"
+    ),
+    "doctor": "local_diagnostic",
+    "check-update": "network_read",
+    "download-update": "local_download",
+    "install-update": "local_install",
+    "update-config": "local_config",
     **dict.fromkeys(
         ("add-account", "remove-account", "set-default-account", "update-account"),
         "local_config",
@@ -80,7 +87,7 @@ def _arguments(parser: argparse.ArgumentParser) -> list[dict]:
         if not action.option_strings or action.dest == "help":
             continue
         kind = "boolean" if action.nargs == 0 else "string"
-        if action.dest in {"port", "limit"}:
+        if action.dest in {"port", "limit", "interval_hours"}:
             kind = "integer"
         option = {
             "flags": action.option_strings,
@@ -97,6 +104,8 @@ def _arguments(parser: argparse.ArgumentParser) -> list[dict]:
             option["choices"] = list(action.choices)
         if action.dest in {"port", "limit"}:
             option.update(minimum=1, maximum=65535 if action.dest == "port" else 20)
+        if action.dest == "interval_hours":
+            option.update(minimum=1, maximum=168)
         result.append(option)
     return result
 
@@ -117,7 +126,7 @@ def capabilities_payload(parser: argparse.ArgumentParser) -> dict:
                 "requires_browser": effect.startswith("browser_")
                 or effect == "remote_write",
                 "requires_confirmation": name
-                in {"click-publish", "click-publish-video"},
+                in {"click-publish", "click-publish-video", "install-update"},
                 "retry_policy": "never_automatically"
                 if effect == "remote_write"
                 else "inspect_result",
@@ -130,4 +139,12 @@ def capabilities_payload(parser: argparse.ArgumentParser) -> dict:
         "global_options_position": "before_command",
         "global_options": _arguments(parser),
         "commands": commands,
+        "automatic_update_checks": {
+            "default_enabled": True,
+            "default_interval_hours": 6,
+            "trigger": "doctor_or_browser_command",
+            "disable_command": "update-config --auto-check off",
+            "downloads_automatically": False,
+            "installs_automatically": False,
+        },
     }
