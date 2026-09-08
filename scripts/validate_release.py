@@ -25,7 +25,9 @@ def validate_portable_update(packaged: Path, archive: Path, temporary: Path) -> 
     A synthetic older version is confined to the disposable extraction.
     """
     old = temporary / "old-portable"
-    shutil.copytree(packaged, old)
+    shutil.copytree(
+        packaged, old, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
+    )
     metadata = old / "scripts" / "project_metadata.py"
     metadata.write_bytes(
         metadata.read_bytes().replace(
