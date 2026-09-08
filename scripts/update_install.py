@@ -206,7 +206,8 @@ def install(version: str, *, confirm: bool, root: Path = ROOT) -> dict:
                 raise ValueError("新版离线 CLI 验证失败，当前安装保持不变")
         # Check again after downloads and dependency setup, before any live mutation.
         preflight(root)
-        previous_cwd = Path.cwd()
+        # Resolve Windows 8.3 aliases too (CI TEMP often uses RUNNER~1).
+        previous_cwd = Path.cwd().resolve()
         try:
             # Windows can hold the process working directory open during a rename.
             if previous_cwd == root or root in previous_cwd.parents:
