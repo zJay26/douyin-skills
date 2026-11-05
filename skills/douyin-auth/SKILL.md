@@ -38,7 +38,7 @@ python "{baseDir}/../../scripts/cli.py" check-login
 python "{baseDir}/../../scripts/cli.py" get-qrcode
 ```
 
-2. 将 JSON 的 `qrcode_data_url` 作为图片展示给用户，不输出到公开日志。
+2. 从 JSON 的 `qrcode_path` 读取本地图片并展示给用户，不输出二维码内容到日志。二维码使用唯一私有临时目录；扫码结束或二维码过期后删除该文件及其空目录。
 3. 用户扫码后单次等待：
 
 ```bash
@@ -52,10 +52,10 @@ python "{baseDir}/../../scripts/cli.py" wait-login
 普通手机号页先取得用户明确提供的中国大陆手机号：
 
 ```bash
-python "{baseDir}/../../scripts/cli.py" send-code --phone <手机号>
+python "{baseDir}/../../scripts/cli.py" send-code --phone-stdin
 ```
 
-身份验证页已有绑定手机号入口时，不传手机号：
+通过进程标准输入传入一行手机号；交互终端会隐藏输入。不要把手机号拼入 shell 命令或 `echo`/`printf` 参数。普通短信登录页已由用户填写手机号时，可以不传手机号：
 
 ```bash
 python "{baseDir}/../../scripts/cli.py" send-code
@@ -64,10 +64,10 @@ python "{baseDir}/../../scripts/cli.py" send-code
 收到用户提供的 6 位验证码后提交：
 
 ```bash
-python "{baseDir}/../../scripts/cli.py" verify-code --code <6位验证码>
+python "{baseDir}/../../scripts/cli.py" verify-code --code-stdin
 ```
 
-不要在回复中重复完整手机号或验证码；不要保存这些一次性信息。
+通过进程标准输入传入一行验证码。也可用 `--phone-env <变量名>` / `--code-env <变量名>` 读取工具安全注入的环境变量；变量在本进程读取后移除，stdin 为首选。旧的 `--phone` / `--code` 仅为兼容保留并发出弃用警告，仍可能出现在进程列表和命令历史中。不要在回复中重复完整手机号或验证码；不要保存这些一次性信息。出现平台验证码、安全验证或风险页面时停止，交由用户人工处理。
 
 ## 多账号
 

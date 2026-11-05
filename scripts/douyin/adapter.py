@@ -11,6 +11,7 @@ from .page_states import (
     INACCESSIBLE_CONTENT_HINTS,
     RISK_PAGE_KEYWORDS,
     RISK_STRONG_HINTS,
+    has_risk_evidence,
 )
 
 _CONTENT_PATH_RE = re.compile(r"/(video|note)/(\d+)")
@@ -340,7 +341,9 @@ class DouyinAdapter:
 
     def is_risk_page(self, title: str, text: str) -> bool:
         combined = f"{title or ''}\n{text or ''}"
-        return any(keyword in combined for keyword in self.risk_page_keywords)
+        return has_risk_evidence(title, text) or any(
+            keyword in combined for keyword in self.risk_page_keywords
+        )
 
     def navigate_home(self, page) -> None:
         page.navigate(self.home_url)

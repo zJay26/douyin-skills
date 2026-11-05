@@ -11,6 +11,59 @@ FIXTURE_SCHEMA_VERSION = "1.0"
 FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "fixtures" / "page_states" / "v1"
 SUPPORTED_FIXTURE_FLOWS = {"detail", "login", "publish", "search", "trending"}
 RISK_PAGE_KEYWORDS = ["验证码", "安全验证", "风险提示", "身份验证"]
+RISK_ENGLISH_TEXT = re.compile(
+    r"\b(?:captcha|security (?:check|verification)|verify (?:you are|you're) human|"
+    r"slide to verify|drag (?:the )?slider)\b",
+    re.I,
+)
+RISK_SIGNAL_KEYS = (
+    "hasCaptchaFrame",
+    "hasCaptchaControl",
+    "hasCaptchaImage",
+    "hasChallengeUrl",
+    "riskDetectionFailed",
+)
+# An expression, embedded in each existing page snapshot so callers cannot lose
+# DOM evidence by reading only title/body text. Never return challenge URLs/data.
+RISK_DOM_SIGNALS_JS = r"""(() => {
+  const signals = {
+    hasCaptchaFrame: false, hasCaptchaControl: false,
+    hasCaptchaImage: false, hasChallengeUrl: false, riskDetectionFailed: false
+  };
+  try {
+    const marker = /captcha|geetest|hcaptcha|recaptcha|turnstile|verify[-_]?(?:slider|container|wrapper|dialog|bar)|secsdk[-_]verify/i;
+    const frameMarker = /captcha|geetest|turnstile|challenge|security[-_ /]?(?:check|verification)|\/verify(?:[/?#]|$)/i;
+    const visible = el => {
+      const style = getComputedStyle(el);
+      return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
+        && style.display !== 'none' && !['hidden', 'collapse'].includes(style.visibility);
+    };
+    const inspect = root => {
+      for (const el of root.querySelectorAll('iframe, img, [id], [class], [data-e2e], [data-testid]')) {
+        if (!visible(el)) continue;
+        const identity = ['id', 'class', 'data-e2e', 'data-testid', 'aria-label']
+          .map(key => el.getAttribute(key) || '').join(' ');
+        if (el.tagName === 'IFRAME') {
+          signals.hasCaptchaFrame ||= marker.test(identity) || frameMarker.test((el.getAttribute('src') || '') + ' ' + (el.getAttribute('title') || ''));
+          // Cross-origin frames expose no contentDocument; their outer markers
+          // still work. Do not access or try to solve a challenge inside them.
+          if (el.contentDocument) inspect(el.contentDocument);
+        } else if (el.tagName === 'IMG') {
+          signals.hasCaptchaImage ||= marker.test(identity + ' ' + (el.getAttribute('src') || ''));
+        } else {
+          signals.hasCaptchaControl ||= marker.test(identity);
+        }
+        if (el.shadowRoot) inspect(el.shadowRoot);
+      }
+    };
+    inspect(document);
+    signals.hasChallengeUrl = /(?:^|\/)(?:captcha|challenge|verify|verifycenter)(?:[\/_.-]|$)/i.test(location.pathname || '');
+    signals.riskDetectionFailed = !document.body;
+  } catch (_error) {
+    signals.riskDetectionFailed = true;
+  }
+  return signals;
+})()"""
 RISK_STRONG_HINTS = [
     "验证码中间页",
     "请完成验证",
@@ -65,9 +118,15 @@ SENSITIVE_STRING_PATTERNS = {
 }
 
 
-def has_risk_evidence(title: str = "", text: str = "") -> bool:
+def has_risk_evidence(
+    title: str = "", text: str = "", snapshot: dict | None = None
+) -> bool:
     combined = f"{title or ''}\n{text or ''}"
-    return any(keyword in combined for keyword in RISK_PAGE_KEYWORDS)
+    return (
+        any(keyword in combined for keyword in RISK_PAGE_KEYWORDS)
+        or bool(RISK_ENGLISH_TEXT.search(combined))
+        or any((snapshot or {}).get(key) is True for key in RISK_SIGNAL_KEYS)
+    )
 
 
 def classify_login_snapshot(snapshot: dict) -> dict:
@@ -82,8 +141,16 @@ def classify_login_snapshot(snapshot: dict) -> dict:
         bool(snapshot.get("hasRiskUi"))
         or int(snapshot.get("riskKeywordCount", 0) or 0) >= 2
     )
-    risk_page = bool(snapshot.get("hasRiskKeyword")) and (
-        explicit_risk_ui or not visible_authenticated_ui
+    risk_page = (
+        any(snapshot.get(key) is True for key in RISK_SIGNAL_KEYS)
+        or bool(
+            RISK_ENGLISH_TEXT.search(
+                f"{snapshot.get('title', '')}\n{snapshot.get('bodyText', '')}"
+            )
+        )
+        or bool(snapshot.get("hasRiskUi"))
+        or bool(snapshot.get("hasRiskKeyword"))
+        and (explicit_risk_ui or not visible_authenticated_ui)
     )
     high_confidence_marker = visible_authenticated_ui or has_auth_cookie
     logged_in = not risk_page and not has_login_panel and high_confidence_marker
@@ -98,7 +165,7 @@ def classify_search_snapshot(snapshot: dict) -> dict:
     title = str(snapshot.get("title") or "")
     text = str(snapshot.get("text") or "")
     items = snapshot.get("items") or []
-    if has_risk_evidence(title, text):
+    if has_risk_evidence(title, text, snapshot):
         return {"state": "risk", "risk_page": True, "count": 0}
     if not items and not text.strip():
         return {"state": "empty_or_blocked", "risk_page": True, "count": 0}
@@ -109,7 +176,7 @@ def classify_trending_snapshot(snapshot: dict) -> dict:
     title = str(snapshot.get("title") or "")
     text = str(snapshot.get("text") or "")
     topics = snapshot.get("topics") or []
-    if has_risk_evidence(title, text):
+    if has_risk_evidence(title, text, snapshot):
         return {"state": "risk", "risk_page": True, "count": 0}
     if not text.strip():
         return {"state": "empty_or_blocked", "risk_page": True, "count": 0}
@@ -131,7 +198,7 @@ def classify_detail_snapshot(
         if inaccessible_markers is not None
         else tuple(INACCESSIBLE_CONTENT_HINTS)
     )
-    if has_risk_evidence(title, text):
+    if has_risk_evidence(title, text, snapshot):
         return {"state": "risk", "risk_page": True, "available": False}
     if any(hint in text for hint in markers):
         return {"state": "unavailable", "risk_page": False, "available": False}

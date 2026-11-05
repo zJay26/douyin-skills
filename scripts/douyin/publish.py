@@ -7,9 +7,11 @@ from pathlib import Path
 from platform_adapter import PlatformAdapter, resolve_adapter
 
 from .page_states import (
+    RISK_DOM_SIGNALS_JS,
     classify_publish_outcome,
     classify_publish_snapshot,
     classify_video_publish_snapshot,
+    has_risk_evidence,
 )
 
 SUPPORTED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
@@ -90,12 +92,13 @@ def _resolve_video_path(video: str) -> str:
 def _page_snapshot(page) -> dict:
     return (
         page.evaluate(
-            """
-        (() => ({
+            f"""
+        (() => ({{
+          ...{RISK_DOM_SIGNALS_JS},
           href: location.href || '',
           title: document.title || '',
           text: (document.body?.innerText || '').slice(0, 3000)
-        }))()
+        }}))()
         """
         )
         or {}
@@ -132,8 +135,10 @@ def _risk_result(
     state = _page_snapshot(page)
     title = state.get("title", "") or ""
     text = state.get("text", "") or ""
-    risk = adapter.is_risk_page(title, text) or any(
-        k in title or k in text for k in adapter.risk_strong_hints
+    risk = (
+        has_risk_evidence(title, text, state)
+        or adapter.is_risk_page(title, text)
+        or any(k in title or k in text for k in adapter.risk_strong_hints)
     )
     if not risk:
         return None
@@ -422,6 +427,7 @@ def _video_publish_snapshot(page, adapter: PlatformAdapter) -> dict:
                 el => (el.innerText || '').trim() === {publish_button_text}
               );
               return {{
+                ...{RISK_DOM_SIGNALS_JS},
                 href: location.href || '',
                 page_title: document.title || '',
                 title: normalize(titleEl?.value),
@@ -821,6 +827,9 @@ def select_music(
     wrong_page = _wrong_publish_page_result(page, adapter)
     if wrong_page:
         return wrong_page
+    risk = _risk_result(page, "当前处于验证码/风控页，无法打开音乐面板。", adapter)
+    if risk:
+        return risk
     preferred = [x.strip() for x in (preferred or []) if x and x.strip()]
     if not preferred:
         preferred = [
@@ -1056,6 +1065,7 @@ def validate_publish_state(
       if (!hasMusic) errors.push('未选择音乐');
       if ({"true" if require_topic else "false"} && !hasTopic) errors.push('未关联热点');
       return {{
+        ...{RISK_DOM_SIGNALS_JS},
         success: errors.length === 0,
         requireTopic: {"true" if require_topic else "false"},
         title: title,
@@ -1076,9 +1086,13 @@ def validate_publish_state(
     if isinstance(state, dict) and state:
         page_title = state.get("page_title", "") or ""
         page_text = state.get("text", "") or ""
-        is_risk = adapter.is_risk_page(page_title, page_text) or any(
-            hint in page_title or hint in page_text
-            for hint in adapter.risk_strong_hints
+        is_risk = (
+            has_risk_evidence(page_title, page_text, state)
+            or adapter.is_risk_page(page_title, page_text)
+            or any(
+                hint in page_title or hint in page_text
+                for hint in adapter.risk_strong_hints
+            )
         )
         if is_risk:
             return {
@@ -1116,9 +1130,13 @@ def validate_video_publish_state(
     if state:
         page_title = state.get("page_title", "") or ""
         page_text = state.get("text", "") or ""
-        is_risk = adapter.is_risk_page(page_title, page_text) or any(
-            hint in page_title or hint in page_text
-            for hint in adapter.risk_strong_hints
+        is_risk = (
+            has_risk_evidence(page_title, page_text, state)
+            or adapter.is_risk_page(page_title, page_text)
+            or any(
+                hint in page_title or hint in page_text
+                for hint in adapter.risk_strong_hints
+            )
         )
         if is_risk:
             return {

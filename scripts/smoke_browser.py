@@ -15,6 +15,32 @@ from urllib.parse import quote
 
 from browser_runtime import Browser, CDPError
 from chrome_launcher import launch_chrome
+from douyin.page_states import RISK_DOM_SIGNALS_JS, has_risk_evidence
+
+
+def check_risk_dom(page) -> None:
+    """Exercise real visibility/layout without contacting a platform or account."""
+    visible = 'style="display:block;width:120px;height:60px"'
+    cases = (
+        (f'<iframe title="CAPTCHA" src="about:blank" {visible}></iframe>', True),
+        (f'<iframe src="about:blank#captcha" {visible}></iframe>', True),
+        (f'<div class="secsdk-captcha-drag-icon" {visible}></div>', True),
+        (f'<div id="verify_slider" {visible}></div>', True),
+        (f'<img class="captcha-image" {visible}>', True),
+        ('<div class="captcha" style="display:none"></div>', False),
+        (
+            f'<div class="captcha" {visible.replace("display:block", "visibility:hidden")}></div>',
+            False,
+        ),
+        (f'<input type="range" class="video-volume-slider" {visible}>', False),
+        ('<input autocomplete="one-time-code" class="sms-code">', False),
+        (f'<img alt="二维码" class="login-qrcode" {visible}><canvas></canvas>', False),
+    )
+    for markup, expected in cases:
+        page.evaluate(f"document.body.innerHTML = {json.dumps(markup)}")
+        snapshot = page.evaluate(RISK_DOM_SIGNALS_JS)
+        if has_risk_evidence(snapshot=snapshot) != expected:
+            raise RuntimeError(f"synthetic risk DOM mismatch: {snapshot}")
 
 
 def smoke_browser() -> dict:
@@ -80,6 +106,7 @@ def smoke_browser() -> dict:
                 raise RuntimeError(
                     "JavaScript exception was incorrectly reported as success"
                 )
+            check_risk_dom(page)
             return {
                 "success": True,
                 "browser": version["browser"],
@@ -90,6 +117,7 @@ def smoke_browser() -> dict:
                     "file_upload",
                     "single_click",
                     "javascript_exception",
+                    "risk_dom_signals_and_visibility",
                 ],
                 "page_source": "synthetic data URL",
                 "used_real_account": False,

@@ -6,9 +6,11 @@ import time
 from platform_adapter import PlatformAdapter, resolve_adapter
 
 from .page_states import (
+    RISK_DOM_SIGNALS_JS,
     classify_detail_snapshot,
     classify_search_snapshot,
     classify_trending_snapshot,
+    has_risk_evidence,
 )
 from .waiters import wait_for_meaningful_text
 
@@ -24,9 +26,14 @@ def _extract_author_id(url: str, adapter: PlatformAdapter | None = None) -> str:
 
 
 def _is_risk_page(
-    title: str, text: str, adapter: PlatformAdapter | None = None
+    title: str,
+    text: str,
+    adapter: PlatformAdapter | None = None,
+    snapshot: dict | None = None,
 ) -> bool:
-    return resolve_adapter(adapter).is_risk_page(title, text)
+    return has_risk_evidence(title, text, snapshot) or resolve_adapter(
+        adapter
+    ).is_risk_page(title, text)
 
 
 def list_feeds(page, adapter: PlatformAdapter | None = None) -> dict:
@@ -36,7 +43,7 @@ def list_feeds(page, adapter: PlatformAdapter | None = None) -> dict:
     seed = wait_for_meaningful_text(page, timeout=45, min_len=80)
     title = seed.get("title", "") or ""
     text = seed.get("text", "") or ""
-    if _is_risk_page(title, text, adapter):
+    if _is_risk_page(title, text, adapter, seed):
         return {
             "success": False,
             "count": 0,
@@ -57,6 +64,7 @@ def list_feeds(page, adapter: PlatformAdapter | None = None) -> dict:
         raw = page.evaluate(
             f"""
             (() => JSON.stringify({{
+              ...{RISK_DOM_SIGNALS_JS},
               title: document.title || '',
               text: (document.body?.innerText || '').trim().slice(0, 4000),
               videos: Array.from(document.querySelectorAll({feed_selector})).slice(0, 20).map(card => {{
@@ -86,13 +94,13 @@ def list_feeds(page, adapter: PlatformAdapter | None = None) -> dict:
             """
         )
         page_info = json.loads(raw) if raw else {}
-        if page_info.get("videos"):
+        if page_info.get("videos") or _is_risk_page("", "", adapter, page_info):
             break
         time.sleep(1)
 
     title = page_info.get("title", "") or title
     text = page_info.get("text", "") or text
-    if _is_risk_page(title, text, adapter):
+    if _is_risk_page(title, text, adapter, page_info):
         return {
             "success": False,
             "count": 0,
@@ -120,7 +128,7 @@ def search_videos(
     adapter.navigate_search(page, keyword)
     page.wait_for_load(20)
     seed = wait_for_meaningful_text(page, timeout=45, min_len=80)
-    if _is_risk_page(seed.get("title", ""), seed.get("text", ""), adapter):
+    if _is_risk_page(seed.get("title", ""), seed.get("text", ""), adapter, seed):
         return {
             "success": False,
             "keyword": keyword,
@@ -169,19 +177,19 @@ def search_videos(
                 }});
                 if (items.length >= 20) break;
               }}
-              return {{ title, text: text.slice(0, 3000), items, hrefCount: anchors.length }};
+              return {{ ...{RISK_DOM_SIGNALS_JS}, title, text: text.slice(0, 3000), items, hrefCount: anchors.length }};
             }})()
             """
             )
             or {}
         )
-        if page_info.get("items"):
+        if page_info.get("items") or _is_risk_page("", "", adapter, page_info):
             break
         time.sleep(1)
     title = page_info.get("title", "") or seed.get("title", "")
     text = page_info.get("text", "") or seed.get("text", "")
     classification = classify_search_snapshot(
-        {"title": title, "text": text, "items": page_info.get("items", [])}
+        {**page_info, "title": title, "text": text, "items": page_info.get("items", [])}
     )
     if classification["state"] == "risk" or _is_risk_page(title, text, adapter):
         return {
@@ -237,7 +245,7 @@ def get_trending_topics(page, adapter: PlatformAdapter | None = None) -> dict:
     seed = wait_for_meaningful_text(page, timeout=45, min_len=60)
     title = seed.get("title", "") or ""
     text = seed.get("text", "") or ""
-    if _is_risk_page(title, text, adapter):
+    if _is_risk_page(title, text, adapter, seed):
         return {
             "success": False,
             "count": 0,
@@ -307,20 +315,20 @@ def get_trending_topics(page, adapter: PlatformAdapter | None = None) -> dict:
               if (topics.length >= 20) break outer;
             }}
           }}
-          return {{ title, text: bodyText, topics }};
+          return {{ ...{RISK_DOM_SIGNALS_JS}, title, text: bodyText, topics }};
         }})()
         """
             )
             or {}
         )
-        if data.get("topics"):
+        if data.get("topics") or _is_risk_page("", "", adapter, data):
             break
         time.sleep(1)
     title = data.get("title", "") or title
     text = data.get("text", "") or text
     topics = data.get("topics", []) or []
     classification = classify_trending_snapshot(
-        {"title": title, "text": text, "topics": topics}
+        {**data, "title": title, "text": text, "topics": topics}
     )
     if classification["state"] == "risk" or _is_risk_page(title, text, adapter):
         return {
@@ -399,6 +407,7 @@ def get_video_detail(
             if (comments.length) break;
           }}
           return JSON.stringify({{
+            ...{RISK_DOM_SIGNALS_JS},
             title,
             description,
             comments,
@@ -411,6 +420,14 @@ def get_video_detail(
         page.navigate(url)
         page.wait_for_load(20)
         seed = wait_for_meaningful_text(page, timeout=45, min_len=40)
+        if _is_risk_page(seed.get("title", ""), seed.get("text", ""), adapter, seed):
+            return {
+                "success": False,
+                "video_id": content_id,
+                "risk_page": True,
+                "message": "当前处于验证码/风控页，无法抓取作品详情。",
+                "page_title": seed.get("title", ""),
+            }
         detail: dict = {}
         for _ in range(8):
             detail_raw = page.evaluate(detail_script)
