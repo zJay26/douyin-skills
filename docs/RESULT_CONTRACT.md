@@ -82,3 +82,39 @@ JSON is authoritative for program behavior; exit codes are a coarse shell-level 
 4. Never retry an irreversible action when its prior result is unconfirmed.
 5. Preserve `needs_user_verification` as a supported pause state rather than treating it as a bypass target.
 6. Avoid logging or transmitting account configuration, cookies, QR codes, phone numbers, or Chrome profile data.
+
+## Sensitive authentication input
+
+Use `send-code --phone-stdin` and `verify-code --code-stdin` to read one line
+from the parent process's standard-input pipe. An interactive terminal uses a
+no-echo prompt. Do not interpolate secrets into shell commands, including
+`echo` or `printf`. For example, a Python caller can use
+`subprocess.run([sys.executable, "scripts/cli.py", "verify-code", "--code-stdin"], input=code + "\n", text=True)`.
+
+`--phone-env NAME` and `--code-env NAME` are mutually exclusive alternatives
+that consume an environment variable before launching Chrome or Node. Environment
+values can still be inspected by processes with sufficient privileges; prefer
+stdin. Authentication commands do not launch background update workers.
+Missing/empty explicit sources fail with exit code `2`. `send-code` without an
+input source continues to use a number already entered on the ordinary SMS login
+page. Platform safety/identity challenges remain manual checkpoints.
+
+The old `--phone VALUE` and `--code VALUE` flags remain accepted with a
+value-free deprecation warning on stderr. They **still expose values in argv and
+possibly shell history**; callers must migrate to remove that exposure.
+
+`get-qrcode` returns `qrcode_path` only, without `qrcode_data_url`. Each image is
+created exclusively in a unique private temporary directory, with POSIX directory
+mode `0700` and file mode `0600`. Windows uses the current user's temporary
+directory and inherited ACLs; POSIX mode bits are not an ACL guarantee. Display
+the local image without logging its contents, then delete the image and its empty
+directory after scanning or expiry. No pre-existing shared temporary path is used.
+
+Visible captcha frame/control/image markers, verification URLs, English challenge
+text, and failed DOM inspection stop the operation. Hidden challenge templates,
+ordinary SMS fields, login QR images, and unmarked player sliders do not themselves
+signal a challenge. Detection is conservative evidence checking, not a captcha
+solver or proof that every future platform challenge can be recognized.
+
+See the [issue #25 audit](./SECURITY_REVIEW_25.md) for item-by-item status and
+regression coverage.

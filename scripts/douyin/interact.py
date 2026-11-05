@@ -5,6 +5,8 @@ import time
 
 from platform_adapter import PlatformAdapter, resolve_adapter
 
+from .page_states import RISK_DOM_SIGNALS_JS, has_risk_evidence
+
 ACTION_STATE_TIMEOUT = 3.0
 ACTION_STATE_INTERVAL = 0.4
 
@@ -243,15 +245,22 @@ def _open_detail(page, item_id: str, adapter: PlatformAdapter | None = None) -> 
         page.navigate(url)
         page.wait_for_load(20)
         time.sleep(5)
-        title = page.evaluate("document.title || ''") or ""
-        body = (
+        snapshot = (
             page.evaluate(
-                "(document.body && document.body.innerText || '').slice(0, 3000)"
+                f"""(() => ({{
+              ...{RISK_DOM_SIGNALS_JS},
+              title: document.title || '', href: location.href || '',
+              text: (document.body?.innerText || '').slice(0, 3000)
+            }}))()"""
             )
-            or ""
+            or {}
         )
-        href = page.evaluate("location.href || ''") or ""
-        if adapter.is_risk_page(title, body):
+        title = snapshot.get("title", "")
+        body = snapshot.get("text", "")
+        href = snapshot.get("href", "")
+        if has_risk_evidence(title, body, snapshot) or adapter.is_risk_page(
+            title, body
+        ):
             return {
                 "success": False,
                 "risk_page": True,

@@ -169,11 +169,11 @@ class PlatformAdapterTests(unittest.TestCase):
             },
         )
         page = mock.Mock()
-        page.evaluate.side_effect = [
-            "title",
-            "收藏 分享 评论",
-            "https://adapter.example/post/123",
-        ]
+        page.evaluate.return_value = {
+            "title": "title",
+            "text": "收藏 分享 评论",
+            "href": "https://adapter.example/post/123",
+        }
 
         result = interact._open_detail(page, "123", adapter=adapter)
 

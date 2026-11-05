@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import getpass
 import hashlib
 import json
 import os
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 
 from account_manager import (
@@ -413,10 +415,41 @@ def cmd_wait_login(args: argparse.Namespace) -> None:
     _output(result, exit_code=0 if result.get("logged_in") else 1)
 
 
+def _sensitive_input(args: argparse.Namespace, name: str) -> str:
+    """Read one secret without putting it in a subprocess argument or diagnostic."""
+    if getattr(args, f"{name}_stdin", False):
+        try:
+            if sys.stdin.isatty():
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", getpass.GetPassWarning)
+                    value = getpass.getpass(f"{name}: ")
+            else:
+                value = sys.stdin.readline(4097)
+        except (EOFError, getpass.GetPassWarning) as exc:
+            raise ValueError("无法安全读取敏感输入") from exc
+    elif getattr(args, f"{name}_env", None) is not None:
+        # Do not pass the consumed environment secret on to Chrome or Node.
+        value = os.environ.pop(getattr(args, f"{name}_env"), "")
+    else:
+        value = getattr(args, name, "") or ""
+        if value:
+            print(
+                f"警告：--{name} 已弃用，可能泄露到进程列表和命令历史；"
+                f"请改用 --{name}-stdin 或 --{name}-env。",
+                file=sys.stderr,
+            )
+        return value
+    value = value.strip()
+    if not value or len(value) > 4096:
+        raise ValueError(f"{name} 敏感输入为空或过长")
+    return value
+
+
 def cmd_send_code(args: argparse.Namespace) -> None:
+    phone = _sensitive_input(args, "phone")
     adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = send_code(page, getattr(args, "phone", "") or "", adapter=adapter)
+    result = send_code(page, phone, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
         args, result, "发送验证码时检测到验证码/风控", adapter
     )
@@ -426,9 +459,10 @@ def cmd_send_code(args: argparse.Namespace) -> None:
 
 
 def cmd_verify_code(args: argparse.Namespace) -> None:
+    code = _sensitive_input(args, "code")
     adapter = get_default_adapter()
     _browser, page = _connect(args)
-    result = verify_code(page, args.code, adapter=adapter)
+    result = verify_code(page, code, adapter=adapter)
     switched = _maybe_switch_to_headed_for_risk(
         args, result, "提交验证码时检测到验证码/风控", adapter
     )
@@ -783,10 +817,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     p = sub.add_parser("send-code")
-    p.add_argument("--phone", default="")
+    group = p.add_mutually_exclusive_group()
+    group.add_argument("--phone", default="", help="已弃用：请使用安全输入选项")
+    group.add_argument(
+        "--phone-stdin", action="store_true", help="从标准输入读取手机号"
+    )
+    group.add_argument("--phone-env", metavar="NAME", help="从指定环境变量读取手机号")
 
     p = sub.add_parser("verify-code")
-    p.add_argument("--code", required=True)
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument("--code", help="已弃用：请使用安全输入选项")
+    group.add_argument("--code-stdin", action="store_true", help="从标准输入读取验证码")
+    group.add_argument("--code-env", metavar="NAME", help="从指定环境变量读取验证码")
 
     p = sub.add_parser("add-account")
     p.add_argument("--name", required=True)
@@ -888,6 +930,8 @@ def main(argv: list[str] | None = None, *, background_updates: bool = False) -> 
         "remove-account",
         "set-default-account",
         "update-account",
+        "send-code",
+        "verify-code",
     }:
         start_worker()
         _include_update_notification = True

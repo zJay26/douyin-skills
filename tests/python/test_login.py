@@ -126,6 +126,7 @@ class LoginTests(unittest.TestCase):
 
     def test_qrcode_data_is_written_to_a_nonempty_temporary_file(self) -> None:
         page = mock.Mock()
+        page.evaluate.return_value = {}
         data_url = "data:image/png;base64,aGVsbG8="
         with (
             tempfile.TemporaryDirectory() as temp_dir,
@@ -140,14 +141,14 @@ class LoginTests(unittest.TestCase):
 
     def test_valid_phone_dispatches_one_code_request(self) -> None:
         page = mock.Mock()
-        page.evaluate.side_effect = [True, True]
+        page.evaluate.side_effect = [{}, True, True]
 
         result = login.send_code(page, "+86 138-0013-8000")
 
         self.assertTrue(result["success"])
         self.assertEqual(result["status"], "code_sent")
-        self.assertEqual(page.evaluate.call_count, 2)
-        self.assertIn("13800138000", page.evaluate.call_args_list[0].args[0])
+        self.assertEqual(page.evaluate.call_count, 3)
+        self.assertIn("13800138000", page.evaluate.call_args_list[1].args[0])
 
     def test_valid_code_reports_confirmed_login(self) -> None:
         page = mock.Mock()

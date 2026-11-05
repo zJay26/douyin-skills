@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import base64
 import binascii
+import contextlib
 import json
+import os
 import re
 import tempfile
 import time
@@ -10,7 +12,7 @@ from pathlib import Path
 
 from platform_adapter import PlatformAdapter, resolve_adapter
 
-from .page_states import classify_login_snapshot
+from .page_states import RISK_DOM_SIGNALS_JS, RISK_SIGNAL_KEYS, classify_login_snapshot
 
 LOGIN_STATE_SETTLE_TIMEOUT = 8.0
 LOGIN_STATE_SETTLE_INTERVAL = 1.0
@@ -69,6 +71,7 @@ def inspect_login_state(page, adapter: PlatformAdapter | None = None) -> dict:
       const hasAuthCookie = cookies.split(';').some(cookie => authCookieNames.includes(cookie.trim().split('=', 1)[0]));
       const hasRiskKeyword = hasRiskStrongHint || hasRiskUi || riskKeywordCount >= 2;
       return {{
+        ...{RISK_DOM_SIGNALS_JS},
         title,
         href,
         bodyText: bodyText.slice(0, 5000),
@@ -112,6 +115,7 @@ def check_login_state(page, adapter: PlatformAdapter | None = None) -> dict:
                 "riskKeywordCount",
                 "hasLoginPanel",
                 "cookieLength",
+                *RISK_SIGNAL_KEYS,
             ]
         },
     }
@@ -192,6 +196,14 @@ def get_qrcode(page, adapter: PlatformAdapter | None = None) -> dict:
     deadline = time.time() + 20
     data_url = None
     while time.time() < deadline:
+        state = check_login_state(page, adapter=adapter)
+        if state.get("risk_page"):
+            return {
+                "success": False,
+                "risk_page": True,
+                "error": "当前处于验证码/风控页，无法读取登录二维码",
+                "state": state,
+            }
         data_url = _find_qrcode_data_url(page, adapter=adapter)
         if data_url:
             break
@@ -206,18 +218,39 @@ def get_qrcode(page, adapter: PlatformAdapter | None = None) -> dict:
                 "state": state,
             }
         return {"success": False, "error": "未找到可读取的登录二维码"}
-    out_dir = Path(tempfile.gettempdir()) / "douyin-skills"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "douyin-login-qrcode.png"
     try:
+        if (
+            not isinstance(data_url, str)
+            or not data_url.startswith("data:image/")
+            or ";base64," not in data_url
+        ):
+            raise ValueError("invalid image data URL")
         encoded = data_url.split(",", 1)[1]
-        out_path.write_bytes(base64.b64decode(encoded, validate=True))
-    except (IndexError, ValueError, binascii.Error) as exc:
-        return {"success": False, "error": f"二维码数据无效：{exc}"}
+        image = base64.b64decode(encoded, validate=True)
+        if not image:
+            raise ValueError("empty image")
+    except (IndexError, ValueError, binascii.Error):
+        return {"success": False, "error": "二维码数据无效"}
+    out_dir = Path(tempfile.mkdtemp(prefix="douyin-skills-qrcode-"))
+    out_path = None
+    try:
+        os.chmod(out_dir, 0o700)
+        descriptor, name = tempfile.mkstemp(prefix="login-", suffix=".png", dir=out_dir)
+        out_path = Path(name)
+        with os.fdopen(descriptor, "wb") as stream:
+            if hasattr(os, "fchmod"):
+                os.fchmod(stream.fileno(), 0o600)
+            stream.write(image)
+    except OSError:
+        if out_path is not None:
+            with contextlib.suppress(OSError):
+                out_path.unlink()
+        with contextlib.suppress(OSError):
+            out_dir.rmdir()
+        return {"success": False, "error": "无法安全保存登录二维码"}
     return {
         "success": True,
         "qrcode_path": str(out_path),
-        "qrcode_data_url": data_url,
         "message": "请使用抖音 App 扫码登录",
     }
 
@@ -271,6 +304,15 @@ def send_code(page, phone: str = "", adapter: PlatformAdapter | None = None) -> 
             phone = phone[2:]
     adapter.navigate_home(page)
     page.wait_for_load(20)
+    state = check_login_state(page, adapter=adapter)
+    if state.get("risk_page"):
+        return {
+            "success": False,
+            "status": "failed",
+            "risk_page": True,
+            "message": "当前处于验证码/风控页，无法发送验证码",
+            "state": state,
+        }
     if phone:
         page.evaluate(
             f"""
@@ -330,6 +372,15 @@ def verify_code(page, code: str, adapter: PlatformAdapter | None = None) -> dict
     code = str(code or "").strip()
     if not re.fullmatch(r"\d{6}", code):
         return {"success": False, "logged_in": False, "error": "验证码必须是 6 位数字"}
+    state = check_login_state(page, adapter=adapter)
+    if state.get("risk_page"):
+        return {
+            "success": False,
+            "logged_in": False,
+            "risk_page": True,
+            "message": "当前处于验证码/风控页，请先完成人工验证",
+            "state": state,
+        }
     ok = page.evaluate(
         f"""
         (() => {{
